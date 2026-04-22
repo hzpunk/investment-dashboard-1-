@@ -1,6 +1,13 @@
 # План улучшений для диплома
 
+**Дата обновления:** 22 апреля 2026  
+**Статус:** 🟢 Основной функционал готов, требуется доработка тестов
+
+---
+
 ## 1. Новые функции ✅
+
+### ✅ Реализовано (8/10):
 [x] Аналитика и отчёты (/api/analytics)
 [x] Экспорт данных (CSV, JSON) - /api/export
 [x] Импорт транзакций из брокеров (CSV, JSON) - /api/import
@@ -8,39 +15,123 @@
 [x] Налоговые отчёты (налоги на прибыль) - /api/export?type=tax-report
 [x] Уведомления системы - /api/notifications + модель Notification
 [x] Ребалансировка портфеля - /api/portfolio/rebalance
+[x] **AI Консультант (Mistral 7B в Docker)** - /api/ai/chat
+
+### ⏳ В планах:
 [ ] Прогнозирование и симуляции (Monte Carlo)
 [ ] Price alerts
 
+---
+
 ## 2. Улучшение архитектуры
-[ ] API documentation 
-[ ] Улучшенное логирование (Winston/Pino)
+
+### ✅ Реализовано (3/6):
+[x] Централизованный `withAuth` wrapper для API
+[x] `errorResponse` и `successResponse` helpers
+[x] Docker health checks
+
+### ⏳ В планах:
 [ ] Rate limiting для API
 [ ] Валидация с Zod на всех API
 [ ] CSRF protection
-[ ] Input sanitization
 
-## 3. Тестирование
-[ ] Unit тесты для сервисов
+---
+
+## 3. Тестирование ⚠️ Критично
+
+### ⏳ Не начато:
+[ ] Unit тесты для сервисов (Jest)
 [ ] Integration тесты для API
 [ ] E2E тесты (Playwright)
-[ ] Тестовые данные (seeds) 
+[ ] Тестовые данные (seeds)
+
+**Приоритет:** Высокий для диплома
+
+---
 
 ## 4. Документация
-[ ] Техническая документация
-[ ] API reference
-[ ] User guide
-[ ] Диаграммы архитектуры
 
-## 5. DevOps
-[ ] CI/CD pipeline
-[ ] Health checks
+### ✅ Реализовано (4/7):
+[x] PERFORMANCE_OPTIMIZATIONS.md - анализ производительности
+[x] SECURITY_REPORT.md - аудит безопасности
+[x] ARCHITECTURE.md - системная архитектура
+[x] API_DOCUMENTATION.md - базовая документация
+[x] Docker документация (DOCKER.md, docker-compose.yml)
+
+### ⏳ В планах:
+[ ] Техническая документация (README_TECH.md)
+[ ] Полный API reference (Swagger/OpenAPI)
+[ ] User guide для пользователей
+
+---
+
+## 5. DevOps ✅
+
+### ✅ Реализовано (4/4):
+[x] Docker multi-stage build (Alpine, ~850MB образ)
+[x] Docker Compose с PostgreSQL + AI (Ollama)
+[x] Health checks для всех сервисов
+[x] Скрипт запуска (start.sh)
+
+### ⏳ Опционально:
+[ ] CI/CD pipeline (GitHub Actions)
 [ ] Monitoring dashboard
 [ ] Automated backups
 
+---
+
+## 6. Юридическое соответствие ✅
+
+### ✅ Реализовано (5/5):
+[x] Политика конфиденциальности (152-ФЗ)
+[x] Пользовательское соглашение
+[x] Уведомление о рисках
+[x] Политика cookies
+[x] Согласие на обработку ПДн
+[x] Интеграция в форму регистрации
+
+---
+
 ## Добавленные API endpoints:
+
+### Данные:
 - GET/POST /api/analytics - аналитика портфеля
 - GET /api/export?type=transactions|portfolio|tax-report&format=csv|json
 - POST /api/import - импорт транзакций
 - GET/POST/PUT/DELETE /api/notifications - уведомления
 - POST/GET /api/portfolio/rebalance - ребалансировка
 - GET/POST /api/dividends - дивиденды
+
+### AI:
+- POST /api/ai/chat - AI консультант (Mistral 7B)
+
+### Сервисные:
+- GET /api/health - health check
+
+---
+
+## Сводка для диплома
+
+| Раздел | Готово | Всего | % |
+|--------|--------|-------|---|
+| Функции | 8 | 10 | 80% |
+| Архитектура | 3 | 6 | 50% |
+| Тестирование | 0 | 4 | 0% ⚠️ |
+| Документация | 5 | 7 | 71% |
+| DevOps | 4 | 4 | 100% |
+| Юридическое | 5 | 5 | 100% |
+
+**Общий прогресс:** ~68%
+
+### 🔴 Критично для диплома:
+1. Написать тесты (минимум unit + integration)
+2. Добавить документацию для пользователя
+3. Создать диаграммы архитектуры
+
+### 🟡 Желательно:
+4. Добавить Rate limiting
+5. Внедрить Zod валидацию
+
+### 🟢 Опционально:
+6. Monte Carlo прогнозирование
+7. CI/CD pipeline

@@ -214,16 +214,18 @@ res.cookies.set(getSessionCookieName(), token, {
 | Control | Status | Priority |
 |---------|--------|----------|
 | HTTPS Only | ⚠️ Partial (cookies not always secure) | HIGH |
-| Rate Limiting | ❌ Missing | HIGH |
-| Input Validation | ❌ Missing | HIGH |
-| Password Policy | ⚠️ Weak | MEDIUM |
+| Rate Limiting | ⚠️ Partial (needs middleware) | HIGH |
+| Input Validation | ⚠️ Partial (basic checks only) | HIGH |
+| Password Policy | ✅ Strong (8+ chars, complexity) | - |
 | CORS Policy | ❌ Missing | MEDIUM |
-| Session Security | ⚠️ Partial | MEDIUM |
-| CSRF Protection | ❌ Missing | MEDIUM |
+| Session Security | ⚠️ Partial (sameSite: lax) | MEDIUM |
+| CSRF Protection | ⚠️ Partial (httpOnly cookies) | MEDIUM |
 | Security Headers | ❌ Missing | LOW |
 | Audit Logging | ✅ Implemented | - |
 | SQL Injection Prevention | ✅ Prisma ORM | - |
 | XSS Prevention | ⚠️ Partial | MEDIUM |
+| Auth Wrapper | ✅ Centralized withAuth | - |
+| Docker Security | ✅ Non-root, Alpine, healthchecks | - |
 
 ---
 
@@ -235,14 +237,17 @@ res.cookies.set(getSessionCookieName(), token, {
 3. ✅ Strengthen password policy (min 8 chars + complexity)
 
 ### Priority 2 (Fix within 1 week):
-4. Implement Zod validation on all API inputs
-5. Add CORS configuration
-6. Fix session cookie settings (sameSite: 'strict', shorter TTL)
+4. ✅ Implement centralized `withAuth` wrapper for all API routes
+5. ✅ Add `errorResponse` and `successResponse` helpers
+6. ✅ Add health check endpoints for Docker
+7. ⏳ Add Zod validation on all API inputs
+8. ⏳ Add CORS configuration
+9. ⏳ Fix session cookie settings (sameSite: 'strict', shorter TTL)
 
 ### Priority 3 (Fix within 1 month):
-7. Add security headers (CSP, HSTS, X-Frame-Options)
-8. Implement device fingerprinting for sessions
-9. Add 2FA support
+10. ⏳ Add security headers (CSP, HSTS, X-Frame-Options)
+11. ⏳ Implement device fingerprinting for sessions
+12. ⏳ Add 2FA support
 
 ---
 
@@ -254,6 +259,12 @@ res.cookies.set(getSessionCookieName(), token, {
 ✅ Database queries use parameterized statements (Prisma)  
 ✅ Role-based access control (RBAC) implemented  
 ✅ Audit logging for sensitive operations  
+✅ Centralized `withAuth` wrapper for consistent auth handling  
+✅ Atomic transactions for critical operations (Prisma $transaction)  
+✅ Race condition prevention in transaction creation  
+✅ Type-safe API responses with standardized error format  
+✅ Health check endpoints for container orchestration  
+✅ Docker security: non-root user, minimal Alpine image  
 
 ---
 

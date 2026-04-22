@@ -26,11 +26,17 @@
 - Recharts (визуализация)
 - React Hook Form + Zod (валидация)
 
+**AI & ML:**
+- Ollama (локальный LLM сервер)
+- Mistral 7B (AI консультант)
+- Docker deployment
+
 **DevOps & Quality:**
-- Docker + Docker Compose
+- Docker + Docker Compose (multi-stage build)
 - Jest + Testing Library
 - ESLint + Husky (pre-commit hooks)
 - Sentry (мониторинг ошибок)
+- Health checks (API + DB + AI)
 
 ### Архитектура проекта
 
@@ -44,10 +50,12 @@ app/
 │   ├── transactions/      # Транзакции
 │   ├── goals/             # Финансовые цели
 │   ├── settings/          # Настройки профиля
-│   └── admin/             # Админ-панель
+│   ├── admin/             # Админ-панель
+│   └── legal/             # Правовые документы
 ├── api/
 │   ├── auth/              # Регистрация/логин/логаут
-│   └── data/              # CRUD API для сущностей
+│   ├── data/              # CRUD API для сущностей
+│   └── ai/                # AI консультант
 ├── login/                 # Страница входа
 └── register/              # Регистрация
 
@@ -63,7 +71,15 @@ lib/                       # Утилиты и клиенты
 ├── prisma.ts             # Prisma client
 ├── auth.ts               # Session management
 ├── password.ts           # Password hashing
-└── api-auth.ts           # API auth helpers
+├── api-auth.ts           # API auth helpers
+└── api-handler.ts        # Centralized API helpers
+
+docs/legal/                # Юридические документы
+├── privacy-policy.md
+├── terms-of-service.md
+├── risk-disclosure.md
+├── cookie-policy.md
+└── personal-data-consent.md
 
 prisma/
 └── schema.prisma         # Модели БД
@@ -98,17 +114,32 @@ prisma/
 **Goal** - Финансовые цели
 - id, userId, name, targetAmount, currentAmount, targetDate
 
+**Notification** - Уведомления системы
+- id, userId, title, message, type, isRead, createdAt
+
+**AuditLog** - Журнал аудита
+- id, userId, action, entityType, entityId, details, createdAt
+
 ### Запуск проекта
 
 #### Вариант 1: Docker (рекомендуется для сдачи)
 
 ```bash
-# Сборка и запуск
+# Быстрый запуск с помощью скрипта
+./start.sh
+
+# Или вручную
 docker-compose up --build
 
 # Приложение доступно на http://localhost:3000
 # PostgreSQL на порту 5432
+# AI сервис на порту 11434
 ```
+
+**Сервисы Docker:**
+- `app` — Next.js приложение (порт 3000)
+- `db` — PostgreSQL 16 (порт 5432)
+- `ai` — Ollama с Mistral 7B (порт 11434)
 
 #### Вариант 2: Локальная разработка
 
@@ -185,6 +216,8 @@ pnpm lint
 - `GET /api/notifications` - Уведомления пользователя
 - `GET /api/portfolio/rebalance` - Стратегии ребалансировки
 - `POST /api/portfolio/rebalance` - Расчет ребалансировки с рекомендациями
+- `POST /api/ai/chat` - AI консультант (Mistral 7B)
+- `GET /api/health` - Health check (проверка состояния сервисов)
 
 ### Безопасность
 
@@ -194,6 +227,10 @@ pnpm lint
 - Secure flag в production
 - Токены сессий хешируются SHA-256 перед сохранением
 - Prisma защищает от SQL-инъекций
+- Централизованный `withAuth` wrapper для API
+- Atomic transactions через Prisma `$transaction`
+- Health check endpoints для мониторинга
+- Docker security: non-root user, minimal Alpine image
 
 ### Особенности реализации
 
@@ -203,6 +240,8 @@ pnpm lint
 4. **Error Boundaries** - обработка ошибок без падения приложения
 5. **Loading States** - скелетоны при загрузке данных
 6. **Responsive Design** - адаптивная верстка для мобильных
+7. **AI Assistant** - интегрированный AI консультант (Mistral 7B)
+8. **Legal Compliance** - полное соответствие законодательству РФ (152-ФЗ)
 
 ### Демонстрационные данные
 
@@ -224,6 +263,28 @@ curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"test@test.com","password":"password123","username":"testuser"}'
 ```
+
+### Юридическое соответствие
+
+Сервис соответствует требованиям законодательства РФ:
+
+**152-ФЗ «О персональных данных»:**
+- Политика конфиденциальности
+- Согласие на обработку ПДн (интегрировано в регистрацию)
+- Права субъекта ПДн
+
+**Требования ЦБ РФ:**
+- Уведомление о рисках (интегрировано в регистрацию)
+- Отказ от ответственности за инвестиционные рекомендации
+- AI консультант не даёт финансовых советов
+
+**Документы:**
+- `/legal` — обзор всех документов
+- `/legal/privacy` — Политика конфиденциальности
+- `/legal/terms` — Пользовательское соглашение
+- `/legal/risks` — Уведомление о рисках
+- `/legal/cookies` — Политика cookies
+- `/legal/consent` — Согласие на обработку ПДн
 
 ### Лицензия
 Дипломный проект для образовательных целей.

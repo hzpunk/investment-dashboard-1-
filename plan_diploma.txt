@@ -1,0 +1,46 @@
+# План улучшений для диплома
+
+## 1. Новые функции ✅
+[x] Аналитика и отчёты (/api/analytics)
+[x] Экспорт данных (CSV, JSON) - /api/export
+[x] Импорт транзакций из брокеров (CSV, JSON) - /api/import
+[x] Дивиденды и корпоративные действия - /api/dividends
+[x] Налоговые отчёты (налоги на прибыль) - /api/export?type=tax-report
+[x] Уведомления системы - /api/notifications + модель Notification
+[x] Ребалансировка портфеля - /api/portfolio/rebalance
+[ ] Прогнозирование и симуляции (Monte Carlo)
+[ ] Price alerts
+
+## 2. Улучшение архитектуры
+[ ] API documentation 
+[ ] Улучшенное логирование (Winston/Pino)
+[ ] Rate limiting для API
+[ ] Валидация с Zod на всех API
+[ ] CSRF protection
+[ ] Input sanitization
+
+## 3. Тестирование
+[ ] Unit тесты для сервисов
+[ ] Integration тесты для API
+[ ] E2E тесты (Playwright)
+[ ] Тестовые данные (seeds) 
+
+## 4. Документация
+[ ] Техническая документация
+[ ] API reference
+[ ] User guide
+[ ] Диаграммы архитектуры
+
+## 5. DevOps
+[ ] CI/CD pipeline
+[ ] Health checks
+[ ] Monitoring dashboard
+[ ] Automated backups
+
+## Добавленные API endpoints:
+- GET/POST /api/analytics - аналитика портфеля
+- GET /api/export?type=transactions|portfolio|tax-report&format=csv|json
+- POST /api/import - импорт транзакций
+- GET/POST/PUT/DELETE /api/notifications - уведомления
+- POST/GET /api/portfolio/rebalance - ребалансировка
+- GET/POST /api/dividends - дивиденды

@@ -18,23 +18,40 @@ export async function fetchAssets() {
 }
 
 // Fetch a single asset by ID
-export async function fetchAssetById(id: string) {
-  throw new Error(`Not implemented: fetchAssetById(${id})`)
+export async function fetchAssetById(id: string): Promise<Asset | null> {
+  const res = await fetch(`/api/data/assets?id=${id}`)
+  if (!res.ok) return null
+  return res.json()
 }
 
 // Create a new asset
-export async function createAsset(asset: AssetInsert) {
-  throw new Error(`Not implemented: createAsset(${asset.symbol})`)
+export async function createAsset(asset: AssetInsert): Promise<Asset> {
+  const res = await fetch('/api/data/assets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(asset),
+  })
+  if (!res.ok) throw new Error('Failed to create asset')
+  return res.json()
 }
 
 // Update an asset
-export async function updateAsset(id: string, updates: Partial<Asset>) {
-  throw new Error(`Not implemented: updateAsset(${id})`)
+export async function updateAsset(id: string, updates: Partial<Asset>): Promise<Asset> {
+  const res = await fetch(`/api/data/assets?id=${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  })
+  if (!res.ok) throw new Error('Failed to update asset')
+  return res.json()
 }
 
 // Delete an asset
-export async function deleteAsset(id: string) {
-  throw new Error(`Not implemented: deleteAsset(${id})`)
+export async function deleteAsset(id: string): Promise<void> {
+  const res = await fetch(`/api/data/assets?id=${id}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error('Failed to delete asset')
 }
 
 // Update asset prices from external APIs

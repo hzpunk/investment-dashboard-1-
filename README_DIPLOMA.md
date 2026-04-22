@@ -176,6 +176,16 @@ pnpm lint
 - `GET /api/data/transactions/recent?limit=N` - Последние транзакции
 - `POST /api/data/bootstrap` - Создание тестовых данных
 
+**Advanced Features (Дипломные функции):**
+- `GET /api/analytics` - Аналитика и метрики портфеля (доходность, CAGR, распределение)
+- `GET /api/export?type=transactions|portfolio|tax-report&format=csv|json` - Экспорт данных
+- `POST /api/import` - Импорт транзакций из CSV/JSON (брокерские выгрузки)
+- `GET /api/dividends?year=2024` - Дивиденды и история выплат
+- `POST /api/dividends` - Запись дивидендного платежа
+- `GET /api/notifications` - Уведомления пользователя
+- `GET /api/portfolio/rebalance` - Стратегии ребалансировки
+- `POST /api/portfolio/rebalance` - Расчет ребалансировки с рекомендациями
+
 ### Безопасность
 
 - Пароли хешируются bcrypt (12 salt rounds)

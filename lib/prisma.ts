@@ -1,12 +1,24 @@
-import { PrismaClient } from '@prisma/client'
-
+// Prisma client is server-only
 declare global {
   // eslint-disable-next-line no-var
-  var prisma: PrismaClient | undefined
+  var prisma: any
 }
 
-export const prisma = global.prisma ?? new PrismaClient()
+const isServer = typeof window === 'undefined'
 
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma
+let prisma: any = null
+
+if (isServer) {
+  const { PrismaClient } = require('@prisma/client')
+  
+  if (process.env.NODE_ENV !== 'production') {
+    if (!global.prisma) {
+      global.prisma = new PrismaClient()
+    }
+    prisma = global.prisma
+  } else {
+    prisma = new PrismaClient()
+  }
 }
+
+export { prisma }

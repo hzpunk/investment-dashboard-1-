@@ -53,14 +53,14 @@ export async function getAssetAllocation(userId: string) {
       `)
       .in(
         "portfolio_id",
-        portfolios.map((p) => p.id),
+        portfolios.map((p: typeof portfolios[0]) => p.id),
       )
 
     if (assetsError) throw assetsError
 
     // Group by asset type
     const assetsByType = portfolioAssets.reduce(
-      (acc, item) => {
+      (acc: Record<string, { type: string; value: number }>, item: typeof portfolioAssets[0]) => {
         const asset = item.assets
         const type = asset.type
         const value = item.quantity * asset.current_price

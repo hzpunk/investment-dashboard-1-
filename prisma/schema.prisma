@@ -40,20 +40,21 @@ enum UserRole {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  profile      Profile?
-  sessions     Session[]
-  accounts     Account[]
-  transactions Transaction[]
-  portfolios   Portfolio[]
-  goals        Goal[]
-  auditLogs    AuditLog[]
-  roles        UserRoleAssignment[]
+  profile       Profile?
+  sessions      Session[]
+  accounts      Account[]
+  transactions  Transaction[]
+  portfolios    Portfolio[]
+  goals         Goal[]
+  auditLogs     AuditLog[]
+  roles         UserRoleAssignment[]
+  notifications Notification[]
 }
 
 model Session {
@@ -216,4 +217,32 @@ model MarketDataCache {
 
   @@index([symbol, dataType])
   @@index([expiresAt])
+}
+
+enum NotificationType {
+  info
+  warning
+  success
+  error
+  price_alert
+  dividend
+  goal_reached
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType @default(info)
+  metadata  Json             @default("{}")
+  read      Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
 }

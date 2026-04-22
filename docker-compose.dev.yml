@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: investment-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: investuser
+      POSTGRES_PASSWORD: investpass
+      POSTGRES_DB: investment_dashboard
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U investuser -d investment_dashboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ai:
+    image: ollama/ollama:latest
+    container_name: investment-ai-dev
+    restart: unless-stopped
+    volumes:
+      - ollama_data_dev:/root/.ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+
+volumes:
+  postgres_data_dev:
+  ollama_data_dev:

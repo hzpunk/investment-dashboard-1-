@@ -13,29 +13,41 @@ type GoalInsert = Omit<Goal, "id" | "createdAt"> & { createdAt?: string }
 // Fetch all goals for a user
 export async function fetchGoals(userId: string) {
   void userId
-  const res = await fetch("/api/data/goals", { method: "GET" })
-  const data = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(data?.error || "Failed to fetch goals")
-  return (data?.goals as Goal[]) || []
+  try {
+    const res = await fetch("/api/data/goals", { method: "GET" })
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      console.warn("fetchGoals failed:", data?.error)
+      return []
+    }
+    return (data?.goals as Goal[]) || []
+  } catch (e) {
+    console.warn("fetchGoals error:", e)
+    return []
+  }
 }
 
 // Fetch a single goal by ID
 export async function fetchGoalById(id: string) {
-  throw new Error(`Not implemented: fetchGoalById(${id})`)
+  console.warn(`Not implemented: fetchGoalById(${id})`)
+  return null
 }
 
 // Create a new goal
 export async function createGoal(goal: GoalInsert) {
-  throw new Error(`Not implemented: createGoal(${goal.name})`)
+  console.warn(`Not implemented: createGoal(${goal.name})`)
+  return null
 }
 
 // Update a goal
 export async function updateGoal(id: string, updates: Partial<Goal>) {
-  throw new Error(`Not implemented: updateGoal(${id})`)
+  console.warn(`Not implemented: updateGoal(${id})`)
+  return null
 }
 
 // Delete a goal
 export async function deleteGoal(id: string) {
-  throw new Error(`Not implemented: deleteGoal(${id})`)
+  console.warn(`Not implemented: deleteGoal(${id})`)
+  return null
 }
 

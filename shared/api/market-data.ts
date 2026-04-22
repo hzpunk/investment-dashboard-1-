@@ -1,41 +1,66 @@
-import "server-only"
-
-import { prisma } from "@/lib/prisma"
 import { env } from "@/lib/env"
-
-// Market data API service with caching
 
 // Cache duration in seconds
 const CACHE_DURATION = 15 * 60 // 15 minutes
 
+// Lazy-loaded Prisma client - only on server
+let prismaClient: any = null
+async function getPrisma() {
+  if (typeof window !== 'undefined') return null
+  if (!prismaClient) {
+    // Use eval to hide import from webpack
+    const prismaModule = await eval("import('@/lib/prisma')")
+    prismaClient = prismaModule.prisma
+  }
+  return prismaClient
+}
+
 // Check if data is cached and still valid
 async function getFromCache(symbol: string, dataType: string) {
-  const now = new Date()
-  const row = await prisma.marketDataCache.findFirst({
-    where: {
-      symbol,
-      dataType,
-      expiresAt: { gt: now },
-    },
-    orderBy: { lastUpdated: "desc" },
-  })
-  return (row?.data as any) ?? null
+  // Only run on server
+  if (typeof window !== 'undefined') return null
+  
+  try {
+    const prisma = await getPrisma()
+    if (!prisma) return null
+    const now = new Date()
+    const row = await prisma.marketDataCache.findFirst({
+      where: {
+        symbol,
+        dataType,
+        expiresAt: { gt: now },
+      },
+      orderBy: { lastUpdated: "desc" },
+    })
+    return (row?.data as any) ?? null
+  } catch {
+    return null
+  }
 }
 
 // Save data to cache
 async function saveToCache(symbol: string, dataType: string, data: any) {
-  const now = new Date()
-  const expiresAt = new Date(now.getTime() + CACHE_DURATION * 1000)
+  // Only run on server
+  if (typeof window !== 'undefined') return
+  
+  try {
+    const prisma = await getPrisma()
+    if (!prisma) return
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + CACHE_DURATION * 1000)
 
-  await prisma.marketDataCache.create({
-    data: {
-      symbol,
-      dataType,
-      data,
-      lastUpdated: now,
-      expiresAt,
-    },
-  })
+    await prisma.marketDataCache.create({
+      data: {
+        symbol,
+        dataType,
+        data,
+        lastUpdated: now,
+        expiresAt,
+      },
+    })
+  } catch {
+    // Ignore cache errors
+  }
 }
 
 // CoinGecko API for crypto prices
@@ -104,7 +129,7 @@ export async function getStockPrice(symbol: string) {
     }
 
     // If not in cache, fetch from API or use fallback data
-    let data = {}
+    let data: any = {}
 
     try {
       // Try to fetch from API

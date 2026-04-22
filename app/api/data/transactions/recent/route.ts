@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     },
   })
 
-  const transactions = txs.map((t) => {
+  const transactions = txs.map((t: typeof txs[0]) => {
     return {
       ...t,
       accounts: t.account,

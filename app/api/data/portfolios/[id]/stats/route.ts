@@ -1,9 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireRequestUser } from '@/lib/api-auth'
+import { withAuth, successResponse, errorResponse } from '@/lib/api-handler'
 
-export async function GET(_request: Request, ctx: { params: Promise<{ id: string }> }) {
-  const user = await requireRequestUser()
+export const GET = withAuth(async (_request: NextRequest, user: { id: string; email: string }, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params
 
   const portfolio = await prisma.portfolio.findFirst({
@@ -18,9 +17,10 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
   })
 
   if (!portfolio) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return errorResponse('Not found', 404)
   }
 
+  // Calculate portfolio statistics
   let totalValue = 0
   const assetsByType: Record<string, { type: string; value: number }> = {}
 
@@ -35,9 +35,9 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
     assetsByType[asset.type].value += value
   }
 
-  return NextResponse.json({
+  return successResponse({
     totalValue,
     assetCount: portfolio.assets.length,
     allocation: Object.values(assetsByType),
   })
-}
+})

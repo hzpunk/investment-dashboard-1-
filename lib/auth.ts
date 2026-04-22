@@ -1,6 +1,8 @@
 import { randomBytes, createHash, timingSafeEqual } from 'crypto'
-import type { UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+
+// UserRole type matching Prisma schema
+export type UserRole = 'admin' | 'user' | 'premium'
 
 const SESSION_COOKIE_NAME = 'session'
 

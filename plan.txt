@@ -1,0 +1,7 @@
+[ ] Уточнить: проект часть HZ-экосистемы или лендинг; подтвердить цель и требования к прод-окружению
+[x] Привести зависимости и скрипты к стеку hzcompany (без Redis/Kafka): TanStack Query, Sentry, Prisma, ESLint/Husky/lint-staged, Jest
+[ ] Убрать Supabase и перевести на PostgreSQL + Prisma (schema, client, миграции)
+[ ] Реализовать базовую auth-схему (register/login/logout/me + роли) на Postgres, чтобы проект запускался
+[ ] Перевести Supabase-зависимые страницы (settings/admin/users/market cache) на новые API
+[ ] Добавить минимальные конфиги (Husky, lint-staged, Jest, Sentry) без изменения UI/дизайна
+[ ] Прогнать проверки (lint/test/build) и поправить найденные ошибки

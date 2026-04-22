@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: investment-db
+    environment:
+      POSTGRES_USER: investuser
+      POSTGRES_PASSWORD: investpass
+      POSTGRES_DB: investment_dashboard
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U investuser -d investment_dashboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: investment-app
+    environment:
+      DATABASE_URL: postgresql://investuser:investpass@db:5432/investment_dashboard?schema=public
+      NODE_ENV: production
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "npx prisma migrate deploy && node server.js"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,48 @@
+type Transaction = {
+  id: string
+  userId: string
+  accountId: string
+  assetId: string | null
+  type: "buy" | "sell" | "dividend" | "interest" | "deposit" | "withdrawal"
+  quantity: number | null
+  pricePerUnit: number | null
+  totalAmount: number
+  fee: number
+  currency: string
+  date: string
+  notes: string | null
+  accounts?: { name: string }
+  assets?: { symbol: string; name: string } | null
+}
+
+type TransactionInsert = Omit<Transaction, "id" | "accounts" | "assets"> & { id?: string }
+
+// Fetch all transactions for a user
+export async function fetchTransactions(userId: string) {
+  throw new Error(`Not implemented: fetchTransactions(${userId})`)
+}
+
+// Fetch recent transactions for a user
+export async function fetchRecentTransactions(userId: string, limit = 5) {
+  void userId
+  const res = await fetch(`/api/data/transactions/recent?limit=${encodeURIComponent(String(limit))}`, { method: "GET" })
+  const data = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(data?.error || "Failed to fetch transactions")
+  return (data?.transactions as Transaction[]) || []
+}
+
+// Create a new transaction
+export async function createTransaction(transaction: TransactionInsert) {
+  throw new Error(`Not implemented: createTransaction(${transaction.type})`)
+}
+
+// Update a transaction
+export async function updateTransaction(id: string, updates: Partial<Transaction>) {
+  throw new Error(`Not implemented: updateTransaction(${id})`)
+}
+
+// Delete a transaction
+export async function deleteTransaction(id: string) {
+  throw new Error(`Not implemented: deleteTransaction(${id})`)
+}
+

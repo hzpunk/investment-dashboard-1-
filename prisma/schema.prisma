@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountType {
+  brokerage
+  bank
+  crypto
+  retirement
+  other
+}
+
+enum AssetType {
+  stock
+  bond
+  etf
+  crypto
+  commodity
+  other
+}
+
+enum TransactionType {
+  buy
+  sell
+  dividend
+  interest
+  deposit
+  withdrawal
+}
+
+enum UserRole {
+  admin
+  user
+  premium
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profile      Profile?
+  sessions     Session[]
+  accounts     Account[]
+  transactions Transaction[]
+  portfolios   Portfolio[]
+  goals        Goal[]
+  auditLogs    AuditLog[]
+  roles        UserRoleAssignment[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Profile {
+  id        String   @id
+  username  String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  role      String?
+
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id        String      @id @default(cuid())
+  userId    String
+  name      String
+  type      AccountType
+  balance   Float       @default(0)
+  currency  String      @default("USD")
+  createdAt DateTime    @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+model Asset {
+  id           String    @id @default(cuid())
+  symbol       String    @unique
+  name         String
+  type         AssetType
+  currentPrice Float
+  currency     String
+  updatedAt    DateTime  @default(now())
+
+  transactions    Transaction[]
+  portfolioAssets PortfolioAsset[]
+}
+
+model Transaction {
+  id           String          @id @default(cuid())
+  userId       String
+  accountId    String
+  assetId      String?
+  type         TransactionType
+  quantity     Float?
+  pricePerUnit Float?
+  totalAmount  Float
+  fee          Float           @default(0)
+  currency     String
+  date         DateTime
+  notes        String?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  asset   Asset?  @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([assetId])
+  @@index([date])
+}
+
+model Portfolio {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assets PortfolioAsset[]
+
+  @@index([userId])
+}
+
+model PortfolioAsset {
+  portfolioId     String
+  assetId         String
+  quantity        Float
+  averageBuyPrice Float
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  asset     Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([portfolioId, assetId])
+  @@index([assetId])
+}
+
+model Goal {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  targetAmount  Float
+  currentAmount Float   @default(0)
+  targetDate    DateTime?
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AdminSetting {
+  id           String   @id @default(cuid())
+  settingKey   String   @unique
+  settingValue String
+  description  String?
+  updatedAt    DateTime @default(now())
+}
+
+model UserRoleAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  role       UserRole
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@unique([userId, role])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  details    Json
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model MarketDataCache {
+  id          String   @id @default(cuid())
+  symbol      String
+  dataType    String
+  data        Json
+  lastUpdated DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([symbol, dataType])
+  @@index([expiresAt])
+}

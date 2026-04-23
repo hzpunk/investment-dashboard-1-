@@ -32,6 +32,8 @@ import {
 } from "@/entities/portfolio/api"
 import { fetchAssets } from "@/entities/asset/api"
 import type { Database } from "@/types/supabase"
+import { useI18n } from "@/contexts/i18n-context"
+import { getAssetTypeLabel } from "@/lib/i18n-display"
 
 type Portfolio = Database["public"]["Tables"]["portfolios"]["Row"] & {
   assets?: Array<{
@@ -45,6 +47,7 @@ type Portfolio = Database["public"]["Tables"]["portfolios"]["Row"] & {
 
 export default function PortfolioDetailPage({ params }: { params: { id: string } }) {
   const { user } = useAuth()
+  const { t } = useI18n()
   const router = useRouter()
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
   const [availableAssets, setAvailableAssets] = useState<any[]>([])
@@ -85,7 +88,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
         setAvailableAssets(assetsData)
       } catch (error) {
         console.error("Error fetching portfolio data:", error)
-        setMessage({ type: "error", text: "Failed to load portfolio data" })
+        setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
       }
@@ -111,10 +114,10 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
         name: updatedPortfolio.name,
         description: updatedPortfolio.description,
       })
-      setMessage({ type: "success", text: "Portfolio updated successfully" })
+      setMessage({ type: "success", text: t("actions.saveChanges") })
     } catch (error) {
       console.error("Error updating portfolio:", error)
-      setMessage({ type: "error", text: "Failed to update portfolio" })
+      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -123,7 +126,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
   const handleDeletePortfolio = async () => {
     if (!portfolio) return
 
-    if (!confirm("Are you sure you want to delete this portfolio? This will also delete all associated assets.")) {
+    if (!confirm(t("portfolios.confirmDelete"))) {
       return
     }
 
@@ -132,7 +135,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       router.push("/portfolios")
     } catch (error) {
       console.error("Error deleting portfolio:", error)
-      setMessage({ type: "error", text: "Failed to delete portfolio" })
+      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     }
   }
 
@@ -164,10 +167,10 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       })
 
       setIsAddAssetOpen(false)
-      setMessage({ type: "success", text: "Asset added successfully" })
+      setMessage({ type: "success", text: t("actions.addAsset") })
     } catch (error) {
       console.error("Error adding asset:", error)
-      setMessage({ type: "error", text: "Failed to add asset" })
+      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -176,7 +179,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
   const handleRemoveAsset = async (assetId: string) => {
     if (!portfolio) return
 
-    if (!confirm("Are you sure you want to remove this asset from the portfolio?")) {
+    if (!confirm(t("portfolios.confirmRemoveAsset"))) {
       return
     }
 
@@ -189,10 +192,10 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
         assets: portfolio.assets?.filter((asset) => asset.asset_id !== assetId) || [],
       })
 
-      setMessage({ type: "success", text: "Asset removed successfully" })
+      setMessage({ type: "success", text: t("actions.remove") })
     } catch (error) {
       console.error("Error removing asset:", error)
-      setMessage({ type: "error", text: "Failed to remove asset" })
+      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     }
   }
 
@@ -207,14 +210,14 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
   if (!portfolio) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <h2 className="text-2xl font-bold mb-2">Portfolio not found</h2>
+        <h2 className="text-2xl font-bold mb-2">{t("portfolios.notFound")}</h2>
         <p className="text-muted-foreground mb-4">
-          The portfolio you're looking for doesn't exist or you don't have access to it.
+          {t("portfolios.notFoundDescription")}
         </p>
         <Button asChild variant="outline">
           <a href="/portfolios">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Portfolios
+            {t("actions.backToPortfolios")}
           </a>
         </Button>
       </div>
@@ -258,52 +261,52 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading={portfolio.name} text={portfolio.description || "Manage your investment portfolio"}>
+      <DashboardHeader heading={portfolio.name} text={portfolio.description || t("portfolios.managePortfolio")}>
         <Button variant="outline" asChild>
           <a href="/portfolios">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            {t("common.back")}
           </a>
         </Button>
       </DashboardHeader>
 
       <Tabs defaultValue="assets" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="assets">Assets</TabsTrigger>
-          <TabsTrigger value="allocation">Allocation</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="assets">{t("portfolios.assets")}</TabsTrigger>
+          <TabsTrigger value="allocation">{t("portfolios.allocation")}</TabsTrigger>
+          <TabsTrigger value="settings">{t("common.settings")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="assets">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Portfolio Assets</CardTitle>
-                <CardDescription>Manage assets in your portfolio</CardDescription>
+                <CardTitle>{t("portfolios.portfolioAssets")}</CardTitle>
+                <CardDescription>{t("portfolios.portfolioAssetsDescription")}</CardDescription>
               </div>
               <Dialog open={isAddAssetOpen} onOpenChange={setIsAddAssetOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm">
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Asset
+                    {t("actions.addAsset")}
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Add Asset to Portfolio</DialogTitle>
-                    <DialogDescription>Add an investment asset to your portfolio.</DialogDescription>
+                    <DialogTitle>{t("portfolios.addAssetDialogTitle")}</DialogTitle>
+                    <DialogDescription>{t("portfolios.addAssetDialogDescription")}</DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="asset" className="text-right">
-                        Asset
+                        {t("transactions.asset")}
                       </Label>
                       <Select
                         value={newAsset.asset_id}
                         onValueChange={(value) => setNewAsset({ ...newAsset, asset_id: value })}
                       >
                         <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select asset" />
+                          <SelectValue placeholder={t("transactions.selectAsset")} />
                         </SelectTrigger>
                         <SelectContent>
                           {availableAssets.map((asset) => (
@@ -316,7 +319,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="quantity" className="text-right">
-                        Quantity
+                        {t("transactions.quantity")}
                       </Label>
                       <Input
                         id="quantity"
@@ -328,7 +331,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="price" className="text-right">
-                        Average Buy Price
+                        {t("portfolios.averageBuyPrice")}
                       </Label>
                       <Input
                         id="price"
@@ -343,10 +346,10 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsAddAssetOpen(false)}>
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                     <Button onClick={handleAddAsset} disabled={isSaving}>
-                      {isSaving ? "Adding..." : "Add Asset"}
+                      {isSaving ? t("common.loading") : t("actions.addAsset")}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -362,22 +365,22 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Symbol</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Quantity</TableHead>
-                      <TableHead className="text-right">Avg. Buy Price</TableHead>
-                      <TableHead className="text-right">Current Price</TableHead>
-                      <TableHead className="text-right">Value</TableHead>
-                      <TableHead className="text-right">Gain/Loss</TableHead>
-                      <TableHead className="w-[100px]">Actions</TableHead>
+                      <TableHead>{t("common.symbol")}</TableHead>
+                      <TableHead>{t("common.name")}</TableHead>
+                      <TableHead>{t("common.type")}</TableHead>
+                      <TableHead className="text-right">{t("transactions.quantity")}</TableHead>
+                      <TableHead className="text-right">{t("portfolios.averageBuyPrice")}</TableHead>
+                      <TableHead className="text-right">{t("assets.currentPrice")}</TableHead>
+                      <TableHead className="text-right">{t("common.value")}</TableHead>
+                      <TableHead className="text-right">{t("portfolios.gainLoss")}</TableHead>
+                      <TableHead className="w-[100px]">{t("common.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {portfolio.assets && portfolio.assets.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
-                          No assets in this portfolio. Add your first asset to get started.
+                          {t("portfolios.noAssetsForAllocation")}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -391,7 +394,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
                           <TableRow key={asset.asset_id}>
                             <TableCell className="font-medium">{asset.assets.symbol}</TableCell>
                             <TableCell>{asset.assets.name}</TableCell>
-                            <TableCell className="capitalize">{asset.assets.type}</TableCell>
+                            <TableCell>{getAssetTypeLabel(asset.assets.type, t)}</TableCell>
                             <TableCell className="text-right">{asset.quantity.toLocaleString()}</TableCell>
                             <TableCell className="text-right">
                               $
@@ -426,7 +429,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
                             <TableCell>
                               <Button variant="ghost" size="icon" onClick={() => handleRemoveAsset(asset.asset_id)}>
                                 <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Remove</span>
+                                <span className="sr-only">{t("actions.remove")}</span>
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -438,11 +441,11 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
               </div>
               <div className="mt-4 flex justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Assets</p>
+                  <p className="text-sm text-muted-foreground">{t("portfolios.totalAssets")}</p>
                   <p className="text-xl font-bold">{portfolio.assets?.length || 0}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Value</p>
+                  <p className="text-sm text-muted-foreground">{t("portfolios.totalValue")}</p>
                   <p className="text-xl font-bold">
                     ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
@@ -455,13 +458,13 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
         <TabsContent value="allocation">
           <Card>
             <CardHeader>
-              <CardTitle>Portfolio Allocation</CardTitle>
-              <CardDescription>How your investments are distributed</CardDescription>
+              <CardTitle>{t("portfolios.allocation")}</CardTitle>
+              <CardDescription>{t("portfolios.allocationDescription")}</CardDescription>
             </CardHeader>
             <CardContent>
               {allocation.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No assets in this portfolio. Add assets to see allocation.
+                  {t("portfolios.noAssetsForAllocation")}
                 </div>
               ) : (
                 <>
@@ -470,7 +473,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="relative h-32 w-32 rounded-full border-8 border-transparent bg-background flex items-center justify-center">
                         <div className="text-center">
-                          <p className="text-xs text-muted-foreground">Total</p>
+                          <p className="text-xs text-muted-foreground">{t("common.total")}</p>
                           <p className="text-lg font-bold">${totalValue.toLocaleString()}</p>
                         </div>
                       </div>
@@ -491,7 +494,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
                       <div key={item.type} className="flex items-center justify-between">
                         <div className="flex items-center">
                           <div className={`h-3 w-3 rounded-full mr-2 ${typeColors[item.type] || "bg-gray-500"}`} />
-                          <span className="text-sm capitalize">{item.type}</span>
+                          <span className="text-sm">{getAssetTypeLabel(item.type, t)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
@@ -511,8 +514,8 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
         <TabsContent value="settings">
           <Card>
             <CardHeader>
-              <CardTitle>Portfolio Settings</CardTitle>
-              <CardDescription>Update your portfolio information</CardDescription>
+              <CardTitle>{t("portfolios.settingsTitle")}</CardTitle>
+              <CardDescription>{t("portfolios.settingsDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {message && (
@@ -521,11 +524,11 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
                 </Alert>
               )}
               <div className="space-y-2">
-                <Label htmlFor="name">Portfolio Name</Label>
+                <Label htmlFor="name">{t("common.name")}</Label>
                 <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{t("common.description")}</Label>
                 <Textarea
                   id="description"
                   value={description}
@@ -534,7 +537,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
                 />
               </div>
               <div className="space-y-2">
-                <Label>Created At</Label>
+                <Label>{t("portfolios.createdAt")}</Label>
                 <div className="p-2 border rounded-md bg-muted/50">
                   {new Date(portfolio.created_at).toLocaleString()}
                 </div>
@@ -543,11 +546,11 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
             <CardFooter className="flex justify-between">
               <Button variant="destructive" onClick={handleDeletePortfolio}>
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete Portfolio
+                {t("actions.deletePortfolio")}
               </Button>
               <Button onClick={handleUpdatePortfolio} disabled={isSaving}>
                 <Save className="mr-2 h-4 w-4" />
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? t("common.loading") : t("actions.saveChanges")}
               </Button>
             </CardFooter>
           </Card>

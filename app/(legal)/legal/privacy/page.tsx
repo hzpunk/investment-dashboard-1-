@@ -1,89 +1,98 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+"use client"
 
-export const metadata = {
-  title: "Политика конфиденциальности | InvestTrack",
-  description: "Политика обработки персональных данных в соответствии с 152-ФЗ",
-}
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useI18n } from "@/contexts/i18n-context"
+import { getLegalContent } from "@/lib/legal-content"
 
 export default function PrivacyPage() {
+  const { locale } = useI18n()
+  const content = getLegalContent(locale).privacy
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl">Политика конфиденциальности</CardTitle>
-        <p className="text-sm text-gray-500">Последнее обновление: 22 апреля 2026 года</p>
+        <CardTitle className="text-2xl">{content.title}</CardTitle>
+        {content.subtitle ? <p className="text-sm text-gray-500">{content.subtitle}</p> : null}
       </CardHeader>
       <CardContent className="prose prose-slate max-w-none">
-        <p>
-          Настоящая Политика конфиденциальности определяет порядок обработки персональных данных 
-          пользователей сервиса InvestTrack.
-        </p>
-
-        <h3>1. Оператор персональных данных</h3>
-        <p>
-          Оператор: _______________<br />
-          ИНН: _______________<br />
-          Email: privacy@investtrack.ru
-        </p>
-
-        <h3>2. Состав обрабатываемых данных</h3>
-        <ul>
-          <li>ФИО, email, телефон</li>
-          <li>Паспортные данные (при верификации)</li>
-          <li>Финансовая информация об активах</li>
-          <li>Технические данные (IP, cookies)</li>
-        </ul>
-
-        <h3>3. Цели обработки</h3>
-        <ul>
-          <li>Регистрация и аутентификация</li>
-          <li>Предоставление услуг учёта инвестиций</li>
-          <li>Аналитика и отчётность</li>
-          <li>Соблюдение законодательства (ПОД/ФТ)</li>
-        </ul>
-
-        <h3>4. Правовое основание</h3>
-        <p>Обработка осуществляется на основании:</p>
-        <ul>
-          <li>Ст. 6, 9 Федерального закона № 152-ФЗ «О персональных данных»</li>
-          <li>Согласия субъекта ПДн</li>
-          <li>Договора с субъектом ПДн</li>
-        </ul>
-
-        <h3>5. Сроки хранения</h3>
-        <p>ПДн хранятся в течение:</p>
-        <ul>
-          <li>Действия договора с пользователем</li>
-          <li>5 лет после прекращения договора (налоговые требования)</li>
-          <li>3 года для исполнения требований ПОД/ФТ</li>
-        </ul>
-
-        <h3>6. Права субъекта ПДн</h3>
-        <ul>
-          <li>Получить информацию об обработке ПДн</li>
-          <li>Требовать уточнения, блокировки или уничтожения</li>
-          <li>Отозвать согласие на обработку</li>
-          <li>Обжаловать действия в Роскомнадзор</li>
-        </ul>
-
-        <h3>7. Защита данных</h3>
-        <p>Мы применяем следующие меры защиты:</p>
-        <ul>
-          <li>Шифрование данных (TLS/SSL)</li>
-          <li>Разграничение доступа</li>
-          <li>Резервное копирование</li>
-          <li>Регулярные аудиты безопасности</li>
-        </ul>
-
-        <h3>8. Контакты</h3>
-        <p>
-          По вопросам обработки ПДн:<br />
-          Email: privacy@investtrack.ru
-        </p>
-
-        <hr className="my-6" />
-        <p className="text-sm text-gray-500">
-          Полный текст Политики конфиденциальности доступен по запросу.
-        </p>
+        {content.blocks.map((block, idx) => {
+          if (block.kind === "p") {
+            return (
+              <p key={idx} style={{ whiteSpace: "pre-line" }}>
+                {block.text}
+              </p>
+            )
+          }
+          if (block.kind === "h3") return <h3 key={idx}>{block.text}</h3>
+          if (block.kind === "h4") return <h4 key={idx}>{block.text}</h4>
+          if (block.kind === "ul") {
+            return (
+              <ul key={idx}>
+                {block.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            )
+          }
+          if (block.kind === "callout") {
+            const className =
+              block.tone === "danger"
+                ? "bg-red-50 border-l-4 border-red-400 p-4"
+                : block.tone === "warning"
+                  ? "bg-yellow-50 border-l-4 border-yellow-400 p-4"
+                  : block.tone === "success"
+                    ? "bg-green-50 border-l-4 border-green-400 p-4"
+                    : "bg-blue-50 border-l-4 border-blue-400 p-4"
+            return (
+              <div key={idx} className={className}>
+                {block.title ? <p className="font-medium mb-1">{block.title}</p> : null}
+                {block.text ? (
+                  <p className="text-sm" style={{ whiteSpace: "pre-line" }}>
+                    {block.text}
+                  </p>
+                ) : null}
+                {block.items?.length ? (
+                  <ul className="text-sm mb-0">
+                    {block.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            )
+          }
+          if (block.kind === "table") {
+            return (
+              <div key={idx} className="overflow-x-auto not-prose">
+                <table className="min-w-full border-collapse border border-gray-200">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      {block.headers.map((h) => (
+                        <th key={h} className="border border-gray-200 px-4 py-2 text-left">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((row, rowIdx) => (
+                      <tr key={rowIdx}>
+                        {row.map((cell, cellIdx) => (
+                          <td key={cellIdx} className="border border-gray-200 px-4 py-2">
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+          if (block.kind === "hr") return <hr key={idx} className="my-6" />
+          if (block.kind === "small") return <p key={idx} className="text-sm text-gray-500">{block.text}</p>
+          return null
+        })}
       </CardContent>
     </Card>
   )

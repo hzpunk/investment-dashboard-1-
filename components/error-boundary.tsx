@@ -1,6 +1,7 @@
 "use client"
 
-import { Component, ErrorInfo, ReactNode } from "react"
+import { Component, type ErrorInfo, type ReactNode } from "react"
+import { defaultLocale, t as translate } from "@/lib/i18n"
 
 interface Props {
   children: ReactNode
@@ -29,9 +30,9 @@ export class ErrorBoundary extends Component<Props, State> {
   override render() {
     if (this.state.hasError) {
       return this.props.fallback || (
-        <div className="p-4 border rounded-lg bg-red-50 text-red-600">
-          <p className="font-medium">Что-то пошло не так</p>
-          <p className="text-sm">Попробуйте обновить страницу</p>
+        <div className="rounded-lg border bg-red-50 p-4 text-red-600">
+          <p className="font-medium">{translate(defaultLocale, "errors.somethingWentWrong")}</p>
+          <p className="text-sm">{translate(defaultLocale, "errors.tryReload")}</p>
         </div>
       )
     }
@@ -40,14 +41,13 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-// Wrapper for dashboard widgets
 export function SafeWidget({ children, title }: { children: ReactNode; title?: string }) {
   return (
     <ErrorBoundary
       fallback={
-        <div className="p-4 border rounded-lg bg-gray-50">
-          {title && <p className="font-medium text-gray-400">{title}</p>}
-          <p className="text-sm text-gray-400">Недоступно</p>
+        <div className="rounded-lg border bg-gray-50 p-4">
+          {title ? <p className="font-medium text-gray-400">{title}</p> : null}
+          <p className="text-sm text-gray-400">{translate(defaultLocale, "errors.unavailable")}</p>
         </div>
       }
     >

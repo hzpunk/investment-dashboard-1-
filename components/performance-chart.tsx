@@ -5,6 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { getHistoricalPrices, cryptoIdMap } from "@/shared/api/market-data"
+import { useI18n } from "@/contexts/i18n-context"
+import { formatLocaleDate } from "@/lib/i18n-display"
 
 interface PerformanceChartProps {
   className?: string
@@ -19,6 +21,7 @@ export function PerformanceChart({
   type = "crypto",
   initialValue = 100000,
 }: PerformanceChartProps) {
+  const { t, locale } = useI18n()
   const [performanceData, setPerformanceData] = useState<Record<string, any[]>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,14 +47,14 @@ export function PerformanceChart({
         setPerformanceData(results)
       } catch (err) {
         console.error("Error fetching performance data:", err)
-        setError("Failed to load performance data")
+        setError(t("errors.unavailable"))
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchData()
-  }, [symbol, type])
+  }, [symbol, t, type])
 
   // Calculate returns and other metrics
   const calculateMetrics = (data: any[]) => {
@@ -71,8 +74,8 @@ export function PerformanceChart({
   return (
     <Card className={cn("", className)}>
       <CardHeader>
-        <CardTitle>Performance</CardTitle>
-        <CardDescription>Track your portfolio performance over time</CardDescription>
+        <CardTitle>{t("performance.title")}</CardTitle>
+        <CardDescription>{t("performance.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -114,7 +117,7 @@ export function PerformanceChart({
               <TabsTrigger value="3M">3M</TabsTrigger>
               <TabsTrigger value="6M">6M</TabsTrigger>
               <TabsTrigger value="1Y">1Y</TabsTrigger>
-              <TabsTrigger value="ALL">All</TabsTrigger>
+              <TabsTrigger value="ALL">{t("common.all")}</TabsTrigger>
             </TabsList>
             {Object.entries(performanceData).map(([period, data]) => {
               if (!data || data.length < 2) return null
@@ -145,23 +148,23 @@ export function PerformanceChart({
                     </svg>
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{new Date(data[0].date).toLocaleDateString()}</span>
-                    <span>{new Date(data[Math.floor(data.length / 2)].date).toLocaleDateString()}</span>
-                    <span>{new Date(data[data.length - 1].date).toLocaleDateString()}</span>
+                    <span>{formatLocaleDate(new Date(data[0].date), locale)}</span>
+                    <span>{formatLocaleDate(new Date(data[Math.floor(data.length / 2)].date), locale)}</span>
+                    <span>{formatLocaleDate(new Date(data[data.length - 1].date), locale)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Starting Value</p>
+                      <p className="text-sm text-muted-foreground">{t("performance.startingValue")}</p>
                       <p className="text-lg font-bold">
                         ${metrics.startValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Current Value</p>
+                      <p className="text-sm text-muted-foreground">{t("performance.currentValue")}</p>
                       <p className="text-lg font-bold">${metrics.endValue.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Return</p>
+                      <p className="text-sm text-muted-foreground">{t("performance.return")}</p>
                       <p
                         className={`text-lg font-bold ${metrics.returnPercent >= 0 ? "text-green-500" : "text-red-500"}`}
                       >

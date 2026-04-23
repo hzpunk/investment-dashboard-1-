@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Pencil, Trash2, BarChart3 } from "lucide-react"
 import type { Database } from "@/types/supabase"
+import { useI18n } from "@/contexts/i18n-context"
 
 type Portfolio = Database["public"]["Tables"]["portfolios"]["Row"] & {
   _count?: {
@@ -31,6 +32,7 @@ type Portfolio = Database["public"]["Tables"]["portfolios"]["Row"] & {
 
 export default function PortfoliosPage() {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [portfolios, setPortfolios] = useState<Portfolio[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddPortfolioOpen, setIsAddPortfolioOpen] = useState(false)
@@ -133,7 +135,7 @@ export default function PortfoliosPage() {
   }
 
   const handleDeletePortfolio = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this portfolio? This will also delete all associated assets.")) {
+    if (!confirm(t("portfolios.confirmDelete"))) {
       return
     }
 
@@ -151,23 +153,23 @@ export default function PortfoliosPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="Portfolios" text="Manage your investment portfolios.">
+      <DashboardHeader heading={t("portfolios.title")} text={t("portfolios.description")}>
         <Dialog open={isAddPortfolioOpen} onOpenChange={setIsAddPortfolioOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Add Portfolio
+              {t("actions.addPortfolio")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Portfolio</DialogTitle>
-              <DialogDescription>Create a new portfolio to group your investments.</DialogDescription>
+              <DialogTitle>{t("portfolios.addDialogTitle")}</DialogTitle>
+              <DialogDescription>{t("portfolios.addDialogDescription")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">
-                  Name
+                  {t("common.name")}
                 </Label>
                 <Input
                   id="name"
@@ -178,7 +180,7 @@ export default function PortfoliosPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="description" className="text-right">
-                  Description
+                  {t("common.description")}
                 </Label>
                 <Textarea
                   id="description"
@@ -190,10 +192,10 @@ export default function PortfoliosPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddPortfolioOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleAddPortfolio} disabled={isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create Portfolio"}
+                {isSubmitting ? t("common.loading") : t("actions.createPortfolio")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -235,13 +237,13 @@ export default function PortfoliosPage() {
                 <div className="rounded-full bg-muted p-3">
                   <BarChart3 className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="mt-4 text-lg font-medium">No portfolios found</h3>
+                <h3 className="mt-4 text-lg font-medium">{t("empty.portfolios")}</h3>
                 <p className="mt-2 text-center text-sm text-muted-foreground">
-                  Create your first portfolio to start tracking your investments.
+                  {t("portfolios.noPortfolios")}
                 </p>
                 <Button className="mt-4" onClick={() => setIsAddPortfolioOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Portfolio
+                  {t("actions.addPortfolio")}
                 </Button>
               </CardContent>
             </Card>
@@ -255,7 +257,7 @@ export default function PortfoliosPage() {
                 <CardContent className="flex-1">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Total Value</p>
+                      <p className="text-sm text-muted-foreground">{t("portfolios.totalValue")}</p>
                       <p className="text-xl sm:text-2xl font-bold">
                         $
                         {portfolio._value?.toLocaleString(undefined, {
@@ -265,7 +267,7 @@ export default function PortfoliosPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Assets</p>
+                      <p className="text-sm text-muted-foreground">{t("portfolios.assets")}</p>
                       <p className="text-xl sm:text-2xl font-bold">{portfolio._count?.assets}</p>
                     </div>
                   </div>
@@ -274,7 +276,7 @@ export default function PortfoliosPage() {
                   <Button variant="outline" asChild className="w-full sm:w-auto">
                     <a href={`/portfolios/${portfolio.id}`}>
                       <Pencil className="mr-2 h-4 w-4" />
-                      Manage
+                      {t("actions.manage")}
                     </a>
                   </Button>
                   <Button
@@ -283,7 +285,7 @@ export default function PortfoliosPage() {
                     className="w-full sm:w-auto"
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
+                    {t("common.delete")}
                   </Button>
                 </CardFooter>
               </Card>

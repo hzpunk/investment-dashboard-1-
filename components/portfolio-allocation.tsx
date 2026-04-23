@@ -4,6 +4,8 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/contexts/i18n-context"
+import { getAssetTypeLabel } from "@/lib/i18n-display"
 
 interface PortfolioAllocationProps {
   className?: string
@@ -15,6 +17,7 @@ interface PortfolioAllocationProps {
 }
 
 export function PortfolioAllocation({ className, data = [], isLoading = false }: PortfolioAllocationProps) {
+  const { t } = useI18n()
   const [view, setView] = useState("asset-class")
 
   // Use provided data or fallback to default
@@ -48,8 +51,8 @@ export function PortfolioAllocation({ className, data = [], isLoading = false }:
   return (
     <Card className={cn("", className)}>
       <CardHeader>
-        <CardTitle>Portfolio Allocation</CardTitle>
-        <CardDescription>How your investments are distributed</CardDescription>
+        <CardTitle>{t("portfolioAllocation.title")}</CardTitle>
+        <CardDescription>{t("portfolioAllocation.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -80,6 +83,7 @@ export function PortfolioAllocation({ className, data = [], isLoading = false }:
                 <div className="relative h-32 w-32 rounded-full border-8 border-transparent bg-background flex items-center justify-center">
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground">Total</p>
+                    <p className="text-xs text-muted-foreground">{t("common.total")}</p>
                     <p className="text-lg font-bold">${totalValue.toLocaleString()}</p>
                   </div>
                 </div>
@@ -100,7 +104,7 @@ export function PortfolioAllocation({ className, data = [], isLoading = false }:
                 <div key={item.type} className="flex items-center justify-between">
                   <div className="flex items-center">
                     <div className={cn("h-3 w-3 rounded-full mr-2", typeColors[item.type] || "bg-gray-500")} />
-                    <span className="text-sm capitalize">{item.type}</span>
+                    <span className="text-sm">{getAssetTypeLabel(item.type, t)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{item.percentage}%</span>

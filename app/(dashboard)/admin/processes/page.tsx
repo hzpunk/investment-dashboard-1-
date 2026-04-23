@@ -12,9 +12,12 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, Pause, RefreshCw } from "lucide-react"
 import { updateAssetPrices } from "@/entities/asset/api"
+import { useI18n } from "@/contexts/i18n-context"
+import { getStatusLabel } from "@/lib/i18n-display"
 
 export default function AdminProcessesPage() {
   const { userRole } = useAuth()
+  const { t } = useI18n()
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [processes, setProcesses] = useState([
@@ -108,7 +111,7 @@ export default function AdminProcessesPage() {
         await new Promise((resolve) => setTimeout(resolve, 500))
       } catch (error) {
         console.error("Error fetching process data:", error)
-        setMessage({ type: "error", text: "Failed to load process data" })
+        setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
       }
@@ -122,8 +125,8 @@ export default function AdminProcessesPage() {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">You don't have permission to access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t("admin.accessDenied")}</h2>
+          <p className="text-muted-foreground">{t("admin.accessDeniedDescription")}</p>
         </div>
       </div>
     )
@@ -137,7 +140,7 @@ export default function AdminProcessesPage() {
     try {
       // Find the process
       const process = processes.find((p) => p.id === processId)
-      if (!process) throw new Error("Process not found")
+      if (!process) throw new Error(t("errors.unavailable"))
 
       // Simulate progress
       const interval = setInterval(() => {
@@ -182,7 +185,7 @@ export default function AdminProcessesPage() {
       }
       setLogs([newLog, ...logs])
 
-      setMessage({ type: "success", text: `Process ${process.name} executed successfully` })
+      setMessage({ type: "success", text: t("status.success") })
     } catch (error: any) {
       console.error("Error running process:", error)
 
@@ -199,7 +202,7 @@ export default function AdminProcessesPage() {
         setLogs([errorLog, ...logs])
       }
 
-      setMessage({ type: "error", text: `Failed to run process: ${error.message}` })
+      setMessage({ type: "error", text: t("status.error") })
     } finally {
       setRunningProcess(null)
       setProgress(0)
@@ -236,7 +239,7 @@ export default function AdminProcessesPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="System Processes" text="Manage and monitor system processes and scheduled tasks." />
+      <DashboardHeader heading={t("admin.processesTitle")} text={t("admin.processesDescription")} />
 
       {isLoading ? (
         <div className="flex justify-center py-8">
@@ -245,8 +248,8 @@ export default function AdminProcessesPage() {
       ) : (
         <Tabs defaultValue="processes" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="processes">Processes</TabsTrigger>
-            <TabsTrigger value="logs">Process Logs</TabsTrigger>
+            <TabsTrigger value="processes">{t("admin.processesTitle")}</TabsTrigger>
+            <TabsTrigger value="logs">{t("admin.processLogs")}</TabsTrigger>
           </TabsList>
 
           {message && (
@@ -258,8 +261,8 @@ export default function AdminProcessesPage() {
           <TabsContent value="processes">
             <Card>
               <CardHeader>
-                <CardTitle>System Processes</CardTitle>
-                <CardDescription>Manage scheduled tasks and background processes.</CardDescription>
+                <CardTitle>{t("admin.processesTitle")}</CardTitle>
+                <CardDescription>{t("admin.processesDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border">
@@ -267,11 +270,11 @@ export default function AdminProcessesPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Process Name</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>{t("common.status")}</TableHead>
                         <TableHead>Schedule</TableHead>
-                        <TableHead>Last Run</TableHead>
-                        <TableHead>Next Run</TableHead>
-                        <TableHead className="w-[150px]">Actions</TableHead>
+                        <TableHead>{t("common.lastUpdated")}</TableHead>
+                        <TableHead>{t("common.nextRun")}</TableHead>
+                        <TableHead className="w-[150px]">{t("common.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -295,15 +298,15 @@ export default function AdminProcessesPage() {
                                       : "destructive"
                               }
                             >
-                              {process.status}
+                              {getStatusLabel(process.status, t)}
                             </Badge>
                           </TableCell>
                           <TableCell>{process.schedule}</TableCell>
                           <TableCell>
-                            {process.lastRun ? new Date(process.lastRun).toLocaleString() : "Never"}
+                            {process.lastRun ? new Date(process.lastRun).toLocaleString() : t("admin.never")}
                           </TableCell>
                           <TableCell>
-                            {process.nextRun ? new Date(process.nextRun).toLocaleString() : "Not scheduled"}
+                            {process.nextRun ? new Date(process.nextRun).toLocaleString() : t("status.scheduled")}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center space-x-2">
@@ -316,7 +319,7 @@ export default function AdminProcessesPage() {
                                 <RefreshCw
                                   className={`h-4 w-4 ${runningProcess === process.id ? "animate-spin" : ""}`}
                                 />
-                                <span className="sr-only">Run</span>
+                                <span className="sr-only">{t("admin.run")}</span>
                               </Button>
                               <Button
                                 variant="ghost"
@@ -329,7 +332,7 @@ export default function AdminProcessesPage() {
                                 ) : (
                                   <Pause className="h-4 w-4" />
                                 )}
-                                <span className="sr-only">{process.status === "paused" ? "Resume" : "Pause"}</span>
+                                <span className="sr-only">{process.status === "paused" ? t("admin.resume") : t("admin.pause")}</span>
                               </Button>
                             </div>
                           </TableCell>
@@ -343,7 +346,7 @@ export default function AdminProcessesPage() {
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">
-                        Running: {processes.find((p) => p.id === runningProcess)?.name}
+                        {t("admin.running")}: {processes.find((p) => p.id === runningProcess)?.name}
                       </span>
                       <span className="text-sm">{progress}%</span>
                     </div>
@@ -357,8 +360,8 @@ export default function AdminProcessesPage() {
           <TabsContent value="logs">
             <Card>
               <CardHeader>
-                <CardTitle>Process Logs</CardTitle>
-                <CardDescription>View logs from system processes and scheduled tasks.</CardDescription>
+                <CardTitle>{t("admin.processLogs")}</CardTitle>
+                <CardDescription>{t("admin.processesDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border">

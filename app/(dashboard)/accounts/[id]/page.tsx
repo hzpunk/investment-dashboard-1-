@@ -15,6 +15,8 @@ import { fetchAccountById, updateAccount, deleteAccount } from "@/entities/accou
 import { fetchTransactions } from "@/entities/transaction/api"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
 import type { Database } from "@/types/supabase"
+import { useI18n } from "@/contexts/i18n-context"
+import { getAccountTypeLabel, getTransactionTypeLabel } from "@/lib/i18n-display"
 
 type Account = Database["public"]["Tables"]["accounts"]["Row"]
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
@@ -23,6 +25,7 @@ type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
 
 export default function AccountDetailPage({ params }: { params: { id: string } }) {
   const { user } = useAuth()
+  const { t } = useI18n()
   const router = useRouter()
   const [account, setAccount] = useState<Account | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -57,7 +60,7 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
         setTransactions(transactionsData.filter((t) => t.account_id === params.id))
       } catch (error) {
         console.error("Error fetching account data:", error)
-        setMessage({ type: "error", text: "Failed to load account data" })
+        setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
       }
@@ -81,10 +84,10 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
       })
 
       setAccount(updatedAccount)
-      setMessage({ type: "success", text: "Account updated successfully" })
+      setMessage({ type: "success", text: t("actions.saveChanges") })
     } catch (error) {
       console.error("Error updating account:", error)
-      setMessage({ type: "error", text: "Failed to update account" })
+      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -93,7 +96,7 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
   const handleDeleteAccount = async () => {
     if (!account) return
 
-    if (!confirm("Are you sure you want to delete this account? This will also delete all associated transactions.")) {
+    if (!confirm(t("accounts.confirmDelete"))) {
       return
     }
 
@@ -102,7 +105,7 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
       router.push("/accounts")
     } catch (error) {
       console.error("Error deleting account:", error)
-      setMessage({ type: "error", text: "Failed to delete account" })
+      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     }
   }
 
@@ -117,14 +120,14 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
   if (!account) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <h2 className="text-2xl font-bold mb-2">Account not found</h2>
+        <h2 className="text-2xl font-bold mb-2">{t("accounts.notFound")}</h2>
         <p className="text-muted-foreground mb-4">
-          The account you're looking for doesn't exist or you don't have access to it.
+          {t("accounts.notFoundDescription")}
         </p>
         <Button asChild variant="outline">
           <a href="/accounts">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Accounts
+            {t("actions.backToAccounts")}
           </a>
         </Button>
       </div>
@@ -133,26 +136,26 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading={account.name} text={`Manage your ${account.type} account`}>
+      <DashboardHeader heading={account.name} text={t("accounts.manageAccountText")}>
         <Button variant="outline" asChild>
           <a href="/accounts">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            {t("common.back")}
           </a>
         </Button>
       </DashboardHeader>
 
       <Tabs defaultValue="details" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="details">Account Details</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="details">{t("accounts.details")}</TabsTrigger>
+          <TabsTrigger value="transactions">{t("accounts.transactions")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="details">
           <Card>
             <CardHeader>
-              <CardTitle>Account Details</CardTitle>
-              <CardDescription>View and update your account information.</CardDescription>
+              <CardTitle>{t("accounts.details")}</CardTitle>
+              <CardDescription>{t("accounts.detailsDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {message && (
@@ -161,26 +164,26 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
                 </Alert>
               )}
               <div className="space-y-2">
-                <Label htmlFor="name">Account Name</Label>
+                <Label htmlFor="name">{t("common.name")}</Label>
                 <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="type">Account Type</Label>
+                <Label htmlFor="type">{t("accounts.accountType")}</Label>
                 <Select value={type} onValueChange={setType}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select account type" />
+                    <SelectValue placeholder={t("accounts.selectAccountType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="brokerage">Brokerage</SelectItem>
-                    <SelectItem value="bank">Bank</SelectItem>
-                    <SelectItem value="crypto">Crypto</SelectItem>
-                    <SelectItem value="retirement">Retirement</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="brokerage">{t("accountType.brokerage")}</SelectItem>
+                    <SelectItem value="bank">{t("accountType.bank")}</SelectItem>
+                    <SelectItem value="crypto">{t("accountType.crypto")}</SelectItem>
+                    <SelectItem value="retirement">{t("accountType.retirement")}</SelectItem>
+                    <SelectItem value="other">{t("accountType.other")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="balance">Balance</Label>
+                <Label htmlFor="balance">{t("common.amount")}</Label>
                 <Input
                   id="balance"
                   type="number"
@@ -189,10 +192,10 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
+                <Label htmlFor="currency">{t("common.currency")}</Label>
                 <Select value={currency} onValueChange={setCurrency}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select currency" />
+                    <SelectValue placeholder={t("transactions.selectCurrency")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
@@ -207,11 +210,11 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
             <CardFooter className="flex justify-between">
               <Button variant="destructive" onClick={handleDeleteAccount}>
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete Account
+                {t("actions.deleteAccount")}
               </Button>
               <Button onClick={handleUpdateAccount} disabled={isSaving}>
                 <Save className="mr-2 h-4 w-4" />
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? t("common.loading") : t("actions.saveChanges")}
               </Button>
             </CardFooter>
           </Card>
@@ -220,28 +223,28 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
         <TabsContent value="transactions">
           <Card>
             <CardHeader>
-              <CardTitle>Account Transactions</CardTitle>
-              <CardDescription>View all transactions for this account.</CardDescription>
+              <CardTitle>{t("accounts.transactions")}</CardTitle>
+              <CardDescription>{t("accounts.transactionsDescription")}</CardDescription>
             </CardHeader>
             <CardContent>
               {transactions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">No transactions found for this account.</div>
+                <div className="text-center py-8 text-muted-foreground">{t("accounts.noTransactions")}</div>
               ) : (
                 <div className="rounded-md border overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="p-2 text-left font-medium">Date</th>
-                        <th className="p-2 text-left font-medium">Type</th>
-                        <th className="p-2 text-left font-medium">Asset</th>
-                        <th className="p-2 text-right font-medium">Amount</th>
+                        <th className="p-2 text-left font-medium">{t("common.date")}</th>
+                        <th className="p-2 text-left font-medium">{t("common.type")}</th>
+                        <th className="p-2 text-left font-medium">{t("transactions.asset")}</th>
+                        <th className="p-2 text-right font-medium">{t("common.amount")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {transactions.map((transaction) => (
                         <tr key={transaction.id} className="border-b">
                           <td className="p-2">{new Date(transaction.date).toLocaleDateString()}</td>
-                          <td className="p-2 capitalize">{transaction.type}</td>
+                          <td className="p-2">{getTransactionTypeLabel(transaction.type, t)}</td>
                           <td className="p-2">{transaction.assets ? transaction.assets.symbol : "-"}</td>
                           <td className="p-2 text-right">
                             {transaction.currency} {transaction.total_amount.toFixed(2)}
@@ -255,7 +258,7 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
             </CardContent>
             <CardFooter>
               <Button asChild variant="outline" className="ml-auto">
-                <a href={`/transactions?account=${account.id}`}>View All Transactions</a>
+                <a href={`/transactions?account=${account.id}`}>{t("accounts.viewAllTransactions")}</a>
               </Button>
             </CardFooter>
           </Card>

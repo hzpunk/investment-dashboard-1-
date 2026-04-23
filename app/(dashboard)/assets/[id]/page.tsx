@@ -15,11 +15,14 @@ import { fetchAssetById, updateAsset, deleteAsset } from "@/entities/asset/api"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
 import type { Database } from "@/types/supabase"
 import { getHistoricalPrices, cryptoIdMap } from "@/shared/api/market-data"
+import { useI18n } from "@/contexts/i18n-context"
+import { getAssetTypeLabel } from "@/lib/i18n-display"
 
 type Asset = Database["public"]["Tables"]["assets"]["Row"]
 
 export default function AssetDetailPage({ params }: { params: { id: string } }) {
   const { user, userRole } = useAuth()
+  const { t } = useI18n()
   const router = useRouter()
   const [asset, setAsset] = useState<Asset | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -55,7 +58,7 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
         loadHistoricalData(assetData.symbol, assetData.type, selectedTimeframe)
       } catch (error) {
         console.error("Error fetching asset data:", error)
-        setMessage({ type: "error", text: "Failed to load asset data" })
+        setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
       }
@@ -94,10 +97,10 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
       })
 
       setAsset(updatedAsset)
-      setMessage({ type: "success", text: "Asset updated successfully" })
+      setMessage({ type: "success", text: t("actions.saveChanges") })
     } catch (error) {
       console.error("Error updating asset:", error)
-      setMessage({ type: "error", text: "Failed to update asset" })
+      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -106,7 +109,7 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
   const handleDeleteAsset = async () => {
     if (!asset) return
 
-    if (!confirm("Are you sure you want to delete this asset?")) {
+    if (!confirm(t("assets.confirmDelete"))) {
       return
     }
 
@@ -115,7 +118,7 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
       router.push("/assets")
     } catch (error) {
       console.error("Error deleting asset:", error)
-      setMessage({ type: "error", text: "Failed to delete asset" })
+      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     }
   }
 
@@ -130,14 +133,14 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
   if (!asset) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <h2 className="text-2xl font-bold mb-2">Asset not found</h2>
+        <h2 className="text-2xl font-bold mb-2">{t("assets.notFound")}</h2>
         <p className="text-muted-foreground mb-4">
-          The asset you're looking for doesn't exist or you don't have access to it.
+          {t("assets.notFoundDescription")}
         </p>
         <Button asChild variant="outline">
           <a href="/assets">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Assets
+            {t("actions.backToAssets")}
           </a>
         </Button>
       </div>
@@ -148,26 +151,26 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading={asset.name} text={`${asset.symbol} - ${asset.type}`}>
+      <DashboardHeader heading={asset.name} text={`${asset.symbol} - ${getAssetTypeLabel(asset.type, t)}`}>
         <Button variant="outline" asChild>
           <a href="/assets">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            {t("common.back")}
           </a>
         </Button>
       </DashboardHeader>
 
       <Tabs defaultValue="details" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="details">Asset Details</TabsTrigger>
-          <TabsTrigger value="chart">Price Chart</TabsTrigger>
+          <TabsTrigger value="details">{t("assets.details")}</TabsTrigger>
+          <TabsTrigger value="chart">{t("assets.priceChart")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="details">
           <Card>
             <CardHeader>
-              <CardTitle>Asset Details</CardTitle>
-              <CardDescription>View and update asset information.</CardDescription>
+              <CardTitle>{t("assets.details")}</CardTitle>
+              <CardDescription>{t("assets.detailsDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {message && (
@@ -176,31 +179,31 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
                 </Alert>
               )}
               <div className="space-y-2">
-                <Label htmlFor="name">Asset Name</Label>
+                <Label htmlFor="name">{t("common.name")}</Label>
                 <Input id="name" value={name} onChange={(e) => setName(e.target.value)} disabled={!isAdmin} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="symbol">Symbol</Label>
+                <Label htmlFor="symbol">{t("common.symbol")}</Label>
                 <Input id="symbol" value={symbol} onChange={(e) => setSymbol(e.target.value)} disabled={!isAdmin} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="type">Asset Type</Label>
+                <Label htmlFor="type">{t("assets.typeLabel")}</Label>
                 <Select value={type} onValueChange={setType} disabled={!isAdmin}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select asset type" />
+                    <SelectValue placeholder={t("assets.selectAssetType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="stock">Stock</SelectItem>
-                    <SelectItem value="bond">Bond</SelectItem>
-                    <SelectItem value="etf">ETF</SelectItem>
-                    <SelectItem value="crypto">Cryptocurrency</SelectItem>
-                    <SelectItem value="commodity">Commodity</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="stock">{t("assetType.stock")}</SelectItem>
+                    <SelectItem value="bond">{t("assetType.bond")}</SelectItem>
+                    <SelectItem value="etf">{t("assetType.etf")}</SelectItem>
+                    <SelectItem value="crypto">{t("assetType.crypto")}</SelectItem>
+                    <SelectItem value="commodity">{t("assetType.commodity")}</SelectItem>
+                    <SelectItem value="other">{t("assetType.other")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="price">Current Price</Label>
+                <Label htmlFor="price">{t("assets.currentPrice")}</Label>
                 <Input
                   id="price"
                   type="number"
@@ -210,10 +213,10 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
+                <Label htmlFor="currency">{t("common.currency")}</Label>
                 <Select value={currency} onValueChange={setCurrency} disabled={!isAdmin}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select currency" />
+                    <SelectValue placeholder={t("transactions.selectCurrency")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
@@ -225,7 +228,7 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Last Updated</Label>
+                <Label>{t("common.lastUpdated")}</Label>
                 <div className="p-2 border rounded-md bg-muted/50">{new Date(asset.updated_at).toLocaleString()}</div>
               </div>
             </CardContent>
@@ -233,11 +236,11 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
               <CardFooter className="flex justify-between">
                 <Button variant="destructive" onClick={handleDeleteAsset}>
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Asset
+                  {t("actions.deleteAsset")}
                 </Button>
                 <Button onClick={handleUpdateAsset} disabled={isSaving}>
                   <Save className="mr-2 h-4 w-4" />
-                  {isSaving ? "Saving..." : "Save Changes"}
+                  {isSaving ? t("common.loading") : t("actions.saveChanges")}
                 </Button>
               </CardFooter>
             )}
@@ -247,8 +250,8 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
         <TabsContent value="chart">
           <Card>
             <CardHeader>
-              <CardTitle>Price History</CardTitle>
-              <CardDescription>Historical price data for {asset.symbol}</CardDescription>
+              <CardTitle>{t("assets.priceHistory")}</CardTitle>
+              <CardDescription>{t("assets.historyDescription")} {asset.symbol}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="mb-4">
@@ -286,7 +289,7 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
                     onClick={() => setSelectedTimeframe("ALL")}
                     className={selectedTimeframe === "ALL" ? "bg-primary text-primary-foreground" : ""}
                   >
-                    All
+                    {t("common.all")}
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -297,7 +300,7 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
                 </div>
               ) : historicalData.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No historical data available for this asset.
+                  {t("assets.noHistory")}
                 </div>
               ) : (
                 <div>
@@ -338,7 +341,7 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
                   </div>
                   <div className="flex items-center justify-between mt-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Starting Price</p>
+                      <p className="text-sm text-muted-foreground">{t("performance.startingValue")}</p>
                       <p className="text-lg font-bold">
                         $
                         {historicalData[0]?.value.toLocaleString(undefined, {
@@ -348,7 +351,7 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Current Price</p>
+                      <p className="text-sm text-muted-foreground">{t("performance.currentValue")}</p>
                       <p className="text-lg font-bold">
                         $
                         {historicalData[historicalData.length - 1]?.value.toLocaleString(undefined, {
@@ -358,7 +361,7 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Change</p>
+                      <p className="text-sm text-muted-foreground">{t("performance.return")}</p>
                       {historicalData.length > 1 && (
                         <p
                           className={`text-lg font-bold ${historicalData[historicalData.length - 1].value >= historicalData[0].value ? "text-green-500" : "text-red-500"}`}

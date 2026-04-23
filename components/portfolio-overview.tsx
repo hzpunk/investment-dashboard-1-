@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowUpRight, ArrowDownRight, DollarSign, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/contexts/i18n-context"
 
 interface PortfolioOverviewProps {
   className?: string
@@ -21,20 +22,21 @@ export function PortfolioOverview({
   ytdReturn = 8.2,
   allTimeReturn = 12.5,
 }: PortfolioOverviewProps) {
+  const { t } = useI18n()
   const isPositive = portfolioChange >= 0
 
   return (
     <Card className={cn("", className)}>
       <CardHeader>
-        <CardTitle>Portfolio Overview</CardTitle>
-        <CardDescription>Your current investment portfolio value and performance</CardDescription>
+        <CardTitle>{t("portfolioOverview.title")}</CardTitle>
+        <CardDescription>{t("portfolioOverview.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4">
           <div className="space-y-2">
             <div className="flex items-center">
               <DollarSign className="mr-2 h-5 w-5 text-muted-foreground" />
-              <h3 className="text-sm font-medium leading-none">Total Value</h3>
+              <h3 className="text-sm font-medium leading-none">{t("portfolioOverview.totalValue")}</h3>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between">
               <p className="text-2xl sm:text-3xl font-bold">
@@ -59,14 +61,14 @@ export function PortfolioOverview({
             <div className="space-y-2">
               <div className="flex items-center">
                 <TrendingUp className="mr-2 h-5 w-5 text-muted-foreground" />
-                <h3 className="text-sm font-medium leading-none">YTD Return</h3>
+                <h3 className="text-sm font-medium leading-none">{t("portfolioOverview.ytdReturn")}</h3>
               </div>
               <p className="text-xl sm:text-2xl font-bold text-green-500">+{ytdReturn}%</p>
             </div>
             <div className="space-y-2">
               <div className="flex items-center">
                 <TrendingUp className="mr-2 h-5 w-5 text-muted-foreground" />
-                <h3 className="text-sm font-medium leading-none">All Time</h3>
+                <h3 className="text-sm font-medium leading-none">{t("portfolioOverview.allTime")}</h3>
               </div>
               <p className="text-xl sm:text-2xl font-bold text-green-500">+{allTimeReturn}%</p>
             </div>

@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import type { Database } from "@/types/supabase"
+import { useI18n } from "@/contexts/i18n-context"
 
 type Goal = Database["public"]["Tables"]["goals"]["Row"]
 
@@ -29,6 +30,7 @@ interface GoalsListProps {
 
 export function GoalsList({ className, goals = [] }: GoalsListProps) {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [newGoal, setNewGoal] = useState<Partial<Goal>>({
@@ -64,7 +66,7 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
   }
 
   const handleDeleteGoal = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this goal?")) {
+    if (!confirm(t("goals.confirmDelete"))) {
       return
     }
 
@@ -84,25 +86,25 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
     <Card className={className}>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Financial Goals</CardTitle>
-          <CardDescription>Track your investment goals</CardDescription>
+          <CardTitle>{t("goals.title")}</CardTitle>
+          <CardDescription>{t("goals.trackDescription")}</CardDescription>
         </div>
         <Dialog open={isAddGoalOpen} onOpenChange={setIsAddGoalOpen}>
           <DialogTrigger asChild>
             <Button size="sm">
               <Plus className="mr-2 h-4 w-4" />
-              Add Goal
+              {t("actions.addGoal")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Goal</DialogTitle>
-              <DialogDescription>Set a new financial goal to track your progress.</DialogDescription>
+              <DialogTitle>{t("goals.addDialogTitle")}</DialogTitle>
+              <DialogDescription>{t("goals.addDialogDescription")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="goal-name" className="text-right">
-                  Name
+                  {t("common.name")}
                 </Label>
                 <Input
                   id="goal-name"
@@ -113,7 +115,7 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="goal-target" className="text-right">
-                  Target Amount
+                  {t("goals.targetAmount")}
                 </Label>
                 <Input
                   id="goal-target"
@@ -125,7 +127,7 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="goal-current" className="text-right">
-                  Current Amount
+                  {t("goals.currentAmount")}
                 </Label>
                 <Input
                   id="goal-current"
@@ -137,7 +139,7 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="goal-date" className="text-right">
-                  Target Date
+                  {t("goals.targetDate")}
                 </Label>
                 <Input
                   id="goal-date"
@@ -150,10 +152,10 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddGoalOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleAddGoal} disabled={isLoading}>
-                {isLoading ? "Adding..." : "Add Goal"}
+                {isLoading ? t("common.loading") : t("actions.addGoal")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -163,7 +165,7 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
         <div className="space-y-4">
           {goals.length === 0 ? (
             <div className="text-center py-4 text-muted-foreground">
-              No goals found. Add your first goal to get started.
+              {t("goals.noGoals")}
             </div>
           ) : (
             goals.map((goal) => {
@@ -175,7 +177,7 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
                       <h3 className="font-medium">{goal.name}</h3>
                       {goal.target_date && (
                         <p className="text-xs text-muted-foreground">
-                          Target: {new Date(goal.target_date).toLocaleDateString()}
+                          {t("goals.target")}: {new Date(goal.target_date).toLocaleDateString()}
                         </p>
                       )}
                     </div>
@@ -183,12 +185,12 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
                       <Button variant="ghost" size="icon" asChild>
                         <a href={`/goals/${goal.id}`}>
                           <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
+                          <span className="sr-only">{t("common.edit")}</span>
                         </a>
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteGoal(goal.id)}>
                         <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete</span>
+                        <span className="sr-only">{t("common.delete")}</span>
                       </Button>
                     </div>
                   </div>

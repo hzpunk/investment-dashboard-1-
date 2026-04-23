@@ -21,11 +21,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Pencil, Trash2, Search } from "lucide-react"
 import { fetchAccounts, createAccount, deleteAccount } from "@/entities/account/api"
 import type { Database } from "@/types/supabase"
+import { useI18n } from "@/contexts/i18n-context"
+import { getAccountTypeLabel } from "@/lib/i18n-display"
 
 type Account = Database["public"]["Tables"]["accounts"]["Row"]
 
 export default function AccountsPage() {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false)
@@ -84,7 +87,7 @@ export default function AccountsPage() {
   }
 
   const handleDeleteAccount = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this account? This will also delete all associated transactions.")) {
+    if (!confirm(t("accounts.confirmDelete"))) {
       return
     }
 
@@ -104,23 +107,23 @@ export default function AccountsPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="Accounts" text="Manage your investment and bank accounts.">
+      <DashboardHeader heading={t("accounts.title")} text={t("accounts.description")}>
         <Dialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Add Account
+              {t("actions.addAccount")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Account</DialogTitle>
-              <DialogDescription>Enter the details of your investment account.</DialogDescription>
+              <DialogTitle>{t("accounts.addDialogTitle")}</DialogTitle>
+              <DialogDescription>{t("accounts.addDialogDescription")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">
-                  Name
+                  {t("common.name")}
                 </Label>
                 <Input
                   id="name"
@@ -131,27 +134,27 @@ export default function AccountsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="type" className="text-right">
-                  Type
+                  {t("common.type")}
                 </Label>
                 <Select
                   value={newAccount.type as string}
                   onValueChange={(value) => setNewAccount({ ...newAccount, type: value as any })}
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select account type" />
+                    <SelectValue placeholder={t("accounts.selectAccountType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="brokerage">Brokerage</SelectItem>
-                    <SelectItem value="bank">Bank</SelectItem>
-                    <SelectItem value="crypto">Crypto</SelectItem>
-                    <SelectItem value="retirement">Retirement</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="brokerage">{t("accountType.brokerage")}</SelectItem>
+                    <SelectItem value="bank">{t("accountType.bank")}</SelectItem>
+                    <SelectItem value="crypto">{t("accountType.crypto")}</SelectItem>
+                    <SelectItem value="retirement">{t("accountType.retirement")}</SelectItem>
+                    <SelectItem value="other">{t("accountType.other")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="balance" className="text-right">
-                  Balance
+                  {t("common.amount")}
                 </Label>
                 <Input
                   id="balance"
@@ -163,14 +166,14 @@ export default function AccountsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="currency" className="text-right">
-                  Currency
+                  {t("common.currency")}
                 </Label>
                 <Select
                   value={newAccount.currency}
                   onValueChange={(value) => setNewAccount({ ...newAccount, currency: value })}
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select currency" />
+                    <SelectValue placeholder={t("transactions.selectCurrency")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
@@ -184,10 +187,10 @@ export default function AccountsPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddAccountOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleAddAccount} disabled={isSubmitting}>
-                {isSubmitting ? "Adding..." : "Add Account"}
+                {isSubmitting ? t("common.loading") : t("actions.addAccount")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -201,7 +204,7 @@ export default function AccountsPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search accounts..."
+                placeholder={t("accounts.searchPlaceholder")}
                 className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -218,11 +221,11 @@ export default function AccountsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[180px]">Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Balance</TableHead>
-                    <TableHead>Currency</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead className="w-[180px]">{t("common.name")}</TableHead>
+                    <TableHead>{t("common.type")}</TableHead>
+                    <TableHead className="text-right">{t("common.amount")}</TableHead>
+                    <TableHead>{t("common.currency")}</TableHead>
+                    <TableHead className="w-[100px]">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -230,15 +233,15 @@ export default function AccountsPage() {
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
                         {searchQuery
-                          ? "No accounts found matching your search."
-                          : "No accounts found. Add your first account to get started."}
+                          ? t("accounts.noAccountsBySearch")
+                          : t("accounts.noAccounts")}
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredAccounts.map((account) => (
                       <TableRow key={account.id}>
                         <TableCell className="font-medium">{account.name}</TableCell>
-                        <TableCell className="capitalize">{account.type}</TableCell>
+                        <TableCell>{getAccountTypeLabel(account.type, t)}</TableCell>
                         <TableCell className="text-right">
                           {account.balance.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
@@ -251,12 +254,12 @@ export default function AccountsPage() {
                             <Button variant="ghost" size="icon" asChild>
                               <a href={`/accounts/${account.id}`}>
                                 <Pencil className="h-4 w-4" />
-                                <span className="sr-only">Edit</span>
+                                <span className="sr-only">{t("common.edit")}</span>
                               </a>
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleDeleteAccount(account.id)}>
                               <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Delete</span>
+                              <span className="sr-only">{t("common.delete")}</span>
                             </Button>
                           </div>
                         </TableCell>

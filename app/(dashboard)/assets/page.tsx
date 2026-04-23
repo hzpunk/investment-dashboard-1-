@@ -21,11 +21,14 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Plus, Pencil, Trash2, Search, RefreshCw } from "lucide-react"
 import { fetchAssets, createAsset, deleteAsset, updateAssetPrices } from "@/entities/asset/api"
 import type { Database } from "@/types/supabase"
+import { useI18n } from "@/contexts/i18n-context"
+import { getAssetTypeLabel } from "@/lib/i18n-display"
 
 type Asset = Database["public"]["Tables"]["assets"]["Row"]
 
 export default function AssetsPage() {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [assets, setAssets] = useState<Asset[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false)
@@ -80,7 +83,7 @@ export default function AssetsPage() {
   }
 
   const handleDeleteAsset = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this asset?")) {
+    if (!confirm(t("assets.confirmDelete"))) {
       return
     }
 
@@ -114,28 +117,28 @@ export default function AssetsPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="Assets" text="Manage investment assets in your portfolio.">
+      <DashboardHeader heading={t("assets.title")} text={t("assets.description")}>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleRefreshPrices} disabled={isRefreshing}>
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            {isRefreshing ? "Updating..." : "Update Prices"}
+            {isRefreshing ? t("assets.updatingPrices") : t("assets.updatePrices")}
           </Button>
           <Dialog open={isAddAssetOpen} onOpenChange={setIsAddAssetOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Asset
+                {t("actions.addAsset")}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add New Asset</DialogTitle>
-                <DialogDescription>Enter the details of the investment asset.</DialogDescription>
+                <DialogTitle>{t("assets.addDialogTitle")}</DialogTitle>
+                <DialogDescription>{t("assets.addDialogDescription")}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="symbol" className="text-right">
-                    Symbol
+                    {t("common.symbol")}
                   </Label>
                   <Input
                     id="symbol"
@@ -146,7 +149,7 @@ export default function AssetsPage() {
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="name" className="text-right">
-                    Name
+                    {t("common.name")}
                   </Label>
                   <Input
                     id="name"
@@ -157,28 +160,28 @@ export default function AssetsPage() {
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="type" className="text-right">
-                    Type
+                    {t("common.type")}
                   </Label>
                   <Select
                     value={newAsset.type as string}
                     onValueChange={(value) => setNewAsset({ ...newAsset, type: value as any })}
                   >
                     <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select asset type" />
+                      <SelectValue placeholder={t("assets.selectAssetType")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="stock">Stock</SelectItem>
-                      <SelectItem value="bond">Bond</SelectItem>
-                      <SelectItem value="etf">ETF</SelectItem>
-                      <SelectItem value="crypto">Cryptocurrency</SelectItem>
-                      <SelectItem value="commodity">Commodity</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="stock">{t("assetType.stock")}</SelectItem>
+                      <SelectItem value="bond">{t("assetType.bond")}</SelectItem>
+                      <SelectItem value="etf">{t("assetType.etf")}</SelectItem>
+                      <SelectItem value="crypto">{t("assetType.crypto")}</SelectItem>
+                      <SelectItem value="commodity">{t("assetType.commodity")}</SelectItem>
+                      <SelectItem value="other">{t("assetType.other")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="price" className="text-right">
-                    Current Price
+                    {t("assets.currentPrice")}
                   </Label>
                   <Input
                     id="price"
@@ -190,14 +193,14 @@ export default function AssetsPage() {
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="currency" className="text-right">
-                    Currency
+                    {t("common.currency")}
                   </Label>
                   <Select
                     value={newAsset.currency}
                     onValueChange={(value) => setNewAsset({ ...newAsset, currency: value })}
                   >
                     <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select currency" />
+                      <SelectValue placeholder={t("transactions.selectCurrency")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="USD">USD</SelectItem>
@@ -211,10 +214,10 @@ export default function AssetsPage() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddAssetOpen(false)}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button onClick={handleAddAsset} disabled={isSubmitting}>
-                  {isSubmitting ? "Adding..." : "Add Asset"}
+                  {isSubmitting ? t("common.loading") : t("actions.addAsset")}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -229,7 +232,7 @@ export default function AssetsPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search assets..."
+                placeholder={t("assets.searchPlaceholder")}
                 className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -246,13 +249,13 @@ export default function AssetsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Symbol</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead>Currency</TableHead>
-                    <TableHead className="text-right">Last Updated</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead>{t("common.symbol")}</TableHead>
+                    <TableHead>{t("common.name")}</TableHead>
+                    <TableHead>{t("common.type")}</TableHead>
+                    <TableHead className="text-right">{t("common.price")}</TableHead>
+                    <TableHead>{t("common.currency")}</TableHead>
+                    <TableHead className="text-right">{t("common.lastUpdated")}</TableHead>
+                    <TableHead className="w-[100px]">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -260,8 +263,8 @@ export default function AssetsPage() {
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
                         {searchQuery
-                          ? "No assets found matching your search."
-                          : "No assets found. Add your first asset to get started."}
+                          ? t("assets.noAssetsBySearch")
+                          : t("assets.noAssets")}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -269,7 +272,7 @@ export default function AssetsPage() {
                       <TableRow key={asset.id}>
                         <TableCell className="font-medium">{asset.symbol}</TableCell>
                         <TableCell>{asset.name}</TableCell>
-                        <TableCell className="capitalize">{asset.type}</TableCell>
+                        <TableCell>{getAssetTypeLabel(asset.type, t)}</TableCell>
                         <TableCell className="text-right">
                           {asset.current_price.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
@@ -283,12 +286,12 @@ export default function AssetsPage() {
                             <Button variant="ghost" size="icon" asChild>
                               <a href={`/assets/${asset.id}`}>
                                 <Pencil className="h-4 w-4" />
-                                <span className="sr-only">Edit</span>
+                                <span className="sr-only">{t("common.edit")}</span>
                               </a>
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleDeleteAsset(asset.id)}>
                               <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Delete</span>
+                              <span className="sr-only">{t("common.delete")}</span>
                             </Button>
                           </div>
                         </TableCell>

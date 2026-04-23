@@ -21,6 +21,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Search, UserPlus, UserX, ArrowUpDown } from "lucide-react"
 import { supabase } from "@/shared/api/supabase"
+import { useI18n } from "@/contexts/i18n-context"
 
 interface User {
   id: string
@@ -33,6 +34,7 @@ interface User {
 
 export default function AdminUsersPage() {
   const { user, userRole } = useAuth()
+  const { t } = useI18n()
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -124,8 +126,8 @@ export default function AdminUsersPage() {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">You don't have permission to access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t("admin.accessDenied")}</h2>
+          <p className="text-muted-foreground">{t("admin.accessDeniedDescription")}</p>
         </div>
       </div>
     )
@@ -160,7 +162,7 @@ export default function AdminUsersPage() {
 
   const handleAddUser = async () => {
     if (!newUser.email || !newUser.password || !newUser.username) {
-      setMessage({ type: "error", text: "Please fill in all required fields" })
+      setMessage({ type: "error", text: t("admin.requiredFields") })
       return
     }
 
@@ -210,11 +212,11 @@ export default function AdminUsersPage() {
         })
 
         setIsAddUserOpen(false)
-        setMessage({ type: "success", text: "User created successfully" })
+        setMessage({ type: "success", text: t("admin.userCreated") })
       }
     } catch (error: any) {
       console.error("Error creating user:", error)
-      setMessage({ type: "error", text: error.message || "Failed to create user" })
+      setMessage({ type: "error", text: error.message || t("admin.userCreateFailed") })
     } finally {
       setIsSubmitting(false)
     }
@@ -236,15 +238,15 @@ export default function AdminUsersPage() {
         }),
       )
 
-      setMessage({ type: "success", text: "User role updated successfully" })
+      setMessage({ type: "success", text: t("admin.roleUpdated") })
     } catch (error: any) {
       console.error("Error updating user role:", error)
-      setMessage({ type: "error", text: error.message || "Failed to update user role" })
+      setMessage({ type: "error", text: error.message || t("admin.roleUpdateFailed") })
     }
   }
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
+    if (!confirm(t("admin.confirmDeleteUser"))) {
       return
     }
 
@@ -255,32 +257,32 @@ export default function AdminUsersPage() {
 
       // Update local state
       setUsers(users.filter((u) => u.id !== userId))
-      setMessage({ type: "success", text: "User deleted successfully" })
+      setMessage({ type: "success", text: t("admin.userDeleted") })
     } catch (error: any) {
       console.error("Error deleting user:", error)
-      setMessage({ type: "error", text: error.message || "Failed to delete user" })
+      setMessage({ type: "error", text: error.message || t("admin.userDeleteFailed") })
     }
   }
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="User Management" text="Manage user accounts and permissions.">
+      <DashboardHeader heading={t("admin.usersTitle")} text={t("admin.usersDescription")}>
         <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
           <DialogTrigger asChild>
             <Button>
               <UserPlus className="mr-2 h-4 w-4" />
-              Add User
+              {t("admin.addUser")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
-              <DialogDescription>Create a new user account.</DialogDescription>
+              <DialogTitle>{t("admin.addUserTitle")}</DialogTitle>
+              <DialogDescription>{t("admin.addUserDescription")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="email" className="text-right">
-                  Email
+                  {t("common.email")}
                 </Label>
                 <Input
                   id="email"
@@ -292,7 +294,7 @@ export default function AdminUsersPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="username" className="text-right">
-                  Username
+                  {t("auth.username")}
                 </Label>
                 <Input
                   id="username"
@@ -303,7 +305,7 @@ export default function AdminUsersPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="password" className="text-right">
-                  Password
+                  {t("auth.password")}
                 </Label>
                 <Input
                   id="password"
@@ -315,25 +317,25 @@ export default function AdminUsersPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="role" className="text-right">
-                  Role
+                  {t("common.type")}
                 </Label>
                 <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select role" />
+                    <SelectValue placeholder={t("common.type")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="user">{t("role.user")}</SelectItem>
+                    <SelectItem value="admin">{t("role.admin")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleAddUser} disabled={isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create User"}
+                {isSubmitting ? t("admin.creatingUser") : t("admin.createUser")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -352,7 +354,7 @@ export default function AdminUsersPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search users..."
+                placeholder={t("admin.searchUsers")}
                 className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -371,7 +373,7 @@ export default function AdminUsersPage() {
                   <TableRow>
                     <TableHead>
                       <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("username")}>
-                        Username
+                        {t("auth.username")}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
@@ -383,27 +385,27 @@ export default function AdminUsersPage() {
                     </TableHead>
                     <TableHead>
                       <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("role")}>
-                        Role
+                        {t("common.type")}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
                     <TableHead>
                       <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("created_at")}>
-                        Created At
+                        {t("common.createdAt")}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
                     <TableHead>
-                      <span className="font-medium">Last Sign In</span>
+                      <span className="font-medium">{t("admin.lastSignIn")}</span>
                     </TableHead>
-                    <TableHead className="w-[150px]">Actions</TableHead>
+                    <TableHead className="w-[150px]">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
-                        {searchQuery ? "No users found matching your search." : "No users found."}
+                        {searchQuery ? t("admin.noUsersBySearch") : t("admin.noUsers")}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -414,17 +416,17 @@ export default function AdminUsersPage() {
                         <TableCell>
                           <Select value={user.role} onValueChange={(value) => handleUpdateUserRole(user.id, value)}>
                             <SelectTrigger className="h-8 w-28">
-                              <SelectValue placeholder="Select role" />
+                              <SelectValue placeholder={t("common.type")} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="user">User</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="user">{t("role.user")}</SelectItem>
+                              <SelectItem value="admin">{t("role.admin")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
                         <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                         <TableCell>
-                          {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : "Never"}
+                          {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : t("admin.never")}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
@@ -435,7 +437,7 @@ export default function AdminUsersPage() {
                               className="h-8 px-2"
                             >
                               <UserX className="h-4 w-4 mr-1" />
-                              Delete
+                              {t("common.delete")}
                             </Button>
                           </div>
                         </TableCell>

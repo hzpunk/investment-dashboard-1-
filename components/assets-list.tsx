@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useI18n } from "@/contexts/i18n-context"
+import { getAssetTypeLabel } from "@/lib/i18n-display"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,11 +21,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowUpDown, Plus, Pencil, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+type AssetTypeValue = "stock" | "etf" | "bond" | "crypto" | "realEstate" | "other"
+
 interface Asset {
   id: string
   name: string
   ticker: string
-  type: string
+  type: AssetTypeValue
   shares: number
   price: number
   value: number
@@ -31,12 +35,13 @@ interface Asset {
 }
 
 export function AssetsList() {
+  const { t } = useI18n()
   const [assets, setAssets] = useState<Asset[]>([
     {
       id: "1",
       name: "Apple Inc.",
       ticker: "AAPL",
-      type: "Stock",
+      type: "stock",
       shares: 10,
       price: 175.25,
       value: 1752.5,
@@ -46,7 +51,7 @@ export function AssetsList() {
       id: "2",
       name: "Microsoft Corporation",
       ticker: "MSFT",
-      type: "Stock",
+      type: "stock",
       shares: 5,
       price: 325.76,
       value: 1628.8,
@@ -56,7 +61,7 @@ export function AssetsList() {
       id: "3",
       name: "Vanguard Total Stock Market ETF",
       ticker: "VTI",
-      type: "ETF",
+      type: "etf",
       shares: 8,
       price: 235.42,
       value: 1883.36,
@@ -66,7 +71,7 @@ export function AssetsList() {
       id: "4",
       name: "US Treasury Bond 2.5% 2030",
       ticker: "USTB30",
-      type: "Bond",
+      type: "bond",
       shares: 1,
       price: 950.0,
       value: 950.0,
@@ -76,7 +81,7 @@ export function AssetsList() {
       id: "5",
       name: "Bitcoin",
       ticker: "BTC",
-      type: "Cryptocurrency",
+      type: "crypto",
       shares: 0.05,
       price: 42000.0,
       value: 2100.0,
@@ -88,7 +93,7 @@ export function AssetsList() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false)
   const [newAsset, setNewAsset] = useState<Partial<Asset>>({
-    type: "Stock",
+    type: "stock",
   })
 
   const handleSort = (column: keyof Asset) => {
@@ -122,7 +127,7 @@ export function AssetsList() {
       id: Date.now().toString(),
       name: newAsset.name || "",
       ticker: newAsset.ticker || "",
-      type: newAsset.type || "Stock",
+      type: newAsset.type || "stock",
       shares: newAsset.shares || 0,
       price: newAsset.price || 0,
       value,
@@ -130,7 +135,7 @@ export function AssetsList() {
     }
 
     setAssets([...assets, asset])
-    setNewAsset({ type: "Stock" })
+    setNewAsset({ type: "stock" })
     setIsAddAssetOpen(false)
   }
 
@@ -142,25 +147,25 @@ export function AssetsList() {
     <Card>
       <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle>Assets</CardTitle>
-          <CardDescription>Manage your investment assets</CardDescription>
+          <CardTitle>{t("assets.title")}</CardTitle>
+          <CardDescription>{t("assets.description")}</CardDescription>
         </div>
         <Dialog open={isAddAssetOpen} onOpenChange={setIsAddAssetOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="mt-2 sm:mt-0">
               <Plus className="mr-2 h-4 w-4" />
-              Add Asset
+              {t("actions.addAsset")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Asset</DialogTitle>
-              <DialogDescription>Enter the details of your investment asset.</DialogDescription>
+              <DialogTitle>{t("assets.addDialogTitle")}</DialogTitle>
+              <DialogDescription>{t("assets.addDialogDescription")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">
-                  Name
+                  {t("common.name")}
                 </Label>
                 <Input
                   id="name"
@@ -171,7 +176,7 @@ export function AssetsList() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="ticker" className="text-right">
-                  Ticker
+                  {t("common.symbol")}
                 </Label>
                 <Input
                   id="ticker"
@@ -182,25 +187,25 @@ export function AssetsList() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="type" className="text-right">
-                  Type
+                  {t("common.type")}
                 </Label>
                 <Select value={newAsset.type} onValueChange={(value) => setNewAsset({ ...newAsset, type: value })}>
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select asset type" />
+                    <SelectValue placeholder={t("assets.selectAssetType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Stock">Stock</SelectItem>
-                    <SelectItem value="ETF">ETF</SelectItem>
-                    <SelectItem value="Bond">Bond</SelectItem>
-                    <SelectItem value="Cryptocurrency">Cryptocurrency</SelectItem>
-                    <SelectItem value="Real Estate">Real Estate</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    <SelectItem value="stock">{t("assetType.stock")}</SelectItem>
+                    <SelectItem value="etf">{t("assetType.etf")}</SelectItem>
+                    <SelectItem value="bond">{t("assetType.bond")}</SelectItem>
+                    <SelectItem value="crypto">{t("assetType.crypto")}</SelectItem>
+                    <SelectItem value="realEstate">{t("assetType.realEstate")}</SelectItem>
+                    <SelectItem value="other">{t("assetType.other")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="shares" className="text-right">
-                  Shares/Units
+                  {t("assets.sharesUnits")}
                 </Label>
                 <Input
                   id="shares"
@@ -212,7 +217,7 @@ export function AssetsList() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="price" className="text-right">
-                  Price
+                  {t("common.price")}
                 </Label>
                 <Input
                   id="price"
@@ -225,9 +230,9 @@ export function AssetsList() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddAssetOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
-              <Button onClick={handleAddAsset}>Add Asset</Button>
+              <Button onClick={handleAddAsset}>{t("actions.addAsset")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -239,47 +244,47 @@ export function AssetsList() {
               <TableRow>
                 <TableHead className="w-[180px]">
                   <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("name")}>
-                    Name
+                    {t("common.name")}
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
                 <TableHead>
                   <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("ticker")}>
-                    Ticker
+                    {t("common.symbol")}
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
                 <TableHead>
                   <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("type")}>
-                    Type
+                    {t("common.type")}
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
                 <TableHead className="text-right">
                   <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("shares")}>
-                    Shares
+                    {t("assets.shares")}
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
                 <TableHead className="text-right">
                   <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("price")}>
-                    Price
+                    {t("common.price")}
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
                 <TableHead className="text-right">
                   <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("value")}>
-                    Value
+                    {t("common.value")}
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
                 <TableHead className="text-right">
                   <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("change")}>
-                    24h Change
+                    {t("assets.change24h")}
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
+                <TableHead className="w-[100px]">{t("common.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -287,7 +292,7 @@ export function AssetsList() {
                 <TableRow key={asset.id}>
                   <TableCell className="font-medium">{asset.name}</TableCell>
                   <TableCell>{asset.ticker}</TableCell>
-                  <TableCell>{asset.type}</TableCell>
+                  <TableCell>{getAssetTypeLabel(asset.type, t)}</TableCell>
                   <TableCell className="text-right">{asset.shares.toLocaleString()}</TableCell>
                   <TableCell className="text-right">
                     ${asset.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -308,11 +313,11 @@ export function AssetsList() {
                     <div className="flex items-center justify-end space-x-2">
                       <Button variant="ghost" size="icon">
                         <Pencil className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
+                        <span className="sr-only">{t("common.edit")}</span>
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteAsset(asset.id)}>
                         <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete</span>
+                        <span className="sr-only">{t("common.delete")}</span>
                       </Button>
                     </div>
                   </TableCell>

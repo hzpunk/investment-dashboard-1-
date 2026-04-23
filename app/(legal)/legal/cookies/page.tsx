@@ -1,107 +1,103 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Cookie, Settings, Shield } from "lucide-react"
+"use client"
 
-export const metadata = {
-  title: "Политика cookies | InvestTrack",
-  description: "Информация об использовании cookies",
-}
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Cookie } from "lucide-react"
+import { useI18n } from "@/contexts/i18n-context"
+import { getLegalContent } from "@/lib/legal-content"
 
 export default function CookiesPage() {
+  const { locale } = useI18n()
+  const content = getLegalContent(locale).cookies
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-3">
           <Cookie className="h-8 w-8 text-yellow-600" />
-          <CardTitle className="text-2xl">Политика использования cookies</CardTitle>
+          <CardTitle className="text-2xl">{content.title}</CardTitle>
         </div>
-        <p className="text-sm text-gray-500 mt-2">Последнее обновление: 22 апреля 2026 года</p>
+        {content.subtitle ? <p className="text-sm text-gray-500 mt-2">{content.subtitle}</p> : null}
       </CardHeader>
       <CardContent className="prose prose-slate max-w-none">
-        <h3>Что такое cookies?</h3>
-        <p>
-          Cookies — это небольшие текстовые файлы, которые сохраняются на вашем устройстве 
-          при посещении веб-сайтов. Они позволяют сайту запоминать ваши действия и предпочтения.
-        </p>
-
-        <h3>Какие cookies мы используем</h3>
-
-        <div className="overflow-x-auto not-prose">
-          <table className="min-w-full border-collapse border border-gray-200">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="border border-gray-200 px-4 py-2 text-left">Категория</th>
-                <th className="border border-gray-200 px-4 py-2 text-left">Назначение</th>
-                <th className="border border-gray-200 px-4 py-2 text-left">Срок</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="bg-red-50">
-                <td className="border border-gray-200 px-4 py-2 font-medium text-red-800">Обязательные</td>
-                <td className="border border-gray-200 px-4 py-2">Аутентификация, защита от CSRF</td>
-                <td className="border border-gray-200 px-4 py-2">Сессия / 24 часа</td>
-              </tr>
-              <tr className="bg-yellow-50">
-                <td className="border border-gray-200 px-4 py-2 font-medium text-yellow-800">Функциональные</td>
-                <td className="border border-gray-200 px-4 py-2">Тема оформления, язык, настройки</td>
-                <td className="border border-gray-200 px-4 py-2">1 год</td>
-              </tr>
-              <tr className="bg-green-50">
-                <td className="border border-gray-200 px-4 py-2 font-medium text-green-800">Аналитические</td>
-                <td className="border border-gray-200 px-4 py-2">Статистика использования (Google Analytics)</td>
-                <td className="border border-gray-200 px-4 py-2">2 года</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <h3 className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-          Управление cookies
-        </h3>
-
-        <p>Вы можете отключить cookies в настройках браузера:</p>
-        <ul>
-          <li><strong>Chrome:</strong> Настройки → Конфиденциальность и безопасность → Cookies</li>
-          <li><strong>Firefox:</strong> Настройки → Приватность и защита → Cookies</li>
-          <li><strong>Safari:</strong> Настройки → Конфиденциальность → Cookies</li>
-          <li><strong>Edge:</strong> Настройки → Cookies и разрешения сайтов</li>
-        </ul>
-
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-          <p className="text-yellow-800 text-sm">
-            <strong>Важно:</strong> Отключение обязательных cookies невозможно без нарушения 
-            работы сайта. Отключение других типов может ограничить функциональность.
-          </p>
-        </div>
-
-        <h3 className="flex items-center gap-2">
-          <Shield className="h-5 w-5" />
-          Безопасность
-        </h3>
-
-        <ul>
-          <li>Cookies не содержат персональных данных в открытом виде</li>
-          <li>Используется шифрование HTTPS</li>
-          <li>HttpOnly flag защищает от XSS-атак</li>
-          <li>Secure flag для HTTPS-only соединений</li>
-        </ul>
-
-        <h3>Сторонние cookies</h3>
-        <p>
-          Мы <strong>не используем</strong> сторонние cookies для рекламы, 
-          отслеживания на других сайтах или продажи данных маркетологам.
-        </p>
-
-        <h3>Контакты</h3>
-        <p>
-          По вопросам использования cookies:<br />
-          Email: privacy@investtrack.ru
-        </p>
-
-        <hr className="my-6" />
-        <p className="text-sm text-gray-500">
-          Увидели незнакомый cookie? Напишите нам — мы проверим.
-        </p>
+        {content.blocks.map((block, idx) => {
+          if (block.kind === "p") return <p key={idx} style={{ whiteSpace: "pre-line" }}>{block.text}</p>
+          if (block.kind === "h3") return <h3 key={idx}>{block.text}</h3>
+          if (block.kind === "h4") return <h4 key={idx}>{block.text}</h4>
+          if (block.kind === "ul") {
+            return (
+              <ul key={idx}>
+                {block.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            )
+          }
+          if (block.kind === "callout") {
+            const className =
+              block.tone === "danger"
+                ? "bg-red-50 border-l-4 border-red-400 p-4 not-prose"
+                : block.tone === "warning"
+                  ? "bg-yellow-50 border-l-4 border-yellow-400 p-4 not-prose"
+                  : block.tone === "success"
+                    ? "bg-green-50 border-l-4 border-green-400 p-4 not-prose"
+                    : "bg-blue-50 border-l-4 border-blue-400 p-4 not-prose"
+            return (
+              <div key={idx} className={className}>
+                {block.title ? <p className="text-sm font-medium mb-1">{block.title}</p> : null}
+                <p className="text-sm mb-0" style={{ whiteSpace: "pre-line" }}>
+                  {block.text}
+                </p>
+              </div>
+            )
+          }
+          if (block.kind === "table") {
+            return (
+              <div key={idx} className="overflow-x-auto not-prose">
+                <table className="min-w-full border-collapse border border-gray-200">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      {block.headers.map((h) => (
+                        <th key={h} className="border border-gray-200 px-4 py-2 text-left">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((row, rowIdx) => {
+                      const tone = block.rowTones?.[rowIdx] ?? "default"
+                      const rowClassName =
+                        tone === "danger"
+                          ? "bg-red-50"
+                          : tone === "warning"
+                            ? "bg-yellow-50"
+                            : tone === "success"
+                              ? "bg-green-50"
+                              : tone === "info"
+                                ? "bg-blue-50"
+                                : ""
+                      return (
+                        <tr key={rowIdx} className={rowClassName}>
+                          {row.map((cell, cellIdx) => (
+                            <td
+                              key={cellIdx}
+                              className={cellIdx === 0 ? "border border-gray-200 px-4 py-2 font-medium" : "border border-gray-200 px-4 py-2"}
+                            >
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+          if (block.kind === "hr") return <hr key={idx} className="my-6" />
+          if (block.kind === "small") return <p key={idx} className="text-sm text-gray-500">{block.text}</p>
+          return null
+        })}
       </CardContent>
     </Card>
   )

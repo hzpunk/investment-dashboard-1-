@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { useI18n } from "@/contexts/i18n-context"
 
 type AdminSetting = {
   id: string
@@ -32,6 +33,7 @@ type AdminSetting = {
 
 export default function AdminSettingsPage() {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [settings, setSettings] = useState<AdminSetting[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -66,7 +68,7 @@ export default function AdminSettingsPage() {
         }
       } catch (error) {
         console.error("Error loading admin settings:", error)
-        setMessage({ type: "error", text: "Failed to load settings" })
+        setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
       }
@@ -99,10 +101,10 @@ export default function AdminSettingsPage() {
       delete newEditedSettings[id]
       setEditedSettings(newEditedSettings)
 
-      setMessage({ type: "success", text: "Setting updated successfully" })
+      setMessage({ type: "success", text: t("admin.settingsSaved") })
     } catch (error) {
       console.error("Error updating setting:", error)
-      setMessage({ type: "error", text: "Failed to update setting" })
+      setMessage({ type: "error", text: t("admin.settingsSaveFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -132,10 +134,10 @@ export default function AdminSettingsPage() {
       })
 
       setIsAddSettingOpen(false)
-      setMessage({ type: "success", text: "Setting created successfully" })
+      setMessage({ type: "success", text: t("admin.settingsSaved") })
     } catch (error) {
       console.error("Error creating setting:", error)
-      setMessage({ type: "error", text: "Failed to create setting" })
+      setMessage({ type: "error", text: t("admin.settingsSaveFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -152,10 +154,10 @@ export default function AdminSettingsPage() {
   if (!isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-        <p className="text-muted-foreground mb-4">You don't have permission to access this page.</p>
+        <h2 className="text-2xl font-bold mb-2">{t("admin.accessDenied")}</h2>
+        <p className="text-muted-foreground mb-4">{t("admin.accessDeniedDescription")}</p>
         <Button asChild variant="outline">
-          <a href="/dashboard">Back to Dashboard</a>
+          <a href="/dashboard">{t("actions.backToDashboard")}</a>
         </Button>
       </div>
     )
@@ -163,18 +165,18 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="Admin Settings" text="Manage system-wide settings and configurations.">
+      <DashboardHeader heading={t("common.settings")} text={t("admin.securityDescription")}>
         <Dialog open={isAddSettingOpen} onOpenChange={setIsAddSettingOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Add Setting
+              {t("common.add")} {t("common.settings")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Setting</DialogTitle>
-              <DialogDescription>Create a new system setting.</DialogDescription>
+              <DialogTitle>{t("common.create")} {t("common.settings")}</DialogTitle>
+              <DialogDescription>{t("common.description")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
@@ -213,10 +215,10 @@ export default function AdminSettingsPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddSettingOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleAddSetting} disabled={isSaving}>
-                {isSaving ? "Creating..." : "Create Setting"}
+                {isSaving ? t("common.loading") : t("common.create")}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getCryptoPrices, cryptoIdMap } from "@/shared/api/market-data"
+import { useI18n } from "@/contexts/i18n-context"
 
 interface CryptoPrice {
   symbol: string
@@ -21,6 +22,7 @@ const popularCryptos = [
 ]
 
 export function CryptoTicker() {
+  const { t } = useI18n()
   const [prices, setPrices] = useState<CryptoPrice[]>(
     popularCryptos.map((crypto) => ({
       ...crypto,
@@ -41,7 +43,7 @@ export function CryptoTicker() {
         const data = await getCryptoPrices(geckoIds)
 
         if (!data || Object.keys(data).length === 0) {
-          throw new Error("Failed to fetch crypto prices")
+          throw new Error("failed_to_fetch_crypto_prices")
         }
 
         const updatedPrices = popularCryptos.map((coin) => {
@@ -58,7 +60,7 @@ export function CryptoTicker() {
         setPrices(updatedPrices)
       } catch (err) {
         console.error("Error fetching crypto prices:", err)
-        setError("Failed to load crypto prices")
+        setError(t("errors.unavailable"))
       } finally {
         setIsLoading(false)
       }
@@ -68,12 +70,12 @@ export function CryptoTicker() {
     const interval = setInterval(fetchPrices, 60000) // Update every minute
 
     return () => clearInterval(interval)
-  }, [])
+  }, [t])
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Popular Cryptocurrencies</CardTitle>
+        <CardTitle>{t("dashboard.cryptoTicker")}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="divide-y">

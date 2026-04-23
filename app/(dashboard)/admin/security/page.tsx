@@ -11,9 +11,11 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { supabase } from "@/lib/supabase"
+import { useI18n } from "@/contexts/i18n-context"
 
 export default function AdminSecurityPage() {
   const { userRole } = useAuth()
+  const { t } = useI18n()
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [securitySettings, setSecuritySettings] = useState({
@@ -112,8 +114,8 @@ export default function AdminSecurityPage() {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">You don't have permission to access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t("admin.accessDenied")}</h2>
+          <p className="text-muted-foreground">{t("admin.accessDeniedDescription")}</p>
         </div>
       </div>
     )
@@ -129,10 +131,10 @@ export default function AdminSecurityPage() {
       await new Promise((resolve) => setTimeout(resolve, 1000))
 
       // We'll just simulate success since we can't create the table in this context
-      setMessage({ type: "success", text: "Security settings saved successfully" })
+      setMessage({ type: "success", text: t("admin.settingsSaved") })
     } catch (error) {
       console.error("Error saving security settings:", error)
-      setMessage({ type: "error", text: "Failed to save security settings" })
+      setMessage({ type: "error", text: t("admin.settingsSaveFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -140,7 +142,7 @@ export default function AdminSecurityPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="Security Settings" text="Configure security and access rules for the application." />
+      <DashboardHeader heading={t("admin.securityTitle")} text={t("admin.securityDescription")} />
 
       {isLoading ? (
         <div className="flex justify-center py-8">
@@ -149,9 +151,9 @@ export default function AdminSecurityPage() {
       ) : (
         <Tabs defaultValue="password" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="password">Password Policy</TabsTrigger>
-            <TabsTrigger value="authentication">Authentication</TabsTrigger>
-            <TabsTrigger value="sessions">Sessions</TabsTrigger>
+            <TabsTrigger value="password">{t("settings.password")}</TabsTrigger>
+            <TabsTrigger value="authentication">{t("admin.securityTitle")}</TabsTrigger>
+            <TabsTrigger value="sessions">{t("common.settings")}</TabsTrigger>
           </TabsList>
 
           {message && (
@@ -163,8 +165,8 @@ export default function AdminSecurityPage() {
           <TabsContent value="password">
             <Card>
               <CardHeader>
-                <CardTitle>Password Policy</CardTitle>
-                <CardDescription>Configure password requirements for user accounts.</CardDescription>
+                <CardTitle>{t("settings.password")}</CardTitle>
+                <CardDescription>{t("admin.securityDescription")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -213,8 +215,8 @@ export default function AdminSecurityPage() {
           <TabsContent value="authentication">
             <Card>
               <CardHeader>
-                <CardTitle>Authentication Settings</CardTitle>
-                <CardDescription>Configure login and authentication security.</CardDescription>
+                <CardTitle>{t("admin.securityTitle")}</CardTitle>
+                <CardDescription>{t("admin.securityDescription")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -262,8 +264,8 @@ export default function AdminSecurityPage() {
           <TabsContent value="sessions">
             <Card>
               <CardHeader>
-                <CardTitle>Session Settings</CardTitle>
-                <CardDescription>Configure user session behavior.</CardDescription>
+                <CardTitle>{t("common.settings")}</CardTitle>
+                <CardDescription>{t("admin.securityDescription")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -286,7 +288,7 @@ export default function AdminSecurityPage() {
 
           <div className="flex justify-end">
             <Button onClick={handleSaveSettings} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save Settings"}
+              {isSaving ? t("common.loading") : t("admin.saveSettings")}
             </Button>
           </div>
         </Tabs>

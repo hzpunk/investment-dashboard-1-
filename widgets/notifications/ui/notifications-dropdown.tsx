@@ -12,8 +12,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { getNotifications, markAsRead, type Notification } from "@/shared/api/notifications"
+import { useI18n } from "@/contexts/i18n-context"
+import { formatLocaleTime } from "@/lib/i18n-display"
 
 export function NotificationsDropdown() {
+  const { t, locale } = useI18n()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
 
@@ -49,14 +52,14 @@ export function NotificationsDropdown() {
               {unreadCount}
             </span>
           )}
-          <span className="sr-only">Notifications</span>
+          <span className="sr-only">{t("notifications.title")}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("notifications.title")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {notifications.length === 0 ? (
-          <div className="py-4 text-center text-sm text-muted-foreground">No notifications</div>
+          <div className="py-4 text-center text-sm text-muted-foreground">{t("notifications.empty")}</div>
         ) : (
           notifications.slice(0, 5).map((notification) => (
             <DropdownMenuItem
@@ -67,7 +70,7 @@ export function NotificationsDropdown() {
               <div className="flex w-full justify-between">
                 <span className="font-medium">{notification.title}</span>
                 <span className="text-xs text-muted-foreground">
-                  {new Date(notification.createdAt).toLocaleTimeString()}
+                  {formatLocaleTime(new Date(notification.createdAt), locale)}
                 </span>
               </div>
               <span className="text-sm text-muted-foreground">{notification.message}</span>
@@ -77,7 +80,7 @@ export function NotificationsDropdown() {
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild className="justify-center">
           <a href="/notifications" className="w-full text-center text-sm">
-            View all notifications
+            {t("notifications.viewAll")}
           </a>
         </DropdownMenuItem>
       </DropdownMenuContent>

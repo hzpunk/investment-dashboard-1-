@@ -12,8 +12,11 @@ import {
   type Notification,
 } from "@/shared/api/notifications"
 import { Bell, Check, Trash2, CheckCheck } from "lucide-react"
+import { useI18n } from "@/contexts/i18n-context"
+import { formatLocaleDate, formatLocaleTime } from "@/lib/i18n-display"
 
 export default function NotificationsPage() {
+  const { t, locale } = useI18n()
   const [notifications, setNotifications] = useState<Notification[]>([])
 
   useEffect(() => {
@@ -54,7 +57,7 @@ export default function NotificationsPage() {
   const groupedNotifications: Record<string, Notification[]> = {}
 
   notifications.forEach((notification) => {
-    const date = new Date(notification.createdAt).toLocaleDateString()
+    const date = formatLocaleDate(new Date(notification.createdAt), locale)
     if (!groupedNotifications[date]) {
       groupedNotifications[date] = []
     }
@@ -63,15 +66,15 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="Notifications" text="View and manage your notifications.">
+      <DashboardHeader heading={t("notifications.title")} text={t("notifications.description")}>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleMarkAllAsRead} disabled={!notifications.some((n) => !n.read)}>
             <CheckCheck className="mr-2 h-4 w-4" />
-            Mark All Read
+            {t("actions.markAllRead")}
           </Button>
           <Button variant="outline" onClick={handleClearAll} disabled={notifications.length === 0}>
             <Trash2 className="mr-2 h-4 w-4" />
-            Clear All
+            {t("actions.clearAll")}
           </Button>
         </div>
       </DashboardHeader>
@@ -83,9 +86,9 @@ export default function NotificationsPage() {
               <div className="rounded-full bg-muted p-3">
                 <Bell className="h-8 w-8 text-muted-foreground" />
               </div>
-              <h3 className="mt-4 text-lg font-medium">No notifications</h3>
+              <h3 className="mt-4 text-lg font-medium">{t("notifications.empty")}</h3>
               <p className="mt-2 text-center text-sm text-muted-foreground">
-                You don't have any notifications at the moment.
+                {t("notifications.emptyDescription")}
               </p>
             </CardContent>
           </Card>
@@ -106,12 +109,12 @@ export default function NotificationsPage() {
                             <div className="flex items-center gap-2">
                               <h4 className="font-medium">{notification.title}</h4>
                               {!notification.read && (
-                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">New</span>
+                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{t("notifications.new")}</span>
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground">{notification.message}</p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              {new Date(notification.createdAt).toLocaleTimeString()}
+                              {formatLocaleTime(new Date(notification.createdAt), locale)}
                             </p>
                           </div>
                         </div>
@@ -119,12 +122,12 @@ export default function NotificationsPage() {
                           {!notification.read && (
                             <Button variant="ghost" size="icon" onClick={() => handleMarkAsRead(notification.id)}>
                               <Check className="h-4 w-4" />
-                              <span className="sr-only">Mark as read</span>
+                              <span className="sr-only">{t("actions.markRead")}</span>
                             </Button>
                           )}
                           <Button variant="ghost" size="icon" onClick={() => handleDeleteNotification(notification.id)}>
                             <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete</span>
+                            <span className="sr-only">{t("common.delete")}</span>
                           </Button>
                         </div>
                       </div>

@@ -1,111 +1,98 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+"use client"
 
-export const metadata = {
-  title: "Пользовательское соглашение | InvestTrack",
-  description: "Условия использования сервиса InvestTrack",
-}
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useI18n } from "@/contexts/i18n-context"
+import { getLegalContent } from "@/lib/legal-content"
 
 export default function TermsPage() {
+  const { locale } = useI18n()
+  const content = getLegalContent(locale).terms
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl">Пользовательское соглашение</CardTitle>
-        <p className="text-sm text-gray-500">Действует с: 22 апреля 2026 года</p>
+        <CardTitle className="text-2xl">{content.title}</CardTitle>
+        {content.subtitle ? <p className="text-sm text-gray-500">{content.subtitle}</p> : null}
       </CardHeader>
       <CardContent className="prose prose-slate max-w-none">
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-          <p className="text-sm text-yellow-800">
-            <strong>Важно:</strong> InvestTrack — это информационный сервис для учёта инвестиций. 
-            Мы не являемся инвестиционной компанией, брокером или финансовым советником.
-          </p>
-        </div>
-
-        <h3>1. Общие положения</h3>
-        <p>
-          Настоящее Соглашение регулирует отношения между Оператором сервиса InvestTrack 
-          и пользователем. Использование сервиса означает согласие с настоящими условиями.
-        </p>
-
-        <h3>2. Предмет соглашения</h3>
-        <p>Оператор предоставляет пользователю:</p>
-        <ul>
-          <li>Инструменты для учёта инвестиций</li>
-          <li>Аналитику портфеля</li>
-          <li>Визуализацию данных</li>
-          <li>AI-консультанта (информационный характер)</li>
-        </ul>
-
-        <h3>3. Что мы НЕ делаем</h3>
-        <div className="bg-red-50 border-l-4 border-red-400 p-4">
-          <p className="text-sm text-red-800">Сервис НЕ является:</p>
-          <ul className="text-sm text-red-800 mb-0">
-            <li>Инвестиционной компанией</li>
-            <li>Брокером</li>
-            <li>Финансовым советником</li>
-            <li>Управляющим активами</li>
-          </ul>
-        </div>
-
-        <h3>4. Регистрация</h3>
-        <p>При регистрации пользователь обязуется:</p>
-        <ul>
-          <li>Предоставить достоверную информацию</li>
-          <li>Сохранить конфиденциальность пароля</li>
-          <li>Не передавать доступ третьим лицам</li>
-          <li>Сообщить о несанкционированном доступе</li>
-        </ul>
-
-        <h3>5. Уведомление о рисках</h3>
-        <div className="bg-red-50 border border-red-200 rounded p-4">
-          <p className="text-red-800 font-medium mb-2">Инвестиционные риски:</p>
-          <ul className="text-red-700 text-sm mb-0">
-            <li>Инвестиции сопряжены с риском потери капитала</li>
-            <li>Прошлая доходность не гарантирует будущую</li>
-            <li>Рыночные данные могут быть неточными</li>
-            <li>AI-консультант не даёт гарантий</li>
-          </ul>
-        </div>
-
-        <h3>6. Ответственность</h3>
-        <p><strong>Оператор не несёт ответственности за:</strong></p>
-        <ul>
-          <li>Убытки от инвестиционных решений</li>
-          <li>Неточность рыночных данных</li>
-          <li>Технические сбои</li>
-          <li>Действия третьих лиц</li>
-        </ul>
-
-        <p><strong>Пользователь несёт ответственность за:</strong></p>
-        <ul>
-          <li>Достоверность введённых данных</li>
-          <li>Сохранность пароля</li>
-          <li>Соблюдение законодательства</li>
-          <li>Верность инвестиционных решений</li>
-        </ul>
-
-        <h3>7. Конфиденциальность</h3>
-        <p>
-          Обработка персональных данных осуществляется в соответствии с Федеральным законом 
-          № 152-ФЗ «О персональных данных» и Политикой конфиденциальности.
-        </p>
-
-        <h3>8. Изменения и расторжение</h3>
-        <ul>
-          <li>Оператор вправе изменять Соглашение без предварительного уведомления</li>
-          <li>Пользователь вправе удалить аккаунт в любое время</li>
-          <li>При нарушении условий доступ может быть заблокирован</li>
-        </ul>
-
-        <h3>9. Контакты</h3>
-        <p>
-          Email: support@investtrack.ru<br />
-          По юридическим вопросам: legal@investtrack.ru
-        </p>
-
-        <hr className="my-6" />
-        <p className="text-sm text-gray-500">
-          Настоящее Соглашение регулируется законодательством Российской Федерации.
-        </p>
+        {content.blocks.map((block, idx) => {
+          if (block.kind === "p") {
+            return (
+              <p key={idx} style={{ whiteSpace: "pre-line" }}>
+                {block.text}
+              </p>
+            )
+          }
+          if (block.kind === "h3") return <h3 key={idx}>{block.text}</h3>
+          if (block.kind === "h4") return <h4 key={idx}>{block.text}</h4>
+          if (block.kind === "ul") {
+            return (
+              <ul key={idx}>
+                {block.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            )
+          }
+          if (block.kind === "callout") {
+            const className =
+              block.tone === "danger"
+                ? "bg-red-50 border-l-4 border-red-400 p-4 mb-6"
+                : block.tone === "warning"
+                  ? "bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6"
+                  : block.tone === "success"
+                    ? "bg-green-50 border-l-4 border-green-400 p-4 mb-6"
+                    : "bg-blue-50 border-l-4 border-blue-400 p-4 mb-6"
+            return (
+              <div key={idx} className={className}>
+                {block.title ? <p className="text-sm font-medium mb-1">{block.title}</p> : null}
+                {block.text ? (
+                  <p className="text-sm" style={{ whiteSpace: "pre-line" }}>
+                    {block.text}
+                  </p>
+                ) : null}
+                {block.items?.length ? (
+                  <ul className="text-sm mb-0">
+                    {block.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            )
+          }
+          if (block.kind === "table") {
+            return (
+              <div key={idx} className="overflow-x-auto not-prose">
+                <table className="min-w-full border-collapse border border-gray-200">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      {block.headers.map((h) => (
+                        <th key={h} className="border border-gray-200 px-4 py-2 text-left">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((row, rowIdx) => (
+                      <tr key={rowIdx}>
+                        {row.map((cell, cellIdx) => (
+                          <td key={cellIdx} className="border border-gray-200 px-4 py-2">
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+          if (block.kind === "hr") return <hr key={idx} className="my-6" />
+          if (block.kind === "small") return <p key={idx} className="text-sm text-gray-500">{block.text}</p>
+          return null
+        })}
       </CardContent>
     </Card>
   )

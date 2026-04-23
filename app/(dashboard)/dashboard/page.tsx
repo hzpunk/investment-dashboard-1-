@@ -17,9 +17,11 @@ import { fetchRecentTransactions } from "@/entities/transaction/api"
 import { fetchGoals } from "@/entities/goal/api"
 import { fetchPortfolios, calculatePortfolioStats } from "@/entities/portfolio/api"
 import { updateAssetPrices } from "@/entities/asset/api"
+import { useI18n } from "@/contexts/i18n-context"
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [isLoading, setIsLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState<{
     totalValue: number
@@ -135,10 +137,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <DashboardHeader heading="Dashboard" text="Welcome to your investment dashboard." />
+      <div className="space-y-6">
+      <DashboardHeader heading={t("dashboard.title")} text={t("dashboard.welcome")} />
       <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        <SafeWidget title="Portfolio Overview">
+        <SafeWidget title={t("dashboard.portfolioOverview")}>
           <PortfolioOverview
             className="col-span-1 md:col-span-2"
             totalValue={dashboardData.totalValue}
@@ -148,22 +150,22 @@ export default function DashboardPage() {
             allTimeReturn={dashboardData.allTimeReturn}
           />
         </SafeWidget>
-        <SafeWidget title="Crypto Ticker">
+        <SafeWidget title={t("dashboard.cryptoTicker")}>
           <CryptoTicker />
         </SafeWidget>
-        <SafeWidget title="Portfolio Allocation">
+        <SafeWidget title={t("dashboard.portfolioAllocation")}>
           <PortfolioAllocation data={dashboardData.portfolioAllocation} className="col-span-1 md:col-span-2" />
         </SafeWidget>
-        <SafeWidget title="Performance Chart">
+        <SafeWidget title={t("dashboard.performanceChart")}>
           <PerformanceChart className="col-span-1" />
         </SafeWidget>
-        <SafeWidget title="Accounts">
+        <SafeWidget title={t("dashboard.accounts")}>
           <AccountsList accounts={dashboardData.accounts} className="col-span-1 md:col-span-3" />
         </SafeWidget>
-        <SafeWidget title="Recent Transactions">
+        <SafeWidget title={t("dashboard.recentTransactions")}>
           <RecentTransactions transactions={dashboardData.recentTransactions} className="col-span-1 md:col-span-2" />
         </SafeWidget>
-        <SafeWidget title="Goals">
+        <SafeWidget title={t("dashboard.goals")}>
           <GoalsList goals={dashboardData.goals} className="col-span-1" />
         </SafeWidget>
       </div>

@@ -3,16 +3,17 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { AlertTriangle, FileText, Shield } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
+import { useI18n } from "@/contexts/i18n-context"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Shield, FileText, AlertTriangle } from "lucide-react"
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("")
@@ -24,6 +25,7 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const { signUp } = useAuth()
+  const { t } = useI18n()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,17 +33,15 @@ export default function RegisterPage() {
     setIsLoading(true)
     setError(null)
 
-    // Validate legal agreements
     if (!agreeToTerms || !agreeToPrivacy || !agreeToRisks) {
-      setError("Необходимо принять все обязательные соглашения")
+      setError(t("auth.acceptAllRequired"))
       setIsLoading(false)
       return
     }
 
-    const { error } = await signUp(email, password, username)
-
-    if (error) {
-      setError(error.message)
+    const { error: signUpError } = await signUp(email, password, username)
+    if (signUpError) {
+      setError(signUpError.message)
       setIsLoading(false)
       return
     }
@@ -53,18 +53,18 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Создание аккаунта</CardTitle>
-          <CardDescription>Введите данные для регистрации</CardDescription>
+          <CardTitle className="text-2xl">{t("auth.createAccount")}</CardTitle>
+          <CardDescription>{t("auth.registerDescription")}</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {error && (
+            {error ? (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
-            )}
+            ) : null}
             <div className="space-y-2">
-              <Label htmlFor="username">Имя пользователя</Label>
+              <Label htmlFor="username">{t("auth.username")}</Label>
               <Input
                 id="username"
                 placeholder="ivanov"
@@ -74,7 +74,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("common.email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -85,86 +85,69 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Пароль</Label>
+              <Label htmlFor="password">{t("auth.password")}</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
                 minLength={6}
+                required
               />
-              <p className="text-xs text-muted-foreground">Пароль должен содержать минимум 6 символов</p>
+              <p className="text-xs text-muted-foreground">{t("auth.passwordHint")}</p>
             </div>
 
-            {/* Legal Agreements */}
-            <div className="space-y-3 pt-2 border-t">
-              <p className="text-sm font-medium text-gray-700">Обязательные соглашения:</p>
-              
+            <div className="space-y-3 border-t pt-2">
+              <p className="text-sm font-medium text-gray-700">{t("auth.requiredAgreements")}</p>
+
               <div className="flex items-start space-x-2">
-                <Checkbox 
-                  id="terms" 
-                  checked={agreeToTerms}
-                  onCheckedChange={(checked) => setAgreeToTerms(checked as boolean)}
-                />
-                <Label htmlFor="terms" className="text-sm font-normal cursor-pointer">
-                  <span className="text-red-500">*</span> Я принимаю{" "}
-                  <Link href="/legal/terms" target="_blank" className="text-blue-600 hover:underline inline-flex items-center gap-1">
+                <Checkbox id="terms" checked={agreeToTerms} onCheckedChange={(checked) => setAgreeToTerms(Boolean(checked))} />
+                <Label htmlFor="terms" className="cursor-pointer text-sm font-normal">
+                  <span className="text-red-500">*</span> {t("auth.accept")}{" "}
+                  <Link href="/legal/terms" target="_blank" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
                     <FileText className="h-3 w-3" />
-                    Пользовательское соглашение
+                    {t("auth.terms")}
                   </Link>
                 </Label>
               </div>
 
               <div className="flex items-start space-x-2">
-                <Checkbox 
-                  id="privacy" 
-                  checked={agreeToPrivacy}
-                  onCheckedChange={(checked) => setAgreeToPrivacy(checked as boolean)}
-                />
-                <Label htmlFor="privacy" className="text-sm font-normal cursor-pointer">
-                  <span className="text-red-500">*</span> Я принимаю{" "}
-                  <Link href="/legal/privacy" target="_blank" className="text-blue-600 hover:underline inline-flex items-center gap-1">
+                <Checkbox id="privacy" checked={agreeToPrivacy} onCheckedChange={(checked) => setAgreeToPrivacy(Boolean(checked))} />
+                <Label htmlFor="privacy" className="cursor-pointer text-sm font-normal">
+                  <span className="text-red-500">*</span> {t("auth.accept")}{" "}
+                  <Link href="/legal/privacy" target="_blank" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
                     <Shield className="h-3 w-3" />
-                    Политику конфиденциальности
+                    {t("auth.privacy")}
                   </Link>{" "}
-                  и даю согласие на обработку персональных данных
+                  {t("auth.consentText")}
                 </Label>
               </div>
 
               <div className="flex items-start space-x-2">
-                <Checkbox 
-                  id="risks" 
-                  checked={agreeToRisks}
-                  onCheckedChange={(checked) => setAgreeToRisks(checked as boolean)}
-                />
-                <Label htmlFor="risks" className="text-sm font-normal cursor-pointer">
-                  <span className="text-red-500">*</span> Я ознакомлен с{" "}
-                  <Link href="/legal/risks" target="_blank" className="text-blue-600 hover:underline inline-flex items-center gap-1">
+                <Checkbox id="risks" checked={agreeToRisks} onCheckedChange={(checked) => setAgreeToRisks(Boolean(checked))} />
+                <Label htmlFor="risks" className="cursor-pointer text-sm font-normal">
+                  <span className="text-red-500">*</span>{" "}
+                  <Link href="/legal/risks" target="_blank" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
                     <AlertTriangle className="h-3 w-3" />
-                    Уведомлением о рисках
+                    {t("auth.risks")}
                   </Link>{" "}
-                  и понимаю, что инвестиции сопряжены с риском потери капитала
+                  {t("auth.riskAcknowledge")}
                 </Label>
               </div>
 
               <p className="text-xs text-gray-500">
-                <span className="text-red-500">*</span> — обязательные для принятия документы
+                <span className="text-red-500">*</span> {t("auth.requiredMark")}
               </p>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isLoading || !agreeToTerms || !agreeToPrivacy || !agreeToRisks}
-            >
-              {isLoading ? "Создание аккаунта..." : "Создать аккаунт"}
+            <Button type="submit" className="w-full" disabled={isLoading || !agreeToTerms || !agreeToPrivacy || !agreeToRisks}>
+              {isLoading ? t("auth.creatingAccount") : t("auth.createAccount")}
             </Button>
             <div className="text-center text-sm">
-              Уже есть аккаунт?{" "}
+              {t("auth.alreadyHaveAccount")}{" "}
               <Link href="/login" className="text-primary underline-offset-4 hover:underline">
-                Войти
+                {t("auth.login")}
               </Link>
             </div>
           </CardFooter>
@@ -173,4 +156,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-

@@ -10,12 +10,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useI18n } from "@/contexts/i18n-context"
 import type { Database } from "@/types/supabase"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 
 export default function SettingsPage() {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -70,10 +72,10 @@ export default function SettingsPage() {
 
       if (error) throw error
 
-      setMessage({ type: "success", text: "Profile updated successfully" })
+      setMessage({ type: "success", text: t("settings.profileUpdated") })
     } catch (error: any) {
       console.error("Error updating profile:", error)
-      setMessage({ type: "error", text: error.message || "Failed to update profile" })
+      setMessage({ type: "error", text: error.message || t("settings.profileUpdateFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -83,7 +85,7 @@ export default function SettingsPage() {
     if (!user) return
 
     if (newPassword !== confirmPassword) {
-      setMessage({ type: "error", text: "New passwords do not match" })
+      setMessage({ type: "error", text: t("settings.passwordsDontMatch") })
       return
     }
 
@@ -100,10 +102,10 @@ export default function SettingsPage() {
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
-      setMessage({ type: "success", text: "Password updated successfully" })
+      setMessage({ type: "success", text: t("settings.passwordUpdated") })
     } catch (error: any) {
       console.error("Error updating password:", error)
-      setMessage({ type: "error", text: error.message || "Failed to update password" })
+      setMessage({ type: "error", text: error.message || t("settings.passwordUpdateFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -119,19 +121,19 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="Settings" text="Manage your account settings and preferences." />
+      <DashboardHeader heading={t("settings.title")} text={t("settings.description")} />
 
       <Tabs defaultValue="profile" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="password">Password</TabsTrigger>
+          <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
+          <TabsTrigger value="password">{t("settings.password")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
           <Card>
             <CardHeader>
-              <CardTitle>Profile</CardTitle>
-              <CardDescription>Update your profile information.</CardDescription>
+              <CardTitle>{t("settings.profile")}</CardTitle>
+              <CardDescription>{t("settings.profileDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {message && (
@@ -140,18 +142,18 @@ export default function SettingsPage() {
                 </Alert>
               )}
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("common.email")}</Label>
                 <Input id="email" value={user?.email || ""} disabled />
                 <p className="text-sm text-muted-foreground">
-                  Your email address is used for login and cannot be changed.
+                  {t("settings.emailHint")}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">{t("auth.username")}</Label>
                 <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="avatar">Avatar URL</Label>
+                <Label htmlFor="avatar">{t("settings.avatarUrl")}</Label>
                 <Input
                   id="avatar"
                   value={avatarUrl}
@@ -162,7 +164,7 @@ export default function SettingsPage() {
             </CardContent>
             <CardFooter>
               <Button onClick={handleUpdateProfile} disabled={isSaving}>
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? t("common.loading") : t("actions.saveChanges")}
               </Button>
             </CardFooter>
           </Card>
@@ -171,8 +173,8 @@ export default function SettingsPage() {
         <TabsContent value="password">
           <Card>
             <CardHeader>
-              <CardTitle>Password</CardTitle>
-              <CardDescription>Change your password.</CardDescription>
+              <CardTitle>{t("settings.password")}</CardTitle>
+              <CardDescription>{t("settings.passwordDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {message && (
@@ -181,7 +183,7 @@ export default function SettingsPage() {
                 </Alert>
               )}
               <div className="space-y-2">
-                <Label htmlFor="current-password">Current Password</Label>
+                <Label htmlFor="current-password">{t("settings.currentPassword")}</Label>
                 <Input
                   id="current-password"
                   type="password"
@@ -190,7 +192,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
+                <Label htmlFor="new-password">{t("settings.newPassword")}</Label>
                 <Input
                   id="new-password"
                   type="password"
@@ -199,7 +201,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirm New Password</Label>
+                <Label htmlFor="confirm-password">{t("settings.confirmNewPassword")}</Label>
                 <Input
                   id="confirm-password"
                   type="password"
@@ -210,7 +212,7 @@ export default function SettingsPage() {
             </CardContent>
             <CardFooter>
               <Button onClick={handleUpdatePassword} disabled={isSaving}>
-                {isSaving ? "Updating..." : "Update Password"}
+                {isSaving ? t("actions.updating") : t("actions.updatePassword")}
               </Button>
             </CardFooter>
           </Card>

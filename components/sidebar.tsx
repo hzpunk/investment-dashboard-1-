@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
+import { useI18n } from "@/contexts/i18n-context"
 import { Button } from "@/components/ui/button"
 import { useEffect } from "react"
 
@@ -30,7 +31,8 @@ interface SidebarProps {
 
 export function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname()
-  const { user, userRole } = useAuth()
+  const { userRole } = useAuth()
+  const { t } = useI18n()
 
   // Close sidebar when route changes on mobile
   useEffect(() => {
@@ -45,41 +47,49 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
   const sidebarItems = [
     {
       title: "Dashboard",
+      titleKey: "sidebar.dashboard",
       href: "/dashboard",
       icon: Home,
     },
     {
       title: "Accounts",
+      titleKey: "sidebar.accounts",
       href: "/accounts",
       icon: CreditCard,
     },
     {
       title: "Assets",
+      titleKey: "sidebar.assets",
       href: "/assets",
       icon: DollarSign,
     },
     {
       title: "Portfolios",
+      titleKey: "sidebar.portfolios",
       href: "/portfolios",
       icon: PieChart,
     },
     {
       title: "Transactions",
+      titleKey: "sidebar.transactions",
       href: "/transactions",
       icon: Wallet,
     },
     {
       title: "Goals",
+      titleKey: "sidebar.goals",
       href: "/goals",
       icon: Goal,
     },
     {
       title: "Analytics",
+      titleKey: "sidebar.analytics",
       href: "/analytics",
       icon: BarChart3,
     },
     {
       title: "Settings",
+      titleKey: "sidebar.settings",
       href: "/settings",
       icon: Settings,
     },
@@ -89,26 +99,31 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
   const adminItems = [
     {
       title: "User Management",
+      titleKey: "sidebar.userManagement",
       href: "/admin/users",
       icon: Users,
     },
     {
       title: "Security",
+      titleKey: "sidebar.security",
       href: "/admin/security",
       icon: Shield,
     },
     {
       title: "Asset Database",
+      titleKey: "sidebar.assetDatabase",
       href: "/admin/assets",
       icon: Database,
     },
     {
       title: "Notifications",
+      titleKey: "sidebar.notifications",
       href: "/admin/notifications",
       icon: Bell,
     },
     {
       title: "System Processes",
+      titleKey: "sidebar.systemProcesses",
       href: "/admin/processes",
       icon: RefreshCw,
     },
@@ -130,11 +145,11 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           <div className="flex h-14 items-center justify-between border-b px-4">
             <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
               <BarChart3 className="h-6 w-6" />
-              <span>InvestTrack</span>
+              <span>{t("brand.name")}</span>
             </Link>
             <Button variant="ghost" size="icon" className="md:hidden" onClick={onClose}>
               <X className="h-5 w-5" />
-              <span className="sr-only">Close sidebar</span>
+              <span className="sr-only">{t("sidebar.closeSidebar")}</span>
             </Button>
           </div>
           <nav className="flex-1 overflow-auto p-2">
@@ -149,7 +164,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                     )}
                   >
                     <item.icon className="h-4 w-4" />
-                    {item.title}
+                    {t(item.titleKey)}
                   </Link>
                 </li>
               ))}
@@ -157,7 +172,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
               {/* Admin section */}
               {isAdmin && (
                 <>
-                  <li className="mt-6 px-3 text-xs font-semibold text-muted-foreground">Administration</li>
+                  <li className="mt-6 px-3 text-xs font-semibold text-muted-foreground">{t("sidebar.adminSection")}</li>
                   {adminItems.map((item) => (
                     <li key={item.href}>
                       <Link
@@ -168,7 +183,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                         )}
                       >
                         <item.icon className="h-4 w-4" />
-                        {item.title}
+                        {t(item.titleKey)}
                       </Link>
                     </li>
                   ))}

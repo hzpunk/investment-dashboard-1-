@@ -13,11 +13,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
 import { fetchGoalById, updateGoal, deleteGoal } from "@/entities/goal/api"
 import type { Database } from "@/types/supabase"
+import { useI18n } from "@/contexts/i18n-context"
 
 type Goal = Database["public"]["Tables"]["goals"]["Row"]
 
 export default function GoalDetailPage({ params }: { params: { id: string } }) {
   const { user } = useAuth()
+  const { t } = useI18n()
   const router = useRouter()
   const [goal, setGoal] = useState<Goal | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -47,7 +49,7 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
         setTargetDate(goalData.target_date || "")
       } catch (error) {
         console.error("Error fetching goal data:", error)
-        setMessage({ type: "error", text: "Failed to load goal data" })
+        setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
       }
@@ -71,10 +73,10 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
       })
 
       setGoal(updatedGoal)
-      setMessage({ type: "success", text: "Goal updated successfully" })
+      setMessage({ type: "success", text: t("actions.saveChanges") })
     } catch (error) {
       console.error("Error updating goal:", error)
-      setMessage({ type: "error", text: "Failed to update goal" })
+      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -83,7 +85,7 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
   const handleDeleteGoal = async () => {
     if (!goal) return
 
-    if (!confirm("Are you sure you want to delete this goal?")) {
+    if (!confirm(t("goals.confirmDelete"))) {
       return
     }
 
@@ -92,7 +94,7 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
       router.push("/goals")
     } catch (error) {
       console.error("Error deleting goal:", error)
-      setMessage({ type: "error", text: "Failed to delete goal" })
+      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     }
   }
 
@@ -107,14 +109,14 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
   if (!goal) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <h2 className="text-2xl font-bold mb-2">Goal not found</h2>
+        <h2 className="text-2xl font-bold mb-2">{t("goals.notFound")}</h2>
         <p className="text-muted-foreground mb-4">
-          The goal you're looking for doesn't exist or you don't have access to it.
+          {t("goals.notFoundDescription")}
         </p>
         <Button asChild variant="outline">
           <a href="/goals">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Goals
+            {t("actions.backToGoals")}
           </a>
         </Button>
       </div>
@@ -128,11 +130,11 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading={goal.name} text="Track and update your financial goal">
+      <DashboardHeader heading={goal.name} text={t("goals.trackAndUpdate")}>
         <Button variant="outline" asChild>
           <a href="/goals">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            {t("common.back")}
           </a>
         </Button>
       </DashboardHeader>
@@ -140,40 +142,40 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Goal Progress</CardTitle>
+            <CardTitle>{t("goals.progressTitle")}</CardTitle>
             <CardDescription>
               {daysLeft !== null
                 ? daysLeft > 0
-                  ? `${daysLeft} days left to reach target`
-                  : "Target date passed"
-                : "No target date set"}
+                  ? `${daysLeft} ${t("goals.daysLeft")}`
+                  : t("goals.targetDatePassed")
+                : t("goals.noTargetDate")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span>Progress</span>
+                <span>{t("goals.progress")}</span>
                 <span className="font-medium">{progress}%</span>
               </div>
               <Progress value={progress} className="h-2" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Current Amount</p>
+                <p className="text-sm text-muted-foreground">{t("goals.currentAmount")}</p>
                 <p className="text-2xl font-bold">${goal.current_amount.toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Target Amount</p>
+                <p className="text-sm text-muted-foreground">{t("goals.targetAmount")}</p>
                 <p className="text-2xl font-bold">${goal.target_amount.toLocaleString()}</p>
               </div>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Amount Remaining</p>
+              <p className="text-sm text-muted-foreground">{t("goals.amountRemaining")}</p>
               <p className="text-xl font-medium">${(goal.target_amount - goal.current_amount).toLocaleString()}</p>
             </div>
             {goal.target_date && (
               <div>
-                <p className="text-sm text-muted-foreground">Target Date</p>
+                <p className="text-sm text-muted-foreground">{t("goals.targetDate")}</p>
                 <p className="text-xl font-medium">{new Date(goal.target_date).toLocaleDateString()}</p>
               </div>
             )}
@@ -182,8 +184,8 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Goal Details</CardTitle>
-            <CardDescription>Update your goal information</CardDescription>
+            <CardTitle>{t("goals.detailsTitle")}</CardTitle>
+            <CardDescription>{t("goals.detailsDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {message && (
@@ -192,11 +194,11 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
               </Alert>
             )}
             <div className="space-y-2">
-              <Label htmlFor="name">Goal Name</Label>
+              <Label htmlFor="name">{t("common.name")}</Label>
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="target-amount">Target Amount</Label>
+              <Label htmlFor="target-amount">{t("goals.targetAmount")}</Label>
               <Input
                 id="target-amount"
                 type="number"
@@ -205,7 +207,7 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="current-amount">Current Amount</Label>
+              <Label htmlFor="current-amount">{t("goals.currentAmount")}</Label>
               <Input
                 id="current-amount"
                 type="number"
@@ -214,18 +216,18 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="target-date">Target Date</Label>
+              <Label htmlFor="target-date">{t("goals.targetDate")}</Label>
               <Input id="target-date" type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
             </div>
           </CardContent>
           <CardFooter className="flex justify-between">
             <Button variant="destructive" onClick={handleDeleteGoal}>
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete Goal
+              {t("actions.deleteGoal")}
             </Button>
             <Button onClick={handleUpdateGoal} disabled={isSaving}>
               <Save className="mr-2 h-4 w-4" />
-              {isSaving ? "Saving..." : "Save Changes"}
+              {isSaving ? t("common.loading") : t("actions.saveChanges")}
             </Button>
           </CardFooter>
         </Card>

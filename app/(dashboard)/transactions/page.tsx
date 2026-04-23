@@ -23,6 +23,8 @@ import { fetchTransactions, createTransaction } from "@/entities/transaction/api
 import { fetchAccounts } from "@/entities/account/api"
 import { fetchAssets } from "@/entities/asset/api"
 import type { Database } from "@/types/supabase"
+import { useI18n } from "@/contexts/i18n-context"
+import { getTransactionTypeLabel } from "@/lib/i18n-display"
 
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
   accounts?: { name: string } | null
@@ -31,6 +33,7 @@ type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
 
 export default function TransactionsPage() {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
@@ -143,23 +146,23 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="Transactions" text="View and manage your investment transactions.">
+      <DashboardHeader heading={t("transactions.title")} text={t("transactions.description")}>
         <Dialog open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleOpenDialog}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Transaction
+              {t("actions.addTransaction")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Transaction</DialogTitle>
-              <DialogDescription>Record a new investment transaction.</DialogDescription>
+              <DialogTitle>{t("transactions.addDialogTitle")}</DialogTitle>
+              <DialogDescription>{t("transactions.addDialogDescription")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-date" className="text-right">
-                  Date
+                  {t("common.date")}
                 </Label>
                 <Input
                   id="transaction-date"
@@ -173,7 +176,7 @@ export default function TransactionsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-type" className="text-right">
-                  Type
+                  {t("common.type")}
                 </Label>
                 <Select
                   value={newTransaction.type as string}
@@ -188,28 +191,28 @@ export default function TransactionsPage() {
                   }
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select transaction type" />
+                    <SelectValue placeholder={t("transactions.selectType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="buy">Buy</SelectItem>
-                    <SelectItem value="sell">Sell</SelectItem>
-                    <SelectItem value="dividend">Dividend</SelectItem>
-                    <SelectItem value="interest">Interest</SelectItem>
-                    <SelectItem value="deposit">Deposit</SelectItem>
-                    <SelectItem value="withdrawal">Withdrawal</SelectItem>
+                    <SelectItem value="buy">{t("transactionType.buy")}</SelectItem>
+                    <SelectItem value="sell">{t("transactionType.sell")}</SelectItem>
+                    <SelectItem value="dividend">{t("transactionType.dividend")}</SelectItem>
+                    <SelectItem value="interest">{t("transactionType.interest")}</SelectItem>
+                    <SelectItem value="deposit">{t("transactionType.deposit")}</SelectItem>
+                    <SelectItem value="withdrawal">{t("transactionType.withdrawal")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-account" className="text-right">
-                  Account
+                  {t("transactions.account")}
                 </Label>
                 <Select
                   value={newTransaction.account_id}
                   onValueChange={(value) => setNewTransaction({ ...newTransaction, account_id: value })}
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select account" />
+                    <SelectValue placeholder={t("transactions.selectAccount")} />
                   </SelectTrigger>
                   <SelectContent>
                     {accounts.map((account) => (
@@ -225,14 +228,14 @@ export default function TransactionsPage() {
                 newTransaction.type === "dividend") && (
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="transaction-asset" className="text-right">
-                    Asset
+                    {t("transactions.asset")}
                   </Label>
                   <Select
                     value={newTransaction.asset_id}
                     onValueChange={(value) => setNewTransaction({ ...newTransaction, asset_id: value })}
                   >
                     <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select asset" />
+                      <SelectValue placeholder={t("transactions.selectAsset")} />
                     </SelectTrigger>
                     <SelectContent>
                       {assets.map((asset) => (
@@ -248,7 +251,7 @@ export default function TransactionsPage() {
                 <>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="transaction-quantity" className="text-right">
-                      Quantity
+                      {t("transactions.quantity")}
                     </Label>
                     <Input
                       id="transaction-quantity"
@@ -266,7 +269,7 @@ export default function TransactionsPage() {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="transaction-price" className="text-right">
-                      Price
+                      {t("transactions.pricePerUnit")}
                     </Label>
                     <Input
                       id="transaction-price"
@@ -286,7 +289,7 @@ export default function TransactionsPage() {
               )}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-total" className="text-right">
-                  Total Amount
+                  {t("transactions.totalAmount")}
                 </Label>
                 <Input
                   id="transaction-total"
@@ -300,7 +303,7 @@ export default function TransactionsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-fee" className="text-right">
-                  Fee
+                  {t("transactions.fee")}
                 </Label>
                 <Input
                   id="transaction-fee"
@@ -312,14 +315,14 @@ export default function TransactionsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-currency" className="text-right">
-                  Currency
+                  {t("common.currency")}
                 </Label>
                 <Select
                   value={newTransaction.currency}
                   onValueChange={(value) => setNewTransaction({ ...newTransaction, currency: value })}
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select currency" />
+                    <SelectValue placeholder={t("transactions.selectCurrency")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
@@ -332,7 +335,7 @@ export default function TransactionsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-notes" className="text-right">
-                  Notes
+                  {t("common.notes")}
                 </Label>
                 <Input
                   id="transaction-notes"
@@ -344,10 +347,10 @@ export default function TransactionsPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddTransactionOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleAddTransaction} disabled={isSubmitting}>
-                {isSubmitting ? "Adding..." : "Add Transaction"}
+                {isSubmitting ? t("common.loading") : t("actions.addTransaction")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -361,7 +364,7 @@ export default function TransactionsPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search transactions..."
+                placeholder={t("transactions.searchPlaceholder")}
                 className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -370,24 +373,24 @@ export default function TransactionsPage() {
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
               <Select value={filters.type} onValueChange={(value) => setFilters({ ...filters, type: value })}>
                 <SelectTrigger className="w-[130px]">
-                  <SelectValue placeholder="Type" />
+                  <SelectValue placeholder={t("common.type")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="buy">Buy</SelectItem>
-                  <SelectItem value="sell">Sell</SelectItem>
-                  <SelectItem value="dividend">Dividend</SelectItem>
-                  <SelectItem value="interest">Interest</SelectItem>
-                  <SelectItem value="deposit">Deposit</SelectItem>
-                  <SelectItem value="withdrawal">Withdrawal</SelectItem>
+                  <SelectItem value="all">{t("transactions.allTypes")}</SelectItem>
+                  <SelectItem value="buy">{t("transactionType.buy")}</SelectItem>
+                  <SelectItem value="sell">{t("transactionType.sell")}</SelectItem>
+                  <SelectItem value="dividend">{t("transactionType.dividend")}</SelectItem>
+                  <SelectItem value="interest">{t("transactionType.interest")}</SelectItem>
+                  <SelectItem value="deposit">{t("transactionType.deposit")}</SelectItem>
+                  <SelectItem value="withdrawal">{t("transactionType.withdrawal")}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filters.account} onValueChange={(value) => setFilters({ ...filters, account: value })}>
                 <SelectTrigger className="w-[130px]">
-                  <SelectValue placeholder="Account" />
+                  <SelectValue placeholder={t("transactions.account")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Accounts</SelectItem>
+                  <SelectItem value="all">{t("transactions.allAccounts")}</SelectItem>
                   {accounts.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.name}
@@ -397,20 +400,20 @@ export default function TransactionsPage() {
               </Select>
               <Input
                 type="date"
-                placeholder="From"
+                placeholder={t("common.from")}
                 className="w-[130px]"
                 value={filters.dateFrom}
                 onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
               />
               <Input
                 type="date"
-                placeholder="To"
+                placeholder={t("common.to")}
                 className="w-[130px]"
                 value={filters.dateTo}
                 onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
               />
               <Button variant="outline" onClick={() => setFilters({ type: "", account: "", dateFrom: "", dateTo: "" })}>
-                Reset
+                {t("actions.reset")}
               </Button>
             </div>
           </div>
@@ -424,14 +427,14 @@ export default function TransactionsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Account</TableHead>
-                    <TableHead>Asset</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Quantity</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead>Notes</TableHead>
+                    <TableHead>{t("common.date")}</TableHead>
+                    <TableHead>{t("transactions.account")}</TableHead>
+                    <TableHead>{t("transactions.asset")}</TableHead>
+                    <TableHead>{t("common.type")}</TableHead>
+                    <TableHead className="text-right">{t("transactions.quantity")}</TableHead>
+                    <TableHead className="text-right">{t("transactions.pricePerUnit")}</TableHead>
+                    <TableHead className="text-right">{t("common.total")}</TableHead>
+                    <TableHead>{t("common.notes")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -439,15 +442,15 @@ export default function TransactionsPage() {
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
                         {searchQuery || filters.type || filters.account || filters.dateFrom || filters.dateTo
-                          ? "No transactions found matching your filters."
-                          : "No transactions found. Add your first transaction to get started."}
+                          ? t("transactions.noTransactionsByFilters")
+                          : t("transactions.noTransactions")}
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredTransactions.map((transaction) => (
                       <TableRow key={transaction.id}>
                         <TableCell>{new Date(transaction.date).toLocaleString()}</TableCell>
-                        <TableCell>{transaction.accounts?.name || "Unknown"}</TableCell>
+                        <TableCell>{transaction.accounts?.name || t("common.unknown")}</TableCell>
                         <TableCell>
                           {transaction.assets ? (
                             <div>
@@ -466,7 +469,7 @@ export default function TransactionsPage() {
                             {(transaction.type === "sell" || transaction.type === "withdrawal") && (
                               <ArrowUpRight className="mr-1 h-4 w-4 text-red-500" />
                             )}
-                            <span className="capitalize">{transaction.type}</span>
+                            <span>{getTransactionTypeLabel(transaction.type, t)}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-right">

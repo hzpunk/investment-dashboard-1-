@@ -21,11 +21,13 @@ import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Pencil, Trash2, Target } from "lucide-react"
 import type { Database } from "@/types/supabase"
+import { useI18n } from "@/contexts/i18n-context"
 
 type Goal = Database["public"]["Tables"]["goals"]["Row"]
 
 export default function GoalsPage() {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [goals, setGoals] = useState<Goal[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false)
@@ -88,7 +90,7 @@ export default function GoalsPage() {
   }
 
   const handleDeleteGoal = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this goal?")) {
+    if (!confirm(t("goals.confirmDelete"))) {
       return
     }
 
@@ -106,23 +108,23 @@ export default function GoalsPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="Financial Goals" text="Track your investment goals and progress.">
+      <DashboardHeader heading={t("goals.title")} text={t("goals.description")}>
         <Dialog open={isAddGoalOpen} onOpenChange={setIsAddGoalOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Add Goal
+              {t("actions.addGoal")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Goal</DialogTitle>
-              <DialogDescription>Set a new financial goal to track your progress.</DialogDescription>
+              <DialogTitle>{t("goals.addDialogTitle")}</DialogTitle>
+              <DialogDescription>{t("goals.addDialogDescription")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="goal-name" className="text-right">
-                  Name
+                  {t("common.name")}
                 </Label>
                 <Input
                   id="goal-name"
@@ -133,7 +135,7 @@ export default function GoalsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="goal-target" className="text-right">
-                  Target Amount
+                  {t("goals.targetAmount")}
                 </Label>
                 <Input
                   id="goal-target"
@@ -145,7 +147,7 @@ export default function GoalsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="goal-current" className="text-right">
-                  Current Amount
+                  {t("goals.currentAmount")}
                 </Label>
                 <Input
                   id="goal-current"
@@ -157,7 +159,7 @@ export default function GoalsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="goal-date" className="text-right">
-                  Target Date
+                  {t("goals.targetDate")}
                 </Label>
                 <Input
                   id="goal-date"
@@ -170,10 +172,10 @@ export default function GoalsPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddGoalOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleAddGoal} disabled={isSubmitting}>
-                {isSubmitting ? "Adding..." : "Add Goal"}
+                {isSubmitting ? t("common.loading") : t("actions.addGoal")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -212,13 +214,13 @@ export default function GoalsPage() {
                 <div className="rounded-full bg-muted p-3">
                   <Target className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="mt-4 text-lg font-medium">No goals found</h3>
+                <h3 className="mt-4 text-lg font-medium">{t("empty.goals")}</h3>
                 <p className="mt-2 text-center text-sm text-muted-foreground">
-                  Create your first financial goal to start tracking your progress.
+                  {t("goals.noGoals")}
                 </p>
                 <Button className="mt-4" onClick={() => setIsAddGoalOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Goal
+                  {t("actions.addGoal")}
                 </Button>
               </CardContent>
             </Card>
@@ -236,33 +238,33 @@ export default function GoalsPage() {
                     <CardDescription>
                       {daysLeft !== null
                         ? daysLeft > 0
-                          ? `${daysLeft} days left to reach target`
-                          : "Target date passed"
-                        : "No target date set"}
+                          ? `${daysLeft} ${t("goals.daysLeft")}`
+                          : t("goals.targetDatePassed")
+                        : t("goals.noTargetDate")}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex-1">
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
-                          <span>Progress</span>
+                          <span>{t("goals.progress")}</span>
                           <span className="font-medium">{progress}%</span>
                         </div>
                         <Progress value={progress} className="h-2" />
                       </div>
                       <div className="flex justify-between">
                         <div>
-                          <p className="text-sm text-muted-foreground">Current</p>
+                          <p className="text-sm text-muted-foreground">{t("goals.current")}</p>
                           <p className="text-lg sm:text-xl font-bold">${goal.current_amount.toLocaleString()}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Target</p>
+                          <p className="text-sm text-muted-foreground">{t("goals.target")}</p>
                           <p className="text-lg sm:text-xl font-bold">${goal.target_amount.toLocaleString()}</p>
                         </div>
                       </div>
                       {goal.target_date && (
                         <div>
-                          <p className="text-sm text-muted-foreground">Target Date</p>
+                          <p className="text-sm text-muted-foreground">{t("goals.targetDate")}</p>
                           <p className="text-base font-medium">{new Date(goal.target_date).toLocaleDateString()}</p>
                         </div>
                       )}
@@ -272,12 +274,12 @@ export default function GoalsPage() {
                     <Button variant="outline" asChild className="w-full sm:w-auto">
                       <a href={`/goals/${goal.id}`}>
                         <Pencil className="mr-2 h-4 w-4" />
-                        Edit
+                        {t("common.edit")}
                       </a>
                     </Button>
                     <Button variant="outline" onClick={() => handleDeleteGoal(goal.id)} className="w-full sm:w-auto">
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
+                      {t("common.delete")}
                     </Button>
                   </CardFooter>
                 </Card>

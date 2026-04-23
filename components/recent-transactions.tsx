@@ -20,6 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, ArrowUpRight, ArrowDownRight } from "lucide-react"
 import type { Database } from "@/types/supabase"
+import { useI18n } from "@/contexts/i18n-context"
+import { getTransactionTypeLabel } from "@/lib/i18n-display"
 
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
   accounts?: { name: string } | null
@@ -33,6 +35,7 @@ interface RecentTransactionsProps {
 
 export function RecentTransactions({ className, transactions = [] }: RecentTransactionsProps) {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [accounts, setAccounts] = useState<any[]>([])
@@ -114,25 +117,25 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
     <Card className={className}>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Recent Transactions</CardTitle>
-          <CardDescription>Your recent investment activities</CardDescription>
+          <CardTitle>{t("dashboard.recentTransactions")}</CardTitle>
+          <CardDescription>{t("transactions.description")}</CardDescription>
         </div>
         <Dialog open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen}>
           <DialogTrigger asChild>
             <Button size="sm" onClick={handleOpenDialog}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Transaction
+              {t("actions.addTransaction")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Transaction</DialogTitle>
-              <DialogDescription>Record a new investment transaction.</DialogDescription>
+              <DialogTitle>{t("transactions.addDialogTitle")}</DialogTitle>
+              <DialogDescription>{t("transactions.addDialogDescription")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-date" className="text-right">
-                  Date
+                  {t("common.date")}
                 </Label>
                 <Input
                   id="transaction-date"
@@ -146,7 +149,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-type" className="text-right">
-                  Type
+                  {t("common.type")}
                 </Label>
                 <Select
                   value={newTransaction.type as string}
@@ -161,28 +164,28 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                   }
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select transaction type" />
+                    <SelectValue placeholder={t("transactions.selectType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="buy">Buy</SelectItem>
-                    <SelectItem value="sell">Sell</SelectItem>
-                    <SelectItem value="dividend">Dividend</SelectItem>
-                    <SelectItem value="interest">Interest</SelectItem>
-                    <SelectItem value="deposit">Deposit</SelectItem>
-                    <SelectItem value="withdrawal">Withdrawal</SelectItem>
+                    <SelectItem value="buy">{t("transactionType.buy")}</SelectItem>
+                    <SelectItem value="sell">{t("transactionType.sell")}</SelectItem>
+                    <SelectItem value="dividend">{t("transactionType.dividend")}</SelectItem>
+                    <SelectItem value="interest">{t("transactionType.interest")}</SelectItem>
+                    <SelectItem value="deposit">{t("transactionType.deposit")}</SelectItem>
+                    <SelectItem value="withdrawal">{t("transactionType.withdrawal")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-account" className="text-right">
-                  Account
+                  {t("transactions.account")}
                 </Label>
                 <Select
                   value={newTransaction.account_id}
                   onValueChange={(value) => setNewTransaction({ ...newTransaction, account_id: value })}
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select account" />
+                    <SelectValue placeholder={t("transactions.selectAccount")} />
                   </SelectTrigger>
                   <SelectContent>
                     {accounts.map((account) => (
@@ -198,14 +201,14 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                 newTransaction.type === "dividend") && (
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="transaction-asset" className="text-right">
-                    Asset
+                    {t("transactions.asset")}
                   </Label>
                   <Select
                     value={newTransaction.asset_id}
                     onValueChange={(value) => setNewTransaction({ ...newTransaction, asset_id: value })}
                   >
                     <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select asset" />
+                      <SelectValue placeholder={t("transactions.selectAsset")} />
                     </SelectTrigger>
                     <SelectContent>
                       {assets.map((asset) => (
@@ -221,7 +224,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                 <>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="transaction-quantity" className="text-right">
-                      Quantity
+                      {t("transactions.quantity")}
                     </Label>
                     <Input
                       id="transaction-quantity"
@@ -239,7 +242,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="transaction-price" className="text-right">
-                      Price
+                      {t("transactions.pricePerUnit")}
                     </Label>
                     <Input
                       id="transaction-price"
@@ -259,7 +262,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
               )}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-total" className="text-right">
-                  Total Amount
+                  {t("transactions.totalAmount")}
                 </Label>
                 <Input
                   id="transaction-total"
@@ -273,7 +276,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-fee" className="text-right">
-                  Fee
+                  {t("transactions.fee")}
                 </Label>
                 <Input
                   id="transaction-fee"
@@ -285,14 +288,14 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-currency" className="text-right">
-                  Currency
+                  {t("common.currency")}
                 </Label>
                 <Select
                   value={newTransaction.currency}
                   onValueChange={(value) => setNewTransaction({ ...newTransaction, currency: value })}
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select currency" />
+                    <SelectValue placeholder={t("transactions.selectCurrency")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
@@ -305,7 +308,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-notes" className="text-right">
-                  Notes
+                  {t("common.notes")}
                 </Label>
                 <Input
                   id="transaction-notes"
@@ -317,10 +320,10 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddTransactionOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleAddTransaction} disabled={isLoading}>
-                {isLoading ? "Adding..." : "Add Transaction"}
+                {isLoading ? t("common.loading") : t("actions.addTransaction")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -331,25 +334,25 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Account</TableHead>
-                <TableHead>Asset</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>{t("common.date")}</TableHead>
+                <TableHead>{t("transactions.account")}</TableHead>
+                <TableHead>{t("transactions.asset")}</TableHead>
+                <TableHead>{t("common.type")}</TableHead>
+                <TableHead className="text-right">{t("common.amount")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {transactions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                    No transactions found. Add your first transaction to get started.
+                    {t("transactions.noTransactions")}
                   </TableCell>
                 </TableRow>
               ) : (
                 transactions.map((transaction) => (
                   <TableRow key={transaction.id}>
                     <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
-                    <TableCell>{transaction.accounts?.name || "Unknown"}</TableCell>
+                    <TableCell>{transaction.accounts?.name || t("common.unknown")}</TableCell>
                     <TableCell>
                       {transaction.assets ? (
                         <div>
@@ -368,7 +371,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                         {(transaction.type === "sell" || transaction.type === "withdrawal") && (
                           <ArrowUpRight className="mr-1 h-4 w-4 text-red-500" />
                         )}
-                        <span className="capitalize">{transaction.type}</span>
+                        <span>{getTransactionTypeLabel(transaction.type, t)}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-medium">

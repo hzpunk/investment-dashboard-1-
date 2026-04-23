@@ -24,9 +24,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Bell, Send } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { addNotification } from "@/shared/api/notifications"
+import { useI18n } from "@/contexts/i18n-context"
 
 export default function AdminNotificationsPage() {
   const { userRole } = useAuth()
+  const { t } = useI18n()
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -105,7 +107,7 @@ export default function AdminNotificationsPage() {
         // For now, we'll use the hardcoded templates
       } catch (error) {
         console.error("Error fetching notification data:", error)
-        setMessage({ type: "error", text: "Failed to load notification data" })
+        setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
       }
@@ -119,8 +121,8 @@ export default function AdminNotificationsPage() {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">You don't have permission to access this page.</p>
+          <h2 className="text-2xl font-bold mb-2">{t("admin.accessDenied")}</h2>
+          <p className="text-muted-foreground">{t("admin.accessDeniedDescription")}</p>
         </div>
       </div>
     )
@@ -133,10 +135,10 @@ export default function AdminNotificationsPage() {
     try {
       // In a real app, you would save these settings to your database
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      setMessage({ type: "success", text: "Notification settings saved successfully" })
+      setMessage({ type: "success", text: t("admin.settingsSaved") })
     } catch (error) {
       console.error("Error saving notification settings:", error)
-      setMessage({ type: "error", text: "Failed to save notification settings" })
+      setMessage({ type: "error", text: t("admin.settingsSaveFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -144,7 +146,7 @@ export default function AdminNotificationsPage() {
 
   const handleSendNotification = async () => {
     if (!newNotification.title || !newNotification.message) {
-      setMessage({ type: "error", text: "Please fill in all required fields" })
+      setMessage({ type: "error", text: t("admin.requiredFields") })
       return
     }
 
@@ -165,10 +167,10 @@ export default function AdminNotificationsPage() {
         selectedUsers: [],
       })
 
-      setMessage({ type: "success", text: "Notification sent successfully" })
+      setMessage({ type: "success", text: t("admin.notificationSent") })
     } catch (error) {
       console.error("Error sending notification:", error)
-      setMessage({ type: "error", text: "Failed to send notification" })
+      setMessage({ type: "error", text: t("admin.notificationSendFailed") })
     } finally {
       setIsSendingNotification(false)
     }
@@ -176,7 +178,7 @@ export default function AdminNotificationsPage() {
 
   const handleSaveTemplate = async () => {
     if (!editingTemplate || !editingTemplate.name || !editingTemplate.subject || !editingTemplate.body) {
-      setMessage({ type: "error", text: "Please fill in all required fields" })
+      setMessage({ type: "error", text: t("admin.requiredFields") })
       return
     }
 
@@ -188,10 +190,10 @@ export default function AdminNotificationsPage() {
       // For now, we'll just update the local templates
       setTemplates(templates.map((template) => (template.id === editingTemplate.id ? editingTemplate : template)))
       setEditingTemplate(null)
-      setMessage({ type: "success", text: "Template saved successfully" })
+      setMessage({ type: "success", text: t("admin.templateSaved") })
     } catch (error) {
       console.error("Error saving template:", error)
-      setMessage({ type: "error", text: "Failed to save template" })
+      setMessage({ type: "error", text: t("admin.templateSaveFailed") })
     } finally {
       setIsSaving(false)
     }
@@ -199,7 +201,7 @@ export default function AdminNotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading="Notification Management" text="Configure and send notifications to users." />
+      <DashboardHeader heading={t("admin.notificationsTitle")} text={t("admin.notificationsDescription")} />
 
       {isLoading ? (
         <div className="flex justify-center py-8">
@@ -208,9 +210,9 @@ export default function AdminNotificationsPage() {
       ) : (
         <Tabs defaultValue="send" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="send">Send Notifications</TabsTrigger>
-            <TabsTrigger value="templates">Notification Templates</TabsTrigger>
-            <TabsTrigger value="settings">Notification Settings</TabsTrigger>
+            <TabsTrigger value="send">{t("admin.sendNotification")}</TabsTrigger>
+            <TabsTrigger value="templates">{t("admin.templates")}</TabsTrigger>
+            <TabsTrigger value="settings">{t("admin.saveSettings")}</TabsTrigger>
           </TabsList>
 
           {message && (
@@ -222,48 +224,48 @@ export default function AdminNotificationsPage() {
           <TabsContent value="send">
             <Card>
               <CardHeader>
-                <CardTitle>Send Notification</CardTitle>
-                <CardDescription>Create and send notifications to users.</CardDescription>
+                <CardTitle>{t("admin.sendNotification")}</CardTitle>
+                <CardDescription>{t("admin.notificationsDescription")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="notification-title">Title</Label>
+                  <Label htmlFor="notification-title">{t("common.name")}</Label>
                   <Input
                     id="notification-title"
                     value={newNotification.title}
                     onChange={(e) => setNewNotification({ ...newNotification, title: e.target.value })}
-                    placeholder="Notification title"
+                    placeholder={t("common.name")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notification-message">Message</Label>
+                  <Label htmlFor="notification-message">{t("common.description")}</Label>
                   <Textarea
                     id="notification-message"
                     value={newNotification.message}
                     onChange={(e) => setNewNotification({ ...newNotification, message: e.target.value })}
-                    placeholder="Notification message"
+                    placeholder={t("common.description")}
                     rows={4}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notification-type">Type</Label>
+                  <Label htmlFor="notification-type">{t("common.type")}</Label>
                   <Select
                     value={newNotification.type}
                     onValueChange={(value) => setNewNotification({ ...newNotification, type: value })}
                   >
                     <SelectTrigger id="notification-type">
-                      <SelectValue placeholder="Select notification type" />
+                      <SelectValue placeholder={t("common.type")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="info">Info</SelectItem>
-                      <SelectItem value="success">Success</SelectItem>
-                      <SelectItem value="warning">Warning</SelectItem>
-                      <SelectItem value="error">Error</SelectItem>
+                      <SelectItem value="info">{t("notifications.type.info")}</SelectItem>
+                      <SelectItem value="success">{t("notifications.type.success")}</SelectItem>
+                      <SelectItem value="warning">{t("notifications.type.warning")}</SelectItem>
+                      <SelectItem value="error">{t("notifications.type.error")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="send-to-all">Send to all users</Label>
+                  <Label htmlFor="send-to-all">{t("common.all")}</Label>
                   <Switch
                     id="send-to-all"
                     checked={newNotification.sendToAll}
@@ -272,13 +274,13 @@ export default function AdminNotificationsPage() {
                 </div>
                 {!newNotification.sendToAll && (
                   <div className="space-y-2">
-                    <Label htmlFor="selected-users">Select Users</Label>
+                    <Label htmlFor="selected-users">{t("sidebar.userManagement")}</Label>
                     <Select
                       value={newNotification.selectedUsers[0]}
                       onValueChange={(value) => setNewNotification({ ...newNotification, selectedUsers: [value] })}
                     >
                       <SelectTrigger id="selected-users">
-                        <SelectValue placeholder="Select user" />
+                        <SelectValue placeholder={t("auth.username")} />
                       </SelectTrigger>
                       <SelectContent>
                         {users.map((user) => (
@@ -293,7 +295,7 @@ export default function AdminNotificationsPage() {
                 <div className="flex justify-end">
                   <Button onClick={handleSendNotification} disabled={isSendingNotification}>
                     <Send className="mr-2 h-4 w-4" />
-                    {isSendingNotification ? "Sending..." : "Send Notification"}
+                    {isSendingNotification ? t("admin.sendingNotification") : t("admin.sendNotification")}
                   </Button>
                 </div>
               </CardContent>
@@ -303,8 +305,8 @@ export default function AdminNotificationsPage() {
           <TabsContent value="templates">
             <Card>
               <CardHeader>
-                <CardTitle>Notification Templates</CardTitle>
-                <CardDescription>Manage notification templates for different events.</CardDescription>
+                <CardTitle>{t("admin.templates")}</CardTitle>
+                <CardDescription>{t("admin.notificationsDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border">
@@ -454,8 +456,8 @@ export default function AdminNotificationsPage() {
         <Dialog open={!!editingTemplate} onOpenChange={(open) => !open && setEditingTemplate(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit Template</DialogTitle>
-              <DialogDescription>Edit notification template details.</DialogDescription>
+              <DialogTitle>{t("common.edit")} {t("admin.templates")}</DialogTitle>
+              <DialogDescription>{t("admin.notificationsDescription")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">

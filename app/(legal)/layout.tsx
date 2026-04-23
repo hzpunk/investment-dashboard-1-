@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "Правовая информация",
-  description: "Политика конфиденциальности, пользовательское соглашение и уведомление о рисках",
+  title: "Legal | InvestTrack",
+  description: "Legal documents and disclosures",
 }
 
 export default function LegalLayout({

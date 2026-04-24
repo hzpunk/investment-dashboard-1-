@@ -2,19 +2,43 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/password'
 import { createSession, getSessionCookieName } from '@/lib/auth'
+import { LIMITS, validateLength, validateEmail, validateUsername, sanitizeString } from '@/lib/validation'
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null)
+  // Safe JSON parsing with size limit
+  let body: Record<string, unknown>
+  try {
+    body = await request.json() as Record<string, unknown>
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
   const password = typeof body?.password === 'string' ? body.password : ''
   const username = typeof body?.username === 'string' ? body.username.trim() : ''
 
+  // Validate required fields
   if (!email || !password || !username) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
-  if (password.length < 6) {
-    return NextResponse.json({ error: 'Password too short' }, { status: 400 })
+  // Validate email format and length
+  if (!validateEmail(email)) {
+    return NextResponse.json({ error: 'Invalid email format or too long' }, { status: 400 })
+  }
+
+  // Validate username format (alphanumeric + safe chars)
+  if (!validateUsername(username)) {
+    return NextResponse.json({ 
+      error: 'Username must be 2-50 chars, alphanumeric only' 
+    }, { status: 400 })
+  }
+
+  // Validate password length
+  if (!validateLength(password, LIMITS.PASSWORD_MAX, LIMITS.PASSWORD_MIN)) {
+    return NextResponse.json({ 
+      error: `Password must be ${LIMITS.PASSWORD_MIN}-${LIMITS.PASSWORD_MAX} characters` 
+    }, { status: 400 })
   }
 
   const existing = await prisma.user.findUnique({ where: { email } })
@@ -30,7 +54,7 @@ export async function POST(request: Request) {
       passwordHash,
       profile: {
         create: {
-          username,
+          username: sanitizeString(username),
         },
       },
       roles: {

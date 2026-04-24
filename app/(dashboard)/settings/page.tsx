@@ -46,7 +46,6 @@ export default function SettingsPage() {
         setUsername(data.username || "")
         setAvatarUrl(data.avatar_url || "")
       } catch (error) {
-        console.error("Error fetching profile:", error)
       } finally {
         setIsLoading(false)
       }
@@ -74,7 +73,6 @@ export default function SettingsPage() {
 
       setMessage({ type: "success", text: t("settings.profileUpdated") })
     } catch (error: any) {
-      console.error("Error updating profile:", error)
       setMessage({ type: "error", text: error.message || t("settings.profileUpdateFailed") })
     } finally {
       setIsSaving(false)
@@ -104,7 +102,6 @@ export default function SettingsPage() {
       setConfirmPassword("")
       setMessage({ type: "success", text: t("settings.passwordUpdated") })
     } catch (error: any) {
-      console.error("Error updating password:", error)
       setMessage({ type: "error", text: error.message || t("settings.passwordUpdateFailed") })
     } finally {
       setIsSaving(false)

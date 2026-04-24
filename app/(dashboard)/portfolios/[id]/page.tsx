@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, use } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
@@ -45,7 +45,8 @@ type Portfolio = Database["public"]["Tables"]["portfolios"]["Row"] & {
   }>
 }
 
-export default function PortfolioDetailPage({ params }: { params: { id: string } }) {
+export default function PortfolioDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const { user } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
@@ -76,7 +77,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       setIsLoading(true)
       try {
         // Fetch portfolio details
-        const portfolioData = await fetchPortfolioWithAssets(params.id)
+        const portfolioData = await fetchPortfolioWithAssets(id)
         setPortfolio(portfolioData)
 
         // Set form values
@@ -87,7 +88,6 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
         const assetsData = await fetchAssets()
         setAvailableAssets(assetsData)
       } catch (error) {
-        console.error("Error fetching portfolio data:", error)
         setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
@@ -95,7 +95,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
     }
 
     fetchData()
-  }, [user, params.id])
+  }, [user, id])
 
   const handleUpdatePortfolio = async () => {
     if (!portfolio) return
@@ -116,7 +116,6 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       })
       setMessage({ type: "success", text: t("actions.saveChanges") })
     } catch (error) {
-      console.error("Error updating portfolio:", error)
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsSaving(false)
@@ -134,7 +133,6 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       await deletePortfolio(portfolio.id)
       router.push("/portfolios")
     } catch (error) {
-      console.error("Error deleting portfolio:", error)
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     }
   }
@@ -169,7 +167,6 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       setIsAddAssetOpen(false)
       setMessage({ type: "success", text: t("actions.addAsset") })
     } catch (error) {
-      console.error("Error adding asset:", error)
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsSaving(false)
@@ -194,7 +191,6 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
 
       setMessage({ type: "success", text: t("actions.remove") })
     } catch (error) {
-      console.error("Error removing asset:", error)
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     }
   }

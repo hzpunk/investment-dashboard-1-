@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, use } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
@@ -11,19 +11,18 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { fetchAccountById, updateAccount, deleteAccount } from "@/entities/account/api"
+import { fetchAccountById, updateAccount, deleteAccount, Account } from "@/entities/account/api"
 import { fetchTransactions } from "@/entities/transaction/api"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
 import type { Database } from "@/types/supabase"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAccountTypeLabel, getTransactionTypeLabel } from "@/lib/i18n-display"
-
-type Account = Database["public"]["Tables"]["accounts"]["Row"]
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
   assets?: { symbol: string; name: string } | null
 }
 
-export default function AccountDetailPage({ params }: { params: { id: string } }) {
+export default function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const { user } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
@@ -46,7 +45,11 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
       setIsLoading(true)
       try {
         // Fetch account details
-        const accountData = await fetchAccountById(params.id)
+        const accountData = await fetchAccountById(id)
+        if (!accountData) {
+          setMessage({ type: "error", text: t("errors.unavailable") })
+          return
+        }
         setAccount(accountData)
 
         // Set form values
@@ -57,7 +60,7 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
 
         // Fetch account transactions
         const transactionsData = await fetchTransactions(user.id)
-        setTransactions(transactionsData.filter((t) => t.account_id === params.id))
+        setTransactions(transactionsData.filter((t) => t.account_id === id))
       } catch (error) {
         console.error("Error fetching account data:", error)
         setMessage({ type: "error", text: t("errors.unavailable") })
@@ -67,7 +70,7 @@ export default function AccountDetailPage({ params }: { params: { id: string } }
     }
 
     fetchData()
-  }, [user, params.id])
+  }, [user, id])
 
   const handleUpdateAccount = async () => {
     if (!account) return

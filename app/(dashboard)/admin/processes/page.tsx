@@ -110,7 +110,6 @@ export default function AdminProcessesPage() {
         // In a real app, you would fetch processes and logs from your database
         await new Promise((resolve) => setTimeout(resolve, 500))
       } catch (error) {
-        console.error("Error fetching process data:", error)
         setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
@@ -187,7 +186,6 @@ export default function AdminProcessesPage() {
 
       setMessage({ type: "success", text: t("status.success") })
     } catch (error: any) {
-      console.error("Error running process:", error)
 
       // Add an error log entry
       const process = processes.find((p) => p.id === processId)

@@ -375,7 +375,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {transaction.currency} {transaction.total_amount.toFixed(2)}
+                      {transaction.currency} {(transaction.total_amount || 0).toFixed(2)}
                     </TableCell>
                   </TableRow>
                 ))

@@ -30,7 +30,6 @@ export async function GET(request: Request) {
       unreadCount,
     })
   } catch (error) {
-    console.error("Notifications fetch error:", error)
     return NextResponse.json(
       { error: "Failed to fetch notifications" },
       { status: 500 }
@@ -59,7 +58,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ notification })
   } catch (error) {
-    console.error("Notification create error:", error)
     return NextResponse.json(
       { error: "Failed to create notification" },
       { status: 500 }
@@ -97,7 +95,6 @@ export async function PATCH(request: Request) {
       { status: 400 }
     )
   } catch (error) {
-    console.error("Notification update error:", error)
     return NextResponse.json(
       { error: "Failed to update notification" },
       { status: 500 }
@@ -133,7 +130,6 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ deletedCount: result.count })
   } catch (error) {
-    console.error("Notification delete error:", error)
     return NextResponse.json(
       { error: "Failed to delete notification" },
       { status: 500 }

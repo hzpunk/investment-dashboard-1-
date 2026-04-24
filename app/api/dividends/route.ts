@@ -103,7 +103,6 @@ export async function GET(request: Request) {
       })),
     })
   } catch (error) {
-    console.error("Dividends fetch error:", error)
     return NextResponse.json(
       { error: "Failed to fetch dividends" },
       { status: 500 }
@@ -219,7 +218,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ dividend })
   } catch (error) {
-    console.error("Dividend record error:", error)
     return NextResponse.json(
       { error: "Failed to record dividend" },
       { status: 500 }

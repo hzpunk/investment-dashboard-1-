@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { supabase } from "@/lib/supabase"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,73 +19,44 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Pencil, Trash2, BarChart3 } from "lucide-react"
-import type { Database } from "@/types/supabase"
 import { useI18n } from "@/contexts/i18n-context"
+import { fetchPortfolios, createPortfolio, deletePortfolio, Portfolio } from "@/entities/portfolio/api"
 
-type Portfolio = Database["public"]["Tables"]["portfolios"]["Row"] & {
-  _count?: {
-    assets: number
-  }
+type PortfolioWithDetails = Portfolio & {
+  _count?: { assets: number }
   _value?: number
 }
 
 export default function PortfoliosPage() {
   const { user } = useAuth()
   const { t } = useI18n()
-  const [portfolios, setPortfolios] = useState<Portfolio[]>([])
+  const [portfolios, setPortfolios] = useState<PortfolioWithDetails[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddPortfolioOpen, setIsAddPortfolioOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [newPortfolio, setNewPortfolio] = useState<Partial<Portfolio>>({})
 
   useEffect(() => {
-    const fetchPortfolios = async () => {
+    const loadPortfolios = async () => {
       if (!user) return
 
       setIsLoading(true)
       try {
-        // Fetch portfolios
-        const { data, error } = await supabase
-          .from("portfolios")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
+        const data = await fetchPortfolios()
+        // Calculate asset counts and values from portfolio data
+        const portfoliosWithDetails = (data || []).map((portfolio: Portfolio & { assets?: any[] }) => {
+          const assets = portfolio.assets || []
+          const assetCount = assets.length
+          const totalValue = assets.reduce((sum: number, item: any) => {
+            return sum + (item.quantity || 0) * (item.asset?.currentPrice || 0)
+          }, 0)
 
-        if (error) throw error
-
-        // For each portfolio, fetch asset count and total value
-        const portfoliosWithDetails = await Promise.all(
-          (data || []).map(async (portfolio) => {
-            // Get portfolio assets
-            const { data: portfolioAssets, error: assetsError } = await supabase
-              .from("portfolio_assets")
-              .select(`
-              asset_id,
-              quantity,
-              average_buy_price,
-              assets(current_price, currency)
-            `)
-              .eq("portfolio_id", portfolio.id)
-
-            if (assetsError) throw assetsError
-
-            // Calculate total value and count
-            const assetCount = portfolioAssets?.length || 0
-            const totalValue =
-              portfolioAssets?.reduce((sum, item) => {
-                return sum + item.quantity * (item.assets?.current_price || 0)
-              }, 0) || 0
-
-            return {
-              ...portfolio,
-              _count: {
-                assets: assetCount,
-              },
-              _value: totalValue,
-            }
-          }),
-        )
-
+          return {
+            ...portfolio,
+            _count: { assets: assetCount },
+            _value: totalValue,
+          }
+        })
         setPortfolios(portfoliosWithDetails)
       } catch (error) {
         console.error("Error fetching portfolios:", error)
@@ -95,10 +65,10 @@ export default function PortfoliosPage() {
       }
     }
 
-    fetchPortfolios()
+    loadPortfolios()
   }, [user])
 
-  // Update the handleAddPortfolio function to ensure we're using the correct user ID
+  // Handle add portfolio using API
   const handleAddPortfolio = async () => {
     if (!user || !newPortfolio.name) {
       return
@@ -107,27 +77,20 @@ export default function PortfoliosPage() {
     setIsSubmitting(true)
 
     try {
-      // Make sure we're using the correct user ID from the auth context
-      const userId = user.id
-
-      // Log the user ID for debugging
-      console.log("Creating portfolio with user ID:", userId)
-
-      const { error } = await supabase.from("portfolios").insert({
-        user_id: userId,
+      const createdPortfolio = await createPortfolio({
         name: newPortfolio.name,
         description: newPortfolio.description || null,
       })
 
-      if (error) {
-        console.error("Portfolio creation error:", error)
-        throw error
+      if (!createdPortfolio) {
+        console.error("Failed to create portfolio")
+        return
       }
 
-      // Refresh the page to show the new portfolio
-      window.location.reload()
+      setPortfolios([...portfolios, createdPortfolio as PortfolioWithDetails])
+      setNewPortfolio({})
     } catch (error) {
-      console.error("Error adding portfolio:", error)
+      console.error("Error creating portfolio:", error)
     } finally {
       setIsSubmitting(false)
       setIsAddPortfolioOpen(false)
@@ -140,12 +103,8 @@ export default function PortfoliosPage() {
     }
 
     try {
-      const { error } = await supabase.from("portfolios").delete().eq("id", id)
-
-      if (error) throw error
-
-      // Update the portfolios list
-      setPortfolios(portfolios.filter((portfolio) => portfolio.id !== id))
+      await deletePortfolio(id)
+      setPortfolios(portfolios.filter((p) => p.id !== id))
     } catch (error) {
       console.error("Error deleting portfolio:", error)
     }

@@ -48,7 +48,6 @@ export default function AdminSecurityPage() {
           const { error: createTableError } = await supabase.rpc("create_admin_settings_if_not_exists")
 
           if (createTableError && !createTableError.message.includes("does not exist")) {
-            console.error("Error creating admin_settings table:", createTableError)
           }
 
           // Try to fetch settings
@@ -56,7 +55,6 @@ export default function AdminSecurityPage() {
 
           if (error) {
             // If table doesn't exist, we'll use default settings
-            console.log("Using default security settings")
           } else if (data && data.length > 0) {
             // If we have settings in the database, use them
             const settings = data.reduce(
@@ -95,11 +93,9 @@ export default function AdminSecurityPage() {
             setSecuritySettings(settings)
           }
         } catch (error) {
-          console.error("Error with admin_settings:", error)
           // Continue with default settings
         }
       } catch (error) {
-        console.error("Error fetching security settings:", error)
         // We'll continue with default settings
       } finally {
         setIsLoading(false)
@@ -133,7 +129,6 @@ export default function AdminSecurityPage() {
       // We'll just simulate success since we can't create the table in this context
       setMessage({ type: "success", text: t("admin.settingsSaved") })
     } catch (error) {
-      console.error("Error saving security settings:", error)
       setMessage({ type: "error", text: t("admin.settingsSaveFailed") })
     } finally {
       setIsSaving(false)

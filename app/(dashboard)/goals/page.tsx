@@ -52,7 +52,6 @@ export default function GoalsPage() {
 
         setGoals(data || [])
       } catch (error) {
-        console.error("Error fetching goals:", error)
       } finally {
         setIsLoading(false)
       }
@@ -82,7 +81,6 @@ export default function GoalsPage() {
       // Refresh the page to show the new goal
       window.location.reload()
     } catch (error) {
-      console.error("Error adding goal:", error)
     } finally {
       setIsSubmitting(false)
       setIsAddGoalOpen(false)
@@ -102,7 +100,6 @@ export default function GoalsPage() {
       // Update the goals list
       setGoals(goals.filter((goal) => goal.id !== id))
     } catch (error) {
-      console.error("Error deleting goal:", error)
     }
   }
 
@@ -226,7 +223,9 @@ export default function GoalsPage() {
             </Card>
           ) : (
             goals.map((goal) => {
-              const progress = Math.min(100, Math.round((goal.current_amount / goal.target_amount) * 100))
+              const currentAmount = goal.current_amount || 0
+              const targetAmount = goal.target_amount || 1
+              const progress = Math.min(100, Math.round((currentAmount / targetAmount) * 100))
               const daysLeft = goal.target_date
                 ? Math.ceil((new Date(goal.target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
                 : null
@@ -255,11 +254,11 @@ export default function GoalsPage() {
                       <div className="flex justify-between">
                         <div>
                           <p className="text-sm text-muted-foreground">{t("goals.current")}</p>
-                          <p className="text-lg sm:text-xl font-bold">${goal.current_amount.toLocaleString()}</p>
+                          <p className="text-lg sm:text-xl font-bold">${(goal.current_amount || 0).toLocaleString()}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-muted-foreground">{t("goals.target")}</p>
-                          <p className="text-lg sm:text-xl font-bold">${goal.target_amount.toLocaleString()}</p>
+                          <p className="text-lg sm:text-xl font-bold">${(goal.target_amount || 0).toLocaleString()}</p>
                         </div>
                       </div>
                       {goal.target_date && (

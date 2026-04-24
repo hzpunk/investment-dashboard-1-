@@ -53,7 +53,6 @@ export default function AdminAssetsPage() {
         const data = await fetchAssets()
         setAssets(data)
       } catch (error) {
-        console.error("Error fetching assets:", error)
         setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
@@ -128,7 +127,6 @@ export default function AdminAssetsPage() {
       setIsAddAssetOpen(false)
       setMessage({ type: "success", text: t("actions.addAsset") })
     } catch (error) {
-      console.error("Error adding asset:", error)
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsSubmitting(false)
@@ -158,7 +156,6 @@ export default function AdminAssetsPage() {
       setIsEditAssetOpen(false)
       setMessage({ type: "success", text: t("actions.saveChanges") })
     } catch (error) {
-      console.error("Error updating asset:", error)
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsSubmitting(false)
@@ -175,7 +172,6 @@ export default function AdminAssetsPage() {
       setAssets(assets.filter((asset) => asset.id !== id))
       setMessage({ type: "success", text: t("actions.deleteAsset") })
     } catch (error) {
-      console.error("Error deleting asset:", error)
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     }
   }
@@ -190,7 +186,6 @@ export default function AdminAssetsPage() {
       setAssets(updatedAssets)
       setMessage({ type: "success", text: t("assets.updatePrices") })
     } catch (error) {
-      console.error("Error updating asset prices:", error)
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsRefreshing(false)

@@ -38,7 +38,6 @@ export async function GET() {
 
     return NextResponse.json(analytics)
   } catch (error) {
-    console.error("Analytics error:", error)
     return NextResponse.json(
       { error: "Failed to calculate analytics" },
       { status: 500 }

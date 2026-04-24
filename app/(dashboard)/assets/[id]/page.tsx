@@ -1,8 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, use } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
+import { useI18n } from "@/contexts/i18n-context"
+import { getAssetTypeLabel } from "@/lib/i18n-display"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,12 +17,11 @@ import { fetchAssetById, updateAsset, deleteAsset } from "@/entities/asset/api"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
 import type { Database } from "@/types/supabase"
 import { getHistoricalPrices, cryptoIdMap } from "@/shared/api/market-data"
-import { useI18n } from "@/contexts/i18n-context"
-import { getAssetTypeLabel } from "@/lib/i18n-display"
 
 type Asset = Database["public"]["Tables"]["assets"]["Row"]
 
-export default function AssetDetailPage({ params }: { params: { id: string } }) {
+export default function AssetDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const { user, userRole } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
@@ -44,7 +45,11 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
       setIsLoading(true)
       try {
         // Fetch asset details
-        const assetData = await fetchAssetById(params.id)
+        const assetData = await fetchAssetById(id)
+        if (!assetData) {
+          setMessage({ type: "error", text: t("errors.unavailable") })
+          return
+        }
         setAsset(assetData)
 
         // Set form values
@@ -65,7 +70,7 @@ export default function AssetDetailPage({ params }: { params: { id: string } }) 
     }
 
     fetchData()
-  }, [params.id, selectedTimeframe])
+  }, [id, selectedTimeframe])
 
   const loadHistoricalData = async (assetSymbol: string, assetType: string, timeframe: string) => {
     setIsLoadingChart(true)

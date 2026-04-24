@@ -67,7 +67,6 @@ export default function AdminSettingsPage() {
           setSettings(settingsData)
         }
       } catch (error) {
-        console.error("Error loading admin settings:", error)
         setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
@@ -103,7 +102,6 @@ export default function AdminSettingsPage() {
 
       setMessage({ type: "success", text: t("admin.settingsSaved") })
     } catch (error) {
-      console.error("Error updating setting:", error)
       setMessage({ type: "error", text: t("admin.settingsSaveFailed") })
     } finally {
       setIsSaving(false)
@@ -136,7 +134,6 @@ export default function AdminSettingsPage() {
       setIsAddSettingOpen(false)
       setMessage({ type: "success", text: t("admin.settingsSaved") })
     } catch (error) {
-      console.error("Error creating setting:", error)
       setMessage({ type: "error", text: t("admin.settingsSaveFailed") })
     } finally {
       setIsSaving(false)

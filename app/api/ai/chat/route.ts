@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, errorResponse } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
+import { validateMessage, validateHistory } from '@/lib/validation'
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://ai:11434'
 const MODEL = process.env.AI_MODEL || 'mistral:7b'
@@ -33,13 +34,29 @@ const SYSTEM_PROMPT = `Ты — профессиональный финансо�
 
 // POST /api/ai/chat - Chat with AI investment advisor
 export const POST = withAuth(async (request: NextRequest, user) => {
+  let body: { message?: string; history?: unknown[] }
+  
   try {
-    const { message, history = [] } = await request.json()
+    body = await request.json()
+  } catch {
+    return errorResponse('Invalid JSON', 400)
+  }
+  
+  const { message, history = [] } = body
+  
+  // Validate message
+  const messageValidation = validateMessage(message || '')
+  if (!messageValidation.valid) {
+    return errorResponse(messageValidation.error || 'Invalid message', 400)
+  }
+  
+  // Validate history
+  const historyValidation = validateHistory(history)
+  if (!historyValidation.valid) {
+    return errorResponse(historyValidation.error || 'Invalid history', 400)
+  }
 
-    if (!message || typeof message !== 'string') {
-      return errorResponse('Message is required', 400)
-    }
-
+  try {
     // Get user portfolio context for personalized advice
     const portfolioContext = await getUserPortfolioContext(user.id)
 
@@ -86,7 +103,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
         entityType: 'ai_interaction',
         entityId: 'chat',
         details: {
-          messageLength: message.length,
+          messageLength: message!.length,
           responseLength: data.message?.content?.length || 0,
           model: MODEL
         }
@@ -100,7 +117,6 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     })
 
   } catch (error) {
-    console.error('AI chat error:', error)
     return errorResponse('Failed to process request', 500)
   }
 })

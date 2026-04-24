@@ -27,7 +27,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 })
     }
   } catch (error) {
-    console.error("Error fetching market data:", error)
     return NextResponse.json({ error: "Failed to fetch market data" }, { status: 500 })
   }
 }

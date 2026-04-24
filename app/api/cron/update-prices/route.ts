@@ -7,7 +7,6 @@ export async function GET() {
     await updateAssetPrices()
     return NextResponse.json({ success: true, message: "Asset prices updated successfully" })
   } catch (error) {
-    console.error("Error updating asset prices:", error)
     return NextResponse.json({ error: "Failed to update asset prices" }, { status: 500 })
   }
 }

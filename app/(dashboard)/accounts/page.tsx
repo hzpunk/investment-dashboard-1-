@@ -19,12 +19,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Pencil, Trash2, Search } from "lucide-react"
-import { fetchAccounts, createAccount, deleteAccount } from "@/entities/account/api"
-import type { Database } from "@/types/supabase"
+import { fetchAccounts, createAccount, deleteAccount, Account } from "@/entities/account/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAccountTypeLabel } from "@/lib/i18n-display"
-
-type Account = Database["public"]["Tables"]["accounts"]["Row"]
 
 export default function AccountsPage() {
   const { user } = useAuth()
@@ -66,12 +63,17 @@ export default function AccountsPage() {
 
     try {
       const createdAccount = await createAccount({
-        user_id: user.id,
+        userId: user.id,
         name: newAccount.name,
         type: newAccount.type as any,
         balance: newAccount.balance || 0,
         currency: newAccount.currency || "USD",
       })
+
+      if (!createdAccount) {
+        console.error("Failed to create account")
+        return
+      }
 
       setAccounts([...accounts, createdAccount])
       setNewAccount({
@@ -101,8 +103,8 @@ export default function AccountsPage() {
 
   const filteredAccounts = accounts.filter(
     (account) =>
-      account.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      account.type.toLowerCase().includes(searchQuery.toLowerCase()),
+      account?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      account?.type?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   return (
@@ -240,15 +242,15 @@ export default function AccountsPage() {
                   ) : (
                     filteredAccounts.map((account) => (
                       <TableRow key={account.id}>
-                        <TableCell className="font-medium">{account.name}</TableCell>
-                        <TableCell>{getAccountTypeLabel(account.type, t)}</TableCell>
+                        <TableCell className="font-medium">{account?.name || '—'}</TableCell>
+                        <TableCell>{getAccountTypeLabel(account?.type, t)}</TableCell>
                         <TableCell className="text-right">
-                          {account.balance.toLocaleString(undefined, {
+                          {(account?.balance || 0).toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
                           })}
                         </TableCell>
-                        <TableCell>{account.currency}</TableCell>
+                        <TableCell>{account?.currency || 'USD'}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end space-x-2">
                             <Button variant="ghost" size="icon" asChild>

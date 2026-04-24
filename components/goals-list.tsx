@@ -169,7 +169,9 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
             </div>
           ) : (
             goals.map((goal) => {
-              const progress = Math.min(100, Math.round((goal.current_amount / goal.target_amount) * 100))
+              const currentAmount = goal.current_amount || 0
+              const targetAmount = goal.target_amount || 1 // avoid division by zero
+              const progress = Math.min(100, Math.round((currentAmount / targetAmount) * 100))
               return (
                 <div key={goal.id} className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -196,9 +198,9 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
                   </div>
                   <Progress value={progress} className="h-2" />
                   <div className="flex items-center justify-between text-sm">
-                    <span>${goal.current_amount.toLocaleString()}</span>
+                    <span>${currentAmount.toLocaleString()}</span>
                     <span className="text-muted-foreground">{progress}%</span>
-                    <span>${goal.target_amount.toLocaleString()}</span>
+                    <span>${targetAmount.toLocaleString()}</span>
                   </div>
                 </div>
               )

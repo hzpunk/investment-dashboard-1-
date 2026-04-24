@@ -1,4 +1,4 @@
-type Goal = {
+export type Goal = {
   id: string
   userId: string
   name: string
@@ -8,7 +8,7 @@ type Goal = {
   createdAt: string
 }
 
-type GoalInsert = Omit<Goal, "id" | "createdAt"> & { createdAt?: string }
+export type GoalInsert = Omit<Goal, "id" | "createdAt"> & { createdAt?: string }
 
 // Fetch all goals for a user
 export async function fetchGoals(userId: string) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, use } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
@@ -11,13 +11,11 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
-import { fetchGoalById, updateGoal, deleteGoal } from "@/entities/goal/api"
-import type { Database } from "@/types/supabase"
+import { fetchGoalById, updateGoal, deleteGoal, Goal } from "@/entities/goal/api"
 import { useI18n } from "@/contexts/i18n-context"
 
-type Goal = Database["public"]["Tables"]["goals"]["Row"]
-
-export default function GoalDetailPage({ params }: { params: { id: string } }) {
+export default function GoalDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const { user } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
@@ -39,16 +37,19 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
       setIsLoading(true)
       try {
         // Fetch goal details
-        const goalData = await fetchGoalById(params.id)
+        const goalData = await fetchGoalById(id)
+        if (!goalData) {
+          setMessage({ type: "error", text: t("errors.unavailable") })
+          return
+        }
         setGoal(goalData)
 
         // Set form values
         setName(goalData.name)
-        setTargetAmount(goalData.target_amount)
-        setCurrentAmount(goalData.current_amount)
-        setTargetDate(goalData.target_date || "")
+        setTargetAmount(goalData.targetAmount)
+        setCurrentAmount(goalData.currentAmount)
+        setTargetDate(goalData.targetDate || "")
       } catch (error) {
-        console.error("Error fetching goal data:", error)
         setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
@@ -56,7 +57,7 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
     }
 
     fetchData()
-  }, [user, params.id])
+  }, [user, id])
 
   const handleUpdateGoal = async () => {
     if (!goal) return
@@ -67,15 +68,14 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
     try {
       const updatedGoal = await updateGoal(goal.id, {
         name,
-        target_amount: targetAmount,
-        current_amount: currentAmount,
-        target_date: targetDate || null,
+        targetAmount,
+        currentAmount,
+        targetDate: targetDate || null,
       })
 
       setGoal(updatedGoal)
       setMessage({ type: "success", text: t("actions.saveChanges") })
     } catch (error) {
-      console.error("Error updating goal:", error)
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsSaving(false)
@@ -93,7 +93,6 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
       await deleteGoal(goal.id)
       router.push("/goals")
     } catch (error) {
-      console.error("Error deleting goal:", error)
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     }
   }
@@ -123,9 +122,9 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
     )
   }
 
-  const progress = Math.min(100, Math.round((goal.current_amount / goal.target_amount) * 100))
-  const daysLeft = goal.target_date
-    ? Math.ceil((new Date(goal.target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+  const progress = Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))
+  const daysLeft = goal.targetDate
+    ? Math.ceil((new Date(goal.targetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : null
 
   return (
@@ -162,21 +161,21 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">{t("goals.currentAmount")}</p>
-                <p className="text-2xl font-bold">${goal.current_amount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">${(goal.currentAmount || 0).toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{t("goals.targetAmount")}</p>
-                <p className="text-2xl font-bold">${goal.target_amount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">${(goal.targetAmount || 0).toLocaleString()}</p>
               </div>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t("goals.amountRemaining")}</p>
-              <p className="text-xl font-medium">${(goal.target_amount - goal.current_amount).toLocaleString()}</p>
+              <p className="text-xl font-medium">${((goal.targetAmount || 0) - (goal.currentAmount || 0)).toLocaleString()}</p>
             </div>
-            {goal.target_date && (
+            {goal.targetDate && (
               <div>
                 <p className="text-sm text-muted-foreground">{t("goals.targetDate")}</p>
-                <p className="text-xl font-medium">{new Date(goal.target_date).toLocaleDateString()}</p>
+                <p className="text-xl font-medium">{new Date(goal.targetDate).toLocaleDateString()}</p>
               </div>
             )}
           </CardContent>

@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+// I18nProvider is a client component because it uses useState, useEffect and localStorage
 import { defaultLocale, localeStorageKey, normalizeLocale, type Locale, t as translate } from "@/lib/i18n"
 
 interface I18nContextType {

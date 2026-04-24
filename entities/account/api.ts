@@ -1,4 +1,4 @@
-type Account = {
+export type Account = {
   id: string
   userId: string
   name: string
@@ -8,7 +8,7 @@ type Account = {
   createdAt: string
 }
 
-type AccountInsert = Omit<Account, "id" | "createdAt"> & { createdAt?: string }
+export type AccountInsert = Omit<Account, "id" | "createdAt"> & { createdAt?: string }
 
 // Fetch all accounts for a user
 export async function fetchAccounts(userId: string) {

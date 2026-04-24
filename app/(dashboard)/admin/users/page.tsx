@@ -63,7 +63,6 @@ export default function AdminUsersPage() {
         const { data: authUsers, error: authError } = await supabase.from("profiles").select("*")
 
         if (authError) {
-          console.error("Auth error:", authError)
           throw new Error("Failed to fetch users from profiles")
         }
 
@@ -71,7 +70,6 @@ export default function AdminUsersPage() {
         const { data: authData, error: authDataError } = await supabase.auth.admin.listUsers()
 
         if (authDataError) {
-          console.error("Auth data error:", authDataError)
           // Continue with profiles data only
         }
 
@@ -91,7 +89,6 @@ export default function AdminUsersPage() {
 
         setUsers(usersWithEmail)
       } catch (error: any) {
-        console.error("Error fetching users:", error)
         setMessage({ type: "error", text: error.message || "Failed to load users" })
 
         // Provide fallback data
@@ -215,7 +212,6 @@ export default function AdminUsersPage() {
         setMessage({ type: "success", text: t("admin.userCreated") })
       }
     } catch (error: any) {
-      console.error("Error creating user:", error)
       setMessage({ type: "error", text: error.message || t("admin.userCreateFailed") })
     } finally {
       setIsSubmitting(false)
@@ -240,7 +236,6 @@ export default function AdminUsersPage() {
 
       setMessage({ type: "success", text: t("admin.roleUpdated") })
     } catch (error: any) {
-      console.error("Error updating user role:", error)
       setMessage({ type: "error", text: error.message || t("admin.roleUpdateFailed") })
     }
   }
@@ -259,7 +254,6 @@ export default function AdminUsersPage() {
       setUsers(users.filter((u) => u.id !== userId))
       setMessage({ type: "success", text: t("admin.userDeleted") })
     } catch (error: any) {
-      console.error("Error deleting user:", error)
       setMessage({ type: "error", text: error.message || t("admin.userDeleteFailed") })
     }
   }

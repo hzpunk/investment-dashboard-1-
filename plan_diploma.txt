@@ -17,9 +17,6 @@
 [x] Ребалансировка портфеля - /api/portfolio/rebalance
 [x] **AI Консультант (Mistral 7B в Docker)** - /api/ai/chat
 
-### ⏳ В планах:
-[ ] Прогнозирование и симуляции (Monte Carlo)
-[ ] Price alerts
 
 ---
 

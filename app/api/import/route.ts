@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireRequestUser } from "@/lib/api-auth"
+import { sanitizeSymbol, isValidUUID } from "@/lib/validation"
 
 // POST /api/import/transactions - import transactions from CSV
 export async function POST(request: Request) {
@@ -108,72 +109,87 @@ async function importCSV(content: string, userId: string, importType: string): P
     })
   }
 
+  // Collect all unique symbols first for batch asset creation
+  const symbolMap = new Map<string, { price: number; type: string }>()
+  const transactions: any[] = []
+
   for (let i = 1; i < lines.length; i++) {
     try {
       const values = parseCSVLine(lines[i])
       const row: Record<string, string> = {}
-      
+
       headers.forEach((h: string, idx: number) => {
         row[h.toLowerCase().replace(/\s+/g, "_")] = values[idx] || ""
       })
 
       // Map common field names
       const date = row.date || row.transaction_date || row["trade_date"] || ""
-      const symbol = row.symbol || row.ticker || row["asset_symbol"] || ""
+      const rawSymbol = row.symbol || row.ticker || row["asset_symbol"] || ""
+      const symbol = sanitizeSymbol(rawSymbol)
       const type = (row.type || row.transaction_type || row.action || "buy").toLowerCase()
       const quantity = parseFloat(row.quantity || row.shares || row.qty || "0")
       const price = parseFloat(row.price || row["price_per_share"] || row["price_per_unit"] || "0")
       const total = parseFloat(row.total || row.amount || row["total_amount"] || row.proceeds || "0")
       const fee = parseFloat(row.fee || row.commission || "0")
-      
+
       // Skip invalid rows
       if (!date || (!quantity && !total)) {
         result.skipped++
         continue
       }
 
-      // Find or create asset
-      let assetId: string | null = null
-      if (symbol) {
-        const asset = await prisma.asset.upsert({
-          where: { symbol: symbol.toUpperCase() },
-          create: {
-            symbol: symbol.toUpperCase(),
-            name: symbol.toUpperCase(),
-            type: inferAssetType(symbol),
-            currentPrice: price || 0,
-            currency: "USD",
-          },
-          update: {},
-        })
-        assetId = asset.id
+      // Collect unique symbols
+      if (symbol && !symbolMap.has(symbol)) {
+        symbolMap.set(symbol, { price, type: inferAssetType(symbol) })
       }
 
-      // Map transaction type
-      const mappedType = mapTransactionType(type)
-      
-      // Calculate total if not provided
-      const totalAmount = total || (quantity * price) + fee
-
-      await prisma.transaction.create({
-        data: {
-          userId,
-          accountId: defaultAccount.id,
-          assetId,
-          type: mappedType,
-          quantity: quantity || null,
-          pricePerUnit: price || null,
-          totalAmount,
-          fee,
-          currency: row.currency || row["transaction_currency"] || "USD",
-          date: new Date(date),
-          notes: `Imported from CSV row ${i}`,
-        },
+      transactions.push({
+        userId,
+        accountId: defaultAccount.id,
+        symbol,
+        type: mapTransactionType(type),
+        quantity: quantity || null,
+        pricePerUnit: price || null,
+        totalAmount: total || (quantity * price) + fee,
+        fee,
+        currency: row.currency || row["transaction_currency"] || "USD",
+        date: new Date(date),
+        notes: `Imported from CSV row ${i}`,
       })
-
-      result.imported++
     } catch (e: any) {
       result.errors.push(`Row ${i}: ${e.message}`)
+    }
+  }
+
+  // Batch create/update assets
+  const assetUpserts = Array.from(symbolMap.entries()).map(([symbol, data]) =>
+    prisma.asset.upsert({
+      where: { symbol },
+      create: {
+        symbol,
+        name: symbol,
+        type: data.type as any,
+        currentPrice: data.price || 0,
+        currency: "USD",
+      },
+      update: {},
+    })
+  )
+
+  const assets = assetUpserts.length > 0 ? await prisma.$transaction(assetUpserts) : []
+  const assetIdMap = new Map(assets.map(a => [a.symbol, a.id]))
+
+  // Batch create transactions
+  if (transactions.length > 0) {
+    const BATCH_SIZE = 100
+    for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
+      const batch = transactions.slice(i, i + BATCH_SIZE)
+      await prisma.$transaction(
+        batch.map(tx => prisma.transaction.create({
+          data: { ...tx, assetId: tx.symbol ? assetIdMap.get(tx.symbol) : null }
+        }))
+      )
+      result.imported += batch.length
     }
   }
 

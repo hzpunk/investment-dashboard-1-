@@ -84,3 +84,18 @@ export function validateHistory(history: unknown[]): { valid: boolean; error?: s
   
   return { valid: true }
 }
+
+// Validate and sanitize symbol for SQL injection prevention
+export function validateSymbol(symbol: string): boolean {
+  return /^[A-Z0-9.-]{1,20}$/i.test(symbol)
+}
+
+export function sanitizeSymbol(symbol: string): string {
+  if (!symbol || typeof symbol !== 'string') return ''
+  return symbol.toUpperCase().replace(/[^A-Z0-9.-]/g, '').substring(0, 20)
+}
+
+// Validate UUID format
+export function isValidUUID(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+}

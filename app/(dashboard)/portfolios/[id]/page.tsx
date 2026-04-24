@@ -155,7 +155,9 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
 
       // Refresh portfolio data
       const updatedPortfolio = await fetchPortfolioWithAssets(portfolio.id)
-      setPortfolio(updatedPortfolio)
+      if (updatedPortfolio) {
+        setPortfolio(updatedPortfolio as unknown as Portfolio)
+      }
 
       // Reset form
       setNewAsset({

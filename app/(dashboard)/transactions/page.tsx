@@ -100,13 +100,13 @@ export default function TransactionsPage() {
         account_id: newTransaction.account_id,
         asset_id: newTransaction.asset_id,
         type: newTransaction.type as any,
-        quantity: newTransaction.quantity,
-        price_per_unit: newTransaction.price_per_unit,
-        total_amount: newTransaction.total_amount || 0,
-        fee: newTransaction.fee || 0,
+        quantity: newTransaction.quantity ?? null,
+        price_per_unit: newTransaction.price_per_unit ?? null,
+        total_amount: newTransaction.total_amount ?? 0,
+        fee: newTransaction.fee ?? 0,
         currency: newTransaction.currency || "USD",
-        date: newTransaction.date,
-        notes: newTransaction.notes,
+        date: newTransaction.date || new Date().toISOString(),
+        notes: newTransaction.notes ?? null,
       })
 
       // Refresh the page to show the new transaction

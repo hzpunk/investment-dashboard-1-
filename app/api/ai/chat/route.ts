@@ -2,35 +2,37 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, errorResponse } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { validateMessage, validateHistory } from '@/lib/validation'
+import { findRelevantKnowledge, isFinanceRelated, getNonFinanceRefusal } from '@/lib/ai/knowledge-base'
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://ai:11434'
 const MODEL = process.env.AI_MODEL || 'mistral:7b'
 
-// System prompt for investment advisor
-const SYSTEM_PROMPT = `Ты — профессиональный финансовый консультант и инвестиционный аналитик. 
-Твоя задача — помогать пользователям с вопросами об инвестициях, финансах и рынках.
+// Enhanced System Prompt with strict topic enforcement
+const SYSTEM_PROMPT = `Ты — AI-ассистент инвестиционного портфеля. Твоя единственная функция — помогать пользователям с вопросами об инвестициях и личных финансах.
 
-Правила:
-1. Отвечай только на вопросы, связанные с инвестициями, финансами, экономикой и рынками
-2. Если вопрос не по теме — вежливо откажи и предложи инвестиционную тему
-3. Всегда напоминай, что это не финансовый совет (not financial advice)
-4. Отвечай на русском языке
-5. Будь кратким и по делу
-6. Не давай конкретных прогнозов цен — только анализ и образовательную информацию
+КРИТИЧЕСКИ ВАЖНЫЕ ПРАВИЛА:
+1. Отвечай ТОЛЬКО на финансовые вопросы. Любой вопрос не по теме — вежливый отказ
+2. Это не финансовый совет. Всегда добавляй дисклеймер: "Это не финансовый совет, только образовательная информация"
+3. Запрещены конкретные прогнозы цен активов
+4. Запрещены рекомендации "купить/продать" конкретные активы
+5. Не обсуждай: политику, погоду, спорт, развлечения, личные вопросы, технологии не связанные с финансами
+6. Отвечай кратко (3-5 предложений), но информативно
+7. При неуверенности — скажи что не знаешь, не придумывай
 
-Примеры допустимых тем:
-- Объяснение финансовых терминов
-- Анализ типов инвестиций (акции, облигации, ETF)
-- Стратегии диверсификации
-- Общие принципы анализа рынка
-- Налоговые аспекты инвестирования
-- Риски и управление рисками
+ДОПУСТИМЫЕ ТЕМЫ:
+- Акции, облигации, ETF, фонды
+- Диверсификация и управление рисками
+- Налоги на инвестиции
+- Портфельное инвестирование
+- Финансовое планирование
+- Экономические принципы
+- Рыночные индикаторы
 
-Примеры тем, которые НЕ обсуждаем:
-- Конкретные прогнозы цен акций
-- "Купить или продать" конкретный актив
-- Нелегальные схемы
-- Нефинансовые темы (погода, спорт, политика)`
+ЧТО НЕЛЬЗЯ:
+- "Apple вырастет до $200?" → "Не могу давать прогнозы цен. Могу рассказать о факторах, влияющих на стоимость компаний"
+- "Купить ли Tesla?" → "Не могу рекомендовать покупку. Могу объяснить как анализировать компанию"
+- "Какой фильм посмотреть?" → "Я специализируюсь на финансах. Давайте обсудим инвестиции?"
+- "Что такое квантовый компьютер?" → "Это вне моей области. Могу рассказать о технологических ETF"`
 
 // POST /api/ai/chat - Chat with AI investment advisor
 export const POST = withAuth(async (request: NextRequest, user) => {
@@ -56,8 +58,20 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     return errorResponse(historyValidation.error || 'Invalid history', 400)
   }
 
+  // Check if topic is finance-related
+  if (!isFinanceRelated(message!)) {
+    return NextResponse.json({
+      response: getNonFinanceRefusal(),
+      topic: 'non-finance',
+      timestamp: new Date().toISOString()
+    })
+  }
+
   try {
-    // Get user portfolio context for personalized advice
+    // Get relevant knowledge from knowledge base
+    const relevantKnowledge = findRelevantKnowledge(message!)
+    
+    // Get user portfolio context for personalized advice (controlled access)
     const portfolioContext = await getUserPortfolioContext(user.id)
 
     // Check if Ollama is available
@@ -69,6 +83,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     // Prepare messages for Ollama
     const messages = [
       { role: 'system', content: SYSTEM_PROMPT },
+      ...(relevantKnowledge ? [{ role: 'system', content: `Фактическая информация из базы знаний:\n${relevantKnowledge}` }] : []),
       ...(portfolioContext ? [{ role: 'system', content: portfolioContext }] : []),
       ...history.slice(-10), // Keep last 10 messages for context
       { role: 'user', content: message }

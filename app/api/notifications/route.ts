@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireRequestUser } from "@/lib/api-auth"
+import { sanitizeString } from "@/lib/validation"
 
 // GET /api/notifications - get user notifications
 export async function GET(request: Request) {
@@ -48,8 +49,8 @@ export async function POST(request: Request) {
     const notification = await prisma.notification.create({
       data: {
         userId: user.id,
-        title: title || "Notification",
-        message: message || "",
+        title: sanitizeString(title || "Notification"),
+        message: sanitizeString(message || ""),
         type: type || "info",
         metadata: metadata || {},
         read: false,

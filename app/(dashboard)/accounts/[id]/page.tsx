@@ -50,6 +50,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           setMessage({ type: "error", text: t("errors.unavailable") })
           return
         }
+        if (!accountData) {
+          setMessage({ type: "error", text: t("errors.unavailable") })
+          return
+        }
         setAccount(accountData)
 
         // Set form values

@@ -43,6 +43,7 @@ model User {
   id            String         @id @default(cuid())
   email         String         @unique
   passwordHash  String
+  emailVerified Boolean        @default(false)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -52,9 +53,11 @@ model User {
   transactions  Transaction[]
   portfolios    Portfolio[]
   goals         Goal[]
-  auditLogs     AuditLog[]
-  roles         UserRoleAssignment[]
-  notifications Notification[]
+  auditLogs           AuditLog[]
+  roles               UserRoleAssignment[]
+  notifications       Notification[]
+  passwordResets      PasswordReset[]
+  emailVerifications  EmailVerification[]
 }
 
 model Session {
@@ -245,4 +248,35 @@ model Notification {
   @@index([userId])
   @@index([userId, read])
   @@index([createdAt])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  email     String
+  tokenHash String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
 }

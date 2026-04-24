@@ -78,7 +78,11 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
       try {
         // Fetch portfolio details
         const portfolioData = await fetchPortfolioWithAssets(id)
-        setPortfolio(portfolioData)
+        if (!portfolioData) {
+          setMessage({ type: "error", text: t("errors.unavailable") })
+          return
+        }
+        setPortfolio(portfolioData as unknown as Portfolio)
 
         // Set form values
         setName(portfolioData.name)
@@ -108,6 +112,10 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
         name,
         description,
       })
+      if (!updatedPortfolio) {
+        setMessage({ type: "error", text: t("errors.unavailable") })
+        return
+      }
 
       setPortfolio({
         ...portfolio,
@@ -146,11 +154,10 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
     setMessage(null)
 
     try {
-      await addAssetToPortfolio({
-        portfolio_id: portfolio.id,
-        asset_id: newAsset.asset_id,
+      await addAssetToPortfolio(portfolio.id, {
+        assetId: newAsset.asset_id,
         quantity: newAsset.quantity,
-        average_buy_price: newAsset.average_buy_price,
+        averageBuyPrice: newAsset.average_buy_price,
       })
 
       // Refresh portfolio data

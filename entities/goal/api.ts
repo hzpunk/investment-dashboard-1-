@@ -28,9 +28,20 @@ export async function fetchGoals(userId: string) {
 }
 
 // Fetch a single goal by ID
-export async function fetchGoalById(id: string) {
+export async function fetchGoalById(id: string): Promise<Goal | null> {
   console.warn(`Not implemented: fetchGoalById(${id})`)
-  return null
+  try {
+    const res = await fetch(`/api/data/goals/${id}`, { method: "GET" })
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      console.warn("fetchGoalById failed:", data?.error)
+      return null
+    }
+    return data?.goal as Goal || null
+  } catch (e) {
+    console.warn("fetchGoalById error:", e)
+    return null
+  }
 }
 
 // Create a new goal

@@ -28,9 +28,20 @@ export async function fetchAccounts(userId: string) {
 }
 
 // Fetch a single account by ID
-export async function fetchAccountById(id: string) {
+export async function fetchAccountById(id: string): Promise<Account | null> {
   console.warn(`Not implemented: fetchAccountById(${id})`)
-  return null
+  try {
+    const res = await fetch(`/api/data/accounts/${id}`, { method: "GET" })
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      console.warn("fetchAccountById failed:", data?.error)
+      return null
+    }
+    return data?.account as Account || null
+  } catch (e) {
+    console.warn("fetchAccountById error:", e)
+    return null
+  }
 }
 
 // Create a new account

@@ -127,7 +127,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
 
     return NextResponse.json({
       response: data.message?.content || 'Извините, не удалось сгенерировать ответ.',
-      model: MODEL,
+      topic: 'finance',
       timestamp: new Date().toISOString()
     })
 

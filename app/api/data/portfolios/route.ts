@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, successResponse } from '@/lib/api-handler'
+import { withAuth, successResponse, errorResponse } from '@/lib/api-handler'
 
 export const GET = withAuth(async (_, user) => {
   const portfolios = await prisma.portfolio.findMany({
@@ -10,7 +10,7 @@ export const GET = withAuth(async (_, user) => {
   return successResponse({ portfolios })
 })
 
-export const POST = withAuth(async (request: NextRequest, user) => {
+export const POST = withAuth(async (request: NextRequest, user): Promise<any> => {
   try {
     const body = await request.json()
     const { name, description, strategy } = body
@@ -23,7 +23,6 @@ export const POST = withAuth(async (request: NextRequest, user) => {
       data: {
         name,
         description: description || null,
-        strategy: strategy || null,
         userId: user.id,
       },
     })
@@ -31,6 +30,6 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     return successResponse({ portfolio }, 201)
   } catch (error) {
     console.error('Error creating portfolio:', error)
-    return NextResponse.json({ error: 'Failed to create portfolio' }, { status: 500 })
+    return errorResponse('Failed to create portfolio', 500)
   }
 })

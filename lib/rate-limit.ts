@@ -1,26 +1,75 @@
-// Rate limiting utility using LRU cache
-import { LRUCache } from 'lru-cache'
+// Simple in-memory rate limiting without external dependencies
 
-const rateCache = new LRUCache<string, number>({
-  max: 1000,
-  ttl: 60 * 1000, // 1 minute window
-})
+interface RateEntry {
+  count: number
+  resetTime: number
+}
 
-const IP_CACHE = new LRUCache<string, number>({
-  max: 500,
-  ttl: 60 * 1000,
-})
+const rateCache = new Map<string, RateEntry>()
+const IP_CACHE = new Map<string, RateEntry>()
+const WINDOW_MS = 60 * 1000 // 1 minute
+
+function getNow(): number {
+  return Date.now()
+}
+
+function cleanup(cache: Map<string, RateEntry>): void {
+  const now = getNow()
+  for (const [key, entry] of cache.entries()) {
+    if (entry.resetTime < now) {
+      cache.delete(key)
+    }
+  }
+}
 
 export function checkRateLimit(identifier: string, limit = 100): boolean {
-  const current = rateCache.get(identifier) || 0
-  if (current >= limit) return false
-  rateCache.set(identifier, current + 1)
+  cleanup(rateCache)
+  
+  const now = getNow()
+  const entry = rateCache.get(identifier)
+  
+  if (!entry || entry.resetTime < now) {
+    // Create new window
+    rateCache.set(identifier, {
+      count: 1,
+      resetTime: now + WINDOW_MS,
+    })
+    return true
+  }
+  
+  if (entry.count >= limit) {
+    return false
+  }
+  
+  entry.count++
   return true
 }
 
 export function checkIpRateLimit(ip: string, limit = 60): boolean {
-  const current = IP_CACHE.get(ip) || 0
-  if (current >= limit) return false
-  IP_CACHE.set(ip, current + 1)
+  cleanup(IP_CACHE)
+  
+  const now = getNow()
+  const entry = IP_CACHE.get(ip)
+  
+  if (!entry || entry.resetTime < now) {
+    // Create new window
+    IP_CACHE.set(ip, {
+      count: 1,
+      resetTime: now + WINDOW_MS,
+    })
+    return true
+  }
+  
+  if (entry.count >= limit) {
+    return false
+  }
+  
+  entry.count++
   return true
 }
+
+// Cleanup every 5 minutes to prevent memory leak
+setInterval(() => {
+  cleanup(rateCache)
+  cleanup(IP_CACHE)
+}, 5 * 60 * 1000)

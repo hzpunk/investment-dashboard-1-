@@ -1,4 +1,4 @@
-type Transaction = {
+export type Transaction = {
   id: string
   userId: string
   accountId: string
@@ -18,7 +18,7 @@ type Transaction = {
 type TransactionInsert = Omit<Transaction, "id" | "accounts" | "assets"> & { id?: string }
 
 // Fetch all transactions for a user
-export async function fetchTransactions(userId: string) {
+export async function fetchTransactions(userId: string): Promise<Transaction[]> {
   console.warn(`Not implemented: fetchTransactions(${userId})`)
   return []
 }

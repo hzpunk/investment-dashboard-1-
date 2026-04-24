@@ -37,7 +37,7 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
       setIsLoading(true)
       try {
         // Fetch goal details
-        const goalData = await fetchGoalById(id)
+        const goalData: Goal | null = await fetchGoalById(id)
         if (!goalData) {
           setMessage({ type: "error", text: t("errors.unavailable") })
           return

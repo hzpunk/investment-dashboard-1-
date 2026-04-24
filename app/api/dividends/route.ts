@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     // Group by asset
     const byAsset: Record<string, { symbol: string; name: string; total: number; count: number }> = {}
     for (const d of dividends) {
-      if (!d.asset) continue
+      if (!d.asset || !d.assetId) continue
       const key = d.assetId
       if (!byAsset[key]) {
         byAsset[key] = {

@@ -101,27 +101,27 @@ export default function AnalyticsPage() {
                         <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
                       </linearGradient>
                       <path
-                        d={`M0,${100 - data[0].value} ${data.map((point: any, i: number) => `L${(i / (data.length - 1)) * 100},${100 - point.value}`).join(" ")}`}
+                        d={`M0,${100 - (data as any)[0].value} ${(data as any).map((point: any, i: number) => `L${(i / ((data as any).length - 1)) * 100},${100 - point.value}`).join(" ")}`}
                         fill="none"
                         stroke="hsl(var(--primary))"
                         strokeWidth="1.5"
                       />
                       <path
-                        d={`M0,${100 - data[0].value} ${data.map((point: any, i: number) => `L${(i / (data.length - 1)) * 100},${100 - point.value}`).join(" ")} L100,100 L0,100 Z`}
+                        d={`M0,${100 - (data as any)[0].value} ${(data as any).map((point: any, i: number) => `L${(i / ((data as any).length - 1)) * 100},${100 - point.value}`).join(" ")} L100,100 L0,100 Z`}
                         fill={`url(#gradient-${period})`}
                       />
                     </svg>
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{data[0].date}</span>
-                    <span>{data[Math.floor(data.length / 2)].date}</span>
-                    <span>{data[data.length - 1].date}</span>
+                    <span>{(data as any)[0].date}</span>
+                    <span>{(data as any)[Math.floor((data as any).length / 2)].date}</span>
+                    <span>{(data as any)[(data as any).length - 1].date}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">{t("performance.startingValue")}</p>
                       <p className="text-lg font-bold">
-                        ${(100000 - (data[data.length - 1].value - data[0].value) * 1000).toLocaleString()}
+                        ${(100000 - ((data as any)[(data as any).length - 1].value - (data as any)[0].value) * 1000).toLocaleString()}
                       </p>
                     </div>
                     <div>
@@ -131,7 +131,7 @@ export default function AnalyticsPage() {
                     <div>
                       <p className="text-sm text-muted-foreground">{t("performance.return")}</p>
                       <p className="text-lg font-bold text-green-500">
-                        +{(((data[data.length - 1].value - data[0].value) * 100) / data[0].value).toFixed(2)}%
+                        +{((((data as any)[(data as any).length - 1].value - (data as any)[0].value) * 100) / (data as any)[0].value).toFixed(2)}%
                       </p>
                     </div>
                   </div>

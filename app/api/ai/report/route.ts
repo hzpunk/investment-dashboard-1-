@@ -141,7 +141,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
       data: portfolioData,
       period,
       generatedAt: new Date().toISOString()
-    })
+    } as any)
 
   } catch (error) {
     return errorResponse('Failed to generate report', 500)

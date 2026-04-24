@@ -12,14 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { fetchAccountById, updateAccount, deleteAccount, Account } from "@/entities/account/api"
-import { fetchTransactions } from "@/entities/transaction/api"
+import { fetchTransactions, Transaction } from "@/entities/transaction/api"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
-import type { Database } from "@/types/supabase"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAccountTypeLabel, getTransactionTypeLabel } from "@/lib/i18n-display"
-type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
-  assets?: { symbol: string; name: string } | null
-}
 
 export default function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -45,11 +41,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       setIsLoading(true)
       try {
         // Fetch account details
-        const accountData = await fetchAccountById(id)
-        if (!accountData) {
-          setMessage({ type: "error", text: t("errors.unavailable") })
-          return
-        }
+        const accountData: Account | null = await fetchAccountById(id)
         if (!accountData) {
           setMessage({ type: "error", text: t("errors.unavailable") })
           return
@@ -64,7 +56,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
         // Fetch account transactions
         const transactionsData = await fetchTransactions(user.id)
-        setTransactions(transactionsData.filter((t) => t.account_id === id))
+        setTransactions(transactionsData.filter((t) => t.accountId === id))
       } catch (error) {
         console.error("Error fetching account data:", error)
         setMessage({ type: "error", text: t("errors.unavailable") })
@@ -254,7 +246,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                           <td className="p-2">{getTransactionTypeLabel(transaction.type, t)}</td>
                           <td className="p-2">{transaction.assets ? transaction.assets.symbol : "-"}</td>
                           <td className="p-2 text-right">
-                            {transaction.currency} {transaction.total_amount.toFixed(2)}
+                            {transaction.currency} {(transaction.totalAmount || 0).toFixed(2)}
                           </td>
                         </tr>
                       ))}

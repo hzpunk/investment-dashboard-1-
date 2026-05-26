@@ -1,4 +1,4 @@
-﻿{
+{
   "brand": {
     "name": "InvestTrack"
   },
@@ -229,7 +229,14 @@
     "quantity": "Quantity",
     "pricePerUnit": "Price",
     "account": "Account",
-    "asset": "Asset"
+    "asset": "Asset",
+    "toast": {
+      "addSuccessTitle": "Transaction added!",
+      "addSuccessDescription": "Your transaction has been successfully recorded.",
+      "addErrorTitle": "Failed to add transaction",
+      "addErrorDescription": "There was an error adding your transaction. Please check the details and try again.",
+      "addErrorDescriptionGeneric": "An unexpected error occurred while adding the transaction. Please try again later."
+    }
   },
   "goals": {
     "title": "Financial goals",
@@ -292,7 +299,8 @@
     "assetAllocationDescription": "Distribution by asset type",
     "transactionAnalysis": "Transaction analysis",
     "transactionAnalysisDescription": "Breakdown of your investment activities",
-    "noTransactionData": "No transaction data available"
+    "noTransactionData": "No transaction data available",
+    "noPerformanceData": "No performance data available"
   },
   "settings": {
     "title": "Settings",

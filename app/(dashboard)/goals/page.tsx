@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { supabase } from "@/lib/supabase"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,10 +19,8 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Pencil, Trash2, Target } from "lucide-react"
-import type { Database } from "@/types/supabase"
+import { fetchGoals, createGoal, deleteGoal, type Goal } from "@/entities/goal/api"
 import { useI18n } from "@/contexts/i18n-context"
-
-type Goal = Database["public"]["Tables"]["goals"]["Row"]
 
 export default function GoalsPage() {
   const { user } = useAuth()
@@ -33,54 +30,46 @@ export default function GoalsPage() {
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [newGoal, setNewGoal] = useState<Partial<Goal>>({
-    current_amount: 0,
+    currentAmount: 0,
   })
 
   useEffect(() => {
-    const fetchGoals = async () => {
+    const loadGoals = async () => {
       if (!user) return
 
       setIsLoading(true)
       try {
-        const { data, error } = await supabase
-          .from("goals")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("target_date", { ascending: true })
-
-        if (error) throw error
-
-        setGoals(data || [])
+        const data = await fetchGoals(user.id)
+        setGoals(data)
       } catch (error) {
+        console.error("Error fetching goals:", error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchGoals()
+    loadGoals()
   }, [user])
 
   const handleAddGoal = async () => {
-    if (!user || !newGoal.name || !newGoal.target_amount) {
+    if (!user || !newGoal.name || !newGoal.targetAmount) {
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      const { error } = await supabase.from("goals").insert({
-        user_id: user.id,
+      await createGoal({
+        userId: user.id,
         name: newGoal.name,
-        target_amount: newGoal.target_amount,
-        current_amount: newGoal.current_amount || 0,
-        target_date: newGoal.target_date,
+        targetAmount: newGoal.targetAmount,
+        currentAmount: newGoal.currentAmount || 0,
+        targetDate: newGoal.targetDate || null,
       })
 
-      if (error) throw error
-
-      // Refresh the page to show the new goal
       window.location.reload()
     } catch (error) {
+      console.error("Error adding goal:", error)
     } finally {
       setIsSubmitting(false)
       setIsAddGoalOpen(false)
@@ -93,13 +82,10 @@ export default function GoalsPage() {
     }
 
     try {
-      const { error } = await supabase.from("goals").delete().eq("id", id)
-
-      if (error) throw error
-
-      // Update the goals list
+      await deleteGoal(id)
       setGoals(goals.filter((goal) => goal.id !== id))
     } catch (error) {
+      console.error("Error deleting goal:", error)
     }
   }
 
@@ -137,8 +123,8 @@ export default function GoalsPage() {
                 <Input
                   id="goal-target"
                   type="number"
-                  value={newGoal.target_amount || ""}
-                  onChange={(e) => setNewGoal({ ...newGoal, target_amount: Number.parseFloat(e.target.value) })}
+                  value={newGoal.targetAmount || ""}
+                  onChange={(e) => setNewGoal({ ...newGoal, targetAmount: Number.parseFloat(e.target.value) })}
                   className="col-span-3"
                 />
               </div>
@@ -149,8 +135,8 @@ export default function GoalsPage() {
                 <Input
                   id="goal-current"
                   type="number"
-                  value={newGoal.current_amount || ""}
-                  onChange={(e) => setNewGoal({ ...newGoal, current_amount: Number.parseFloat(e.target.value) })}
+                  value={newGoal.currentAmount || ""}
+                  onChange={(e) => setNewGoal({ ...newGoal, currentAmount: Number.parseFloat(e.target.value) })}
                   className="col-span-3"
                 />
               </div>
@@ -161,8 +147,8 @@ export default function GoalsPage() {
                 <Input
                   id="goal-date"
                   type="date"
-                  value={newGoal.target_date || ""}
-                  onChange={(e) => setNewGoal({ ...newGoal, target_date: e.target.value })}
+                  value={newGoal.targetDate || ""}
+                  onChange={(e) => setNewGoal({ ...newGoal, targetDate: e.target.value })}
                   className="col-span-3"
                 />
               </div>
@@ -223,11 +209,11 @@ export default function GoalsPage() {
             </Card>
           ) : (
             goals.map((goal) => {
-              const currentAmount = goal.current_amount || 0
-              const targetAmount = goal.target_amount || 1
+              const currentAmount = goal.currentAmount || 0
+              const targetAmount = goal.targetAmount || 1
               const progress = Math.min(100, Math.round((currentAmount / targetAmount) * 100))
-              const daysLeft = goal.target_date
-                ? Math.ceil((new Date(goal.target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+              const daysLeft = goal.targetDate
+                ? Math.ceil((new Date(goal.targetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
                 : null
 
               return (
@@ -254,17 +240,17 @@ export default function GoalsPage() {
                       <div className="flex justify-between">
                         <div>
                           <p className="text-sm text-muted-foreground">{t("goals.current")}</p>
-                          <p className="text-lg sm:text-xl font-bold">${(goal.current_amount || 0).toLocaleString()}</p>
+                          <p className="text-lg sm:text-xl font-bold">${(goal.currentAmount || 0).toLocaleString()}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-muted-foreground">{t("goals.target")}</p>
-                          <p className="text-lg sm:text-xl font-bold">${(goal.target_amount || 0).toLocaleString()}</p>
+                          <p className="text-lg sm:text-xl font-bold">${(goal.targetAmount || 0).toLocaleString()}</p>
                         </div>
                       </div>
-                      {goal.target_date && (
+                      {goal.targetDate && (
                         <div>
                           <p className="text-sm text-muted-foreground">{t("goals.targetDate")}</p>
-                          <p className="text-base font-medium">{new Date(goal.target_date).toLocaleDateString()}</p>
+                          <p className="text-base font-medium">{new Date(goal.targetDate).toLocaleDateString()}</p>
                         </div>
                       )}
                     </div>
@@ -290,4 +276,3 @@ export default function GoalsPage() {
     </div>
   )
 }
-

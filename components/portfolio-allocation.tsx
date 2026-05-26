@@ -20,16 +20,7 @@ export function PortfolioAllocation({ className, data = [], isLoading = false }:
   const { t } = useI18n()
   const [view, setView] = useState("asset-class")
 
-  // Use provided data or fallback to default
-  const allocationData =
-    data.length > 0
-      ? data
-      : [
-          { type: "stock", value: 60000 },
-          { type: "bond", value: 25000 },
-          { type: "etf", value: 10000 },
-          { type: "crypto", value: 5000 },
-        ]
+  const allocationData = data.length > 0 ? data : []
 
   // Calculate total value and percentages
   const totalValue = allocationData.reduce((sum, item) => sum + item.value, 0)

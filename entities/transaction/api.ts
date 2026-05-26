@@ -1,3 +1,7 @@
+import { createLogger } from "@/lib/logger"
+
+const logger = createLogger("TransactionAPI")
+
 export type Transaction = {
   id: string
   userId: string
@@ -17,44 +21,68 @@ export type Transaction = {
 
 type TransactionInsert = Omit<Transaction, "id" | "accounts" | "assets"> & { id?: string }
 
-// Fetch all transactions for a user
-export async function fetchTransactions(userId: string): Promise<Transaction[]> {
-  console.warn(`Not implemented: fetchTransactions(${userId})`)
-  return []
-}
-
-// Fetch recent transactions for a user
-export async function fetchRecentTransactions(userId: string, limit = 5) {
-  void userId
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
   try {
-    const res = await fetch(`/api/data/transactions/recent?limit=${encodeURIComponent(String(limit))}`, { method: "GET" })
+    const res = await fetch(url, options)
     const data = await res.json().catch(() => null)
+
     if (!res.ok) {
-      console.warn("fetchRecentTransactions failed:", data?.error)
-      return []
+      logger.warn(`API request failed: ${url}`, data?.error)
+      return null
     }
-    return (data?.transactions as Transaction[]) || []
-  } catch (e) {
-    console.warn("fetchRecentTransactions error:", e)
-    return []
+
+    return data as T
+  } catch (error) {
+    logger.error(`API request error: ${url}`, error)
+    return null
   }
 }
 
-// Create a new transaction
+export async function fetchTransactions(userId: string): Promise<Transaction[]> {
+  void userId
+  const data = await apiFetch<Transaction[]>("/api/data/transactions")
+  return data || []
+}
+
+export async function fetchRecentTransactions(userId: string, limit = 5) {
+  void userId
+  const data = await apiFetch<{ transactions: Transaction[] }>(`/api/data/transactions/recent?limit=${encodeURIComponent(String(limit))}`)
+  return data?.transactions || []
+}
+
 export async function createTransaction(transaction: TransactionInsert) {
-  console.warn(`Not implemented: createTransaction(${transaction.type})`)
-  return null
+  const data = await apiFetch<{ transaction: Transaction }>("/api/data/transactions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      account_id: transaction.accountId,
+      asset_id: transaction.assetId,
+      type: transaction.type,
+      quantity: transaction.quantity,
+      price_per_unit: transaction.pricePerUnit,
+      total_amount: transaction.totalAmount,
+      fee: transaction.fee,
+      currency: transaction.currency,
+      date: transaction.date,
+      notes: transaction.notes,
+    }),
+  })
+  return data?.transaction || null
 }
 
-// Update a transaction
 export async function updateTransaction(id: string, updates: Partial<Transaction>) {
-  console.warn(`Not implemented: updateTransaction(${id})`)
-  return null
+  const data = await apiFetch<{ transaction: Transaction }>(`/api/data/transactions/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  })
+  return data?.transaction || null
 }
 
-// Delete a transaction
 export async function deleteTransaction(id: string) {
-  console.warn(`Not implemented: deleteTransaction(${id})`)
-  return null
+  const data = await apiFetch<{ success: boolean }>(`/api/data/transactions/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  })
+  return data?.success || false
 }
 

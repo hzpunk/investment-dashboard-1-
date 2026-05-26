@@ -1,3 +1,7 @@
+import { createLogger } from "@/lib/logger"
+
+const logger = createLogger("AccountAPI")
+
 export type Account = {
   id: string
   userId: string
@@ -10,55 +14,56 @@ export type Account = {
 
 export type AccountInsert = Omit<Account, "id" | "createdAt"> & { createdAt?: string }
 
-// Fetch all accounts for a user
-export async function fetchAccounts(userId: string) {
-  void userId
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
   try {
-    const res = await fetch("/api/data/accounts", { method: "GET" })
+    const res = await fetch(url, options)
     const data = await res.json().catch(() => null)
-    if (!res.ok) {
-      console.warn("fetchAccounts failed:", data?.error)
-      return []
-    }
-    return (data?.accounts as Account[]) || []
-  } catch (e) {
-    console.warn("fetchAccounts error:", e)
-    return []
-  }
-}
 
-// Fetch a single account by ID
-export async function fetchAccountById(id: string): Promise<Account | null> {
-  console.warn(`Not implemented: fetchAccountById(${id})`)
-  try {
-    const res = await fetch(`/api/data/accounts/${id}`, { method: "GET" })
-    const data = await res.json().catch(() => null)
     if (!res.ok) {
-      console.warn("fetchAccountById failed:", data?.error)
+      logger.warn(`API request failed: ${url}`, data?.error)
       return null
     }
-    return data?.account as Account || null
-  } catch (e) {
-    console.warn("fetchAccountById error:", e)
+
+    return data as T
+  } catch (error) {
+    logger.error(`API request error: ${url}`, error)
     return null
   }
 }
 
-// Create a new account
+export async function fetchAccounts(userId: string) {
+  void userId
+  const data = await apiFetch<{ accounts: Account[] }>("/api/data/accounts")
+  return data?.accounts || []
+}
+
+export async function fetchAccountById(id: string): Promise<Account | null> {
+  const data = await apiFetch<{ account: Account }>(`/api/data/accounts/${encodeURIComponent(id)}`)
+  return data?.account || null
+}
+
 export async function createAccount(account: AccountInsert) {
-  console.warn(`Not implemented: createAccount(${account.name})`)
-  return null
+  const data = await apiFetch<{ account: Account }>("/api/data/accounts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(account),
+  })
+  return data?.account || null
 }
 
-// Update an account
 export async function updateAccount(id: string, updates: Partial<Account>) {
-  console.warn(`Not implemented: updateAccount(${id})`)
-  return null
+  const data = await apiFetch<{ account: Account }>(`/api/data/accounts/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  })
+  return data?.account || null
 }
 
-// Delete an account
 export async function deleteAccount(id: string) {
-  console.warn(`Not implemented: deleteAccount(${id})`)
-  return null
+  const data = await apiFetch<{ success: boolean }>(`/api/data/accounts/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  })
+  return data?.success || false
 }
 

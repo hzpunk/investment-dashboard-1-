@@ -76,57 +76,65 @@ export const POST = withAuth(async (request: NextRequest, user) => {
 
     // Check if Ollama is available
     const ollamaAvailable = await checkOllamaHealth()
-    if (!ollamaAvailable) {
-      return errorResponse('AI service temporarily unavailable', 503)
-    }
+    
+    let responseContent = ''
+    
+    if (ollamaAvailable) {
+      // Prepare messages for Ollama
+      const messages = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        ...(relevantKnowledge ? [{ role: 'system', content: `Фактическая информация из базы знаний:\n${relevantKnowledge}` }] : []),
+        ...(portfolioContext ? [{ role: 'system', content: portfolioContext }] : []),
+        ...history.slice(-10), // Keep last 10 messages for context
+        { role: 'user', content: message }
+      ]
 
-    // Prepare messages for Ollama
-    const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...(relevantKnowledge ? [{ role: 'system', content: `Фактическая информация из базы знаний:\n${relevantKnowledge}` }] : []),
-      ...(portfolioContext ? [{ role: 'system', content: portfolioContext }] : []),
-      ...history.slice(-10), // Keep last 10 messages for context
-      { role: 'user', content: message }
-    ]
-
-    // Call Ollama
-    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: MODEL,
-        messages,
-        stream: false,
-        options: {
-          temperature: 0.7,
-          num_predict: 500, // Limit response length
-        }
+      // Call Ollama
+      const response = await fetch(`${OLLAMA_URL}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: MODEL,
+          messages,
+          stream: false,
+          options: {
+            temperature: 0.7,
+            num_predict: 500, // Limit response length
+          }
+        })
       })
-    })
 
-    if (!response.ok) {
-      throw new Error(`Ollama error: ${response.status}`)
+      if (response.ok) {
+        const data = await response.json()
+        responseContent = data.message?.content || 'Извините, не удалось сгенерировать ответ.'
+
+        // Log interaction for analytics
+        await prisma.auditLog.create({
+          data: {
+            userId: user.id,
+            action: 'AI_CHAT',
+            entityType: 'ai_interaction',
+            entityId: 'chat',
+            details: {
+              messageLength: message!.length,
+              responseLength: responseContent.length,
+              model: MODEL
+            }
+          }
+        })
+      }
     }
 
-    const data = await response.json()
-
-    // Log interaction for analytics
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        action: 'AI_CHAT',
-        entityType: 'ai_interaction',
-        entityId: 'chat',
-        details: {
-          messageLength: message!.length,
-          responseLength: data.message?.content?.length || 0,
-          model: MODEL
-        }
+    if (!responseContent) {
+      if (relevantKnowledge) {
+        responseContent = relevantKnowledge + '\n\nЭто не финансовый совет, только образовательная информация.'
+      } else {
+        responseContent = 'Я могу ответить на вопросы об акциях, облигациях, ETF, криптовалютах, диверсификации портфеля, налогах на инвестиции и других финансовых темах. Попробуйте задать более конкретный вопрос!'
       }
-    })
+    }
 
     return NextResponse.json({
-      response: data.message?.content || 'Извините, не удалось сгенерировать ответ.',
+      response: responseContent,
       topic: 'finance',
       timestamp: new Date().toISOString()
     })

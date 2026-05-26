@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useToast } from "@/components/ui/use-toast"
 import { Plus, ArrowUpRight, ArrowDownRight, Search } from "lucide-react"
 import { fetchTransactions, createTransaction, Transaction } from "@/entities/transaction/api"
 import { fetchAccounts } from "@/entities/account/api"
@@ -29,6 +30,7 @@ import { getTransactionTypeLabel } from "@/lib/i18n-display"
 export default function TransactionsPage() {
   const { user } = useAuth()
   const { t } = useI18n()
+  const { toast } = useToast()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
@@ -88,9 +90,10 @@ export default function TransactionsPage() {
     }
 
     setIsSubmitting(true)
+    console.log("Attempting to create transaction with data:", newTransaction)
 
     try {
-      await createTransaction({
+      const newTx = await createTransaction({
         userId: user.id,
         accountId: newTransaction.accountId,
         assetId: newTransaction.assetId || null,
@@ -104,10 +107,27 @@ export default function TransactionsPage() {
         notes: newTransaction.notes ?? null,
       })
 
-      // Refresh the page to show the new transaction
-      window.location.reload()
+      if (newTx) {
+        toast({
+          title: t("transactions.toast.addSuccessTitle"),
+          description: t("transactions.toast.addSuccessDescription"),
+          variant: "default",
+        })
+        window.location.reload()
+      } else {
+        toast({
+          title: t("transactions.toast.addErrorTitle"),
+          description: t("transactions.toast.addErrorDescription"),
+          variant: "destructive",
+        })
+      }
     } catch (error) {
       console.error("Error adding transaction:", error)
+      toast({
+        title: t("transactions.toast.addErrorTitle"),
+        description: t("transactions.toast.addErrorDescriptionGeneric"),
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
       setIsAddTransactionOpen(false)

@@ -1,4 +1,5 @@
 import { createLogger } from "@/lib/logger"
+import { type Asset } from "@/entities/asset/api"
 
 const logger = createLogger("PortfolioAPI")
 
@@ -8,6 +9,7 @@ export type Portfolio = {
   name: string
   description: string | null
   createdAt: string
+  assets?: PortfolioAsset[]
 }
 
 export type PortfolioInsert = Omit<Portfolio, "id" | "createdAt" | "userId"> & { createdAt?: string }
@@ -17,11 +19,11 @@ export type PortfolioAsset = {
   assetId: string
   quantity: number
   averageBuyPrice: number
+  asset: Asset
 }
 
-export type PortfolioAssetInsert = Omit<PortfolioAsset, "portfolioId">
+export type PortfolioAssetInsert = Omit<PortfolioAsset, "portfolioId" | "asset">
 
-// Generic API fetch helper with error handling
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
   try {
     const res = await fetch(url, options)
@@ -39,19 +41,16 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null
   }
 }
 
-// Fetch all portfolios for a user
 export async function fetchPortfolios() {
   const data = await apiFetch<{ portfolios: Portfolio[] }>("/api/data/portfolios")
   return data?.portfolios || []
 }
 
-// Fetch a single portfolio with its assets
 export async function fetchPortfolioWithAssets(portfolioId: string) {
   const data = await apiFetch<{ portfolio: Portfolio }>(`/api/data/portfolios/${encodeURIComponent(portfolioId)}`)
   return data?.portfolio || null
 }
 
-// Create a new portfolio
 export async function createPortfolio(portfolio: PortfolioInsert) {
   const data = await apiFetch<{ portfolio: Portfolio }>("/api/data/portfolios", {
     method: "POST",
@@ -61,7 +60,6 @@ export async function createPortfolio(portfolio: PortfolioInsert) {
   return data?.portfolio || null
 }
 
-// Update a portfolio
 export async function updatePortfolio(id: string, updates: Partial<Portfolio>) {
   const data = await apiFetch<{ portfolio: Portfolio }>(`/api/data/portfolios/${encodeURIComponent(id)}`, {
     method: "PUT",
@@ -71,7 +69,6 @@ export async function updatePortfolio(id: string, updates: Partial<Portfolio>) {
   return data?.portfolio || null
 }
 
-// Delete a portfolio
 export async function deletePortfolio(id: string) {
   const data = await apiFetch<{ success: boolean }>(`/api/data/portfolios/${encodeURIComponent(id)}`, {
     method: "DELETE",
@@ -79,7 +76,6 @@ export async function deletePortfolio(id: string) {
   return data?.success || false
 }
 
-// Add an asset to a portfolio
 export async function addAssetToPortfolio(portfolioId: string, asset: PortfolioAssetInsert) {
   const data = await apiFetch<{ portfolioAsset: PortfolioAsset }>(`/api/data/portfolios/${encodeURIComponent(portfolioId)}/assets`, {
     method: "POST",
@@ -89,7 +85,6 @@ export async function addAssetToPortfolio(portfolioId: string, asset: PortfolioA
   return data?.portfolioAsset || null
 }
 
-// Update a portfolio asset
 export async function updatePortfolioAsset(portfolioId: string, assetId: string, updates: Partial<PortfolioAsset>) {
   const data = await apiFetch<{ portfolioAsset: PortfolioAsset }>(`/api/data/portfolios/${encodeURIComponent(portfolioId)}/assets`, {
     method: "PUT",
@@ -99,7 +94,6 @@ export async function updatePortfolioAsset(portfolioId: string, assetId: string,
   return data?.portfolioAsset || null
 }
 
-// Remove an asset from a portfolio
 export async function removeAssetFromPortfolio(portfolioId: string, assetId: string) {
   const data = await apiFetch<{ success: boolean }>(`/api/data/portfolios/${encodeURIComponent(portfolioId)}/assets?assetId=${encodeURIComponent(assetId)}`, {
     method: "DELETE",
@@ -107,7 +101,6 @@ export async function removeAssetFromPortfolio(portfolioId: string, assetId: str
   return data?.success || false
 }
 
-// Calculate portfolio statistics
 export async function calculatePortfolioStats(portfolioId: string) {
   const data = await apiFetch<{ totalValue: number; assetCount: number; allocation: unknown[] }>(
     `/api/data/portfolios/${encodeURIComponent(portfolioId)}/stats`

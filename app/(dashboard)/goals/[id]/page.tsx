@@ -36,20 +36,20 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
 
       setIsLoading(true)
       try {
-        // Fetch goal details
         const goalData: Goal | null = await fetchGoalById(id)
+        console.log("GoalDetailPage goalData:", goalData)
         if (!goalData) {
           setMessage({ type: "error", text: t("errors.unavailable") })
           return
         }
         setGoal(goalData)
 
-        // Set form values
         setName(goalData.name)
         setTargetAmount(goalData.targetAmount)
         setCurrentAmount(goalData.currentAmount)
         setTargetDate(goalData.targetDate || "")
       } catch (error) {
+        console.error("GoalDetailPage error:", error)
         setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
@@ -73,9 +73,14 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
         targetDate: targetDate || null,
       })
 
-      setGoal(updatedGoal)
-      setMessage({ type: "success", text: t("actions.saveChanges") })
+      if (updatedGoal) {
+        setGoal(updatedGoal)
+        setMessage({ type: "success", text: t("actions.saveChanges") })
+      } else {
+        throw new Error("Failed to update goal")
+      }
     } catch (error) {
+      console.error("handleUpdateGoal error:", error)
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     } finally {
       setIsSaving(false)

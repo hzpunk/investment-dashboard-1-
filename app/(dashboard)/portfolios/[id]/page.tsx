@@ -30,19 +30,25 @@ import {
   addAssetToPortfolio,
   removeAssetFromPortfolio,
 } from "@/entities/portfolio/api"
-import { fetchAssets } from "@/entities/asset/api"
-import type { Database } from "@/types/supabase"
+import { fetchAssets, type Asset } from "@/entities/asset/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAssetTypeLabel } from "@/lib/i18n-display"
 
-type Portfolio = Database["public"]["Tables"]["portfolios"]["Row"] & {
-  assets?: Array<{
-    portfolio_id: string
-    asset_id: string
-    quantity: number
-    average_buy_price: number
-    assets: Database["public"]["Tables"]["assets"]["Row"]
-  }>
+type PortfolioAsset = {
+  portfolioId: string
+  assetId: string
+  quantity: number
+  averageBuyPrice: number
+  asset: Asset
+}
+
+type Portfolio = {
+  id: string
+  userId: string
+  name: string
+  description: string | null
+  createdAt: string
+  assets: PortfolioAsset[]
 }
 
 export default function PortfolioDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -51,22 +57,21 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
   const { t } = useI18n()
   const router = useRouter()
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
-  const [availableAssets, setAvailableAssets] = useState<any[]>([])
+  const [availableAssets, setAvailableAssets] = useState<Asset[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false)
   const [newAsset, setNewAsset] = useState<{
-    asset_id: string
+    assetId: string
     quantity: number
-    average_buy_price: number
+    averageBuyPrice: number
   }>({
-    asset_id: "",
+    assetId: "",
     quantity: 0,
-    average_buy_price: 0,
+    averageBuyPrice: 0,
   })
 
-  // Form state
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
 
@@ -76,19 +81,15 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
 
       setIsLoading(true)
       try {
-        // Fetch portfolio details
         const portfolioData = await fetchPortfolioWithAssets(id)
         if (!portfolioData) {
           setMessage({ type: "error", text: t("errors.unavailable") })
           return
         }
         setPortfolio(portfolioData as unknown as Portfolio)
-
-        // Set form values
         setName(portfolioData.name)
         setDescription(portfolioData.description || "")
 
-        // Fetch available assets
         const assetsData = await fetchAssets()
         setAvailableAssets(assetsData)
       } catch (error) {
@@ -146,7 +147,7 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
   }
 
   const handleAddAsset = async () => {
-    if (!portfolio || !newAsset.asset_id || newAsset.quantity <= 0 || newAsset.average_buy_price <= 0) {
+    if (!portfolio || !newAsset.assetId || newAsset.quantity <= 0 || newAsset.averageBuyPrice <= 0) {
       return
     }
 
@@ -155,22 +156,20 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
 
     try {
       await addAssetToPortfolio(portfolio.id, {
-        assetId: newAsset.asset_id,
+        assetId: newAsset.assetId,
         quantity: newAsset.quantity,
-        averageBuyPrice: newAsset.average_buy_price,
+        averageBuyPrice: newAsset.averageBuyPrice,
       })
 
-      // Refresh portfolio data
       const updatedPortfolio = await fetchPortfolioWithAssets(portfolio.id)
       if (updatedPortfolio) {
         setPortfolio(updatedPortfolio as unknown as Portfolio)
       }
 
-      // Reset form
       setNewAsset({
-        asset_id: "",
+        assetId: "",
         quantity: 0,
-        average_buy_price: 0,
+        averageBuyPrice: 0,
       })
 
       setIsAddAssetOpen(false)
@@ -192,10 +191,9 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
     try {
       await removeAssetFromPortfolio(portfolio.id, assetId)
 
-      // Update local state
       setPortfolio({
         ...portfolio,
-        assets: portfolio.assets?.filter((asset) => asset.asset_id !== assetId) || [],
+        assets: portfolio.assets?.filter((a) => a.assetId !== assetId) || [],
       })
 
       setMessage({ type: "success", text: t("actions.remove") })
@@ -229,18 +227,16 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
     )
   }
 
-  // Calculate total value and allocation
   const totalValue =
-    portfolio.assets?.reduce((sum, asset) => {
-      return sum + asset.quantity * asset.assets.current_price
+    portfolio.assets?.reduce((sum, pa) => {
+      return sum + pa.quantity * pa.asset.currentPrice
     }, 0) || 0
 
-  // Group assets by type for allocation
   const assetsByType =
     portfolio.assets?.reduce(
-      (acc, asset) => {
-        const type = asset.assets.type
-        const value = asset.quantity * asset.assets.current_price
+      (acc, pa) => {
+        const type = pa.asset.type
+        const value = pa.quantity * pa.asset.currentPrice
 
         if (!acc[type]) {
           acc[type] = { type, value: 0 }
@@ -254,7 +250,6 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
 
   const allocation = Object.values(assetsByType)
 
-  // Map asset types to colors
   const typeColors: Record<string, string> = {
     stock: "bg-blue-500",
     bond: "bg-green-500",
@@ -307,8 +302,8 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
                         {t("transactions.asset")}
                       </Label>
                       <Select
-                        value={newAsset.asset_id}
-                        onValueChange={(value) => setNewAsset({ ...newAsset, asset_id: value })}
+                        value={newAsset.assetId}
+                        onValueChange={(value) => setNewAsset({ ...newAsset, assetId: value })}
                       >
                         <SelectTrigger className="col-span-3">
                           <SelectValue placeholder={t("transactions.selectAsset")} />
@@ -341,9 +336,9 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
                       <Input
                         id="price"
                         type="number"
-                        value={newAsset.average_buy_price || ""}
+                        value={newAsset.averageBuyPrice || ""}
                         onChange={(e) =>
-                          setNewAsset({ ...newAsset, average_buy_price: Number.parseFloat(e.target.value) })
+                          setNewAsset({ ...newAsset, averageBuyPrice: Number.parseFloat(e.target.value) })
                         }
                         className="col-span-3"
                       />
@@ -366,7 +361,7 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
                   <AlertDescription>{message.text}</AlertDescription>
                 </Alert>
               )}
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -389,35 +384,32 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
                         </TableCell>
                       </TableRow>
                     ) : (
-                      portfolio.assets?.map((asset) => {
-                        const currentValue = asset.quantity * asset.assets.current_price
-                        const costBasis = asset.quantity * asset.average_buy_price
+                      portfolio.assets?.map((pa) => {
+                        const currentValue = pa.quantity * pa.asset.currentPrice
+                        const costBasis = pa.quantity * pa.averageBuyPrice
                         const gainLoss = currentValue - costBasis
-                        const gainLossPercent = (gainLoss / costBasis) * 100
+                        const gainLossPercent = costBasis > 0 ? (gainLoss / costBasis) * 100 : 0
 
                         return (
-                          <TableRow key={asset.asset_id}>
-                            <TableCell className="font-medium">{asset.assets.symbol}</TableCell>
-                            <TableCell>{asset.assets.name}</TableCell>
-                            <TableCell>{getAssetTypeLabel(asset.assets.type, t)}</TableCell>
-                            <TableCell className="text-right">{asset.quantity.toLocaleString()}</TableCell>
+                          <TableRow key={pa.assetId}>
+                            <TableCell className="font-medium">{pa.asset.symbol}</TableCell>
+                            <TableCell>{pa.asset.name}</TableCell>
+                            <TableCell>{getAssetTypeLabel(pa.asset.type, t)}</TableCell>
+                            <TableCell className="text-right">{pa.quantity.toLocaleString()}</TableCell>
                             <TableCell className="text-right">
-                              $
-                              {asset.average_buy_price.toLocaleString(undefined, {
+                              ${pa.averageBuyPrice.toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
                               })}
                             </TableCell>
                             <TableCell className="text-right">
-                              $
-                              {asset.assets.current_price.toLocaleString(undefined, {
+                              ${pa.asset.currentPrice.toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
                               })}
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              $
-                              {currentValue.toLocaleString(undefined, {
+                              ${currentValue.toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
                               })}
@@ -432,7 +424,7 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
                               {gainLossPercent.toFixed(2)}%)
                             </TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="icon" onClick={() => handleRemoveAsset(asset.asset_id)}>
+                              <Button variant="ghost" size="icon" onClick={() => handleRemoveAsset(pa.assetId)}>
                                 <Trash2 className="h-4 w-4" />
                                 <span className="sr-only">{t("actions.remove")}</span>
                               </Button>
@@ -474,7 +466,6 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
               ) : (
                 <>
                   <div className="h-[200px] w-full relative mb-6">
-                    {/* Donut chart */}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="relative h-32 w-32 rounded-full border-8 border-transparent bg-background flex items-center justify-center">
                         <div className="text-center">
@@ -544,7 +535,7 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
               <div className="space-y-2">
                 <Label>{t("portfolios.createdAt")}</Label>
                 <div className="p-2 border rounded-md bg-muted/50">
-                  {new Date(portfolio.created_at).toLocaleString()}
+                  {new Date(portfolio.createdAt).toLocaleString()}
                 </div>
               </div>
             </CardContent>
@@ -564,4 +555,3 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
     </div>
   )
 }
-

@@ -6,21 +6,28 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat openssl curl
 WORKDIR /app
 
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 # Install dependencies
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production && npm cache clean --force
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod && pnpm store prune
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Generate Prisma client
-RUN npx prisma generate
+RUN pnpm dlx prisma generate
 
 # Build the application
-RUN npm run build
+RUN pnpm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner

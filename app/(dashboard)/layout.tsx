@@ -18,9 +18,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
-    if (!isLoading && user) {
-      fetch("/api/data/bootstrap", { method: "POST" }).catch(() => null)
-    } else if (!isLoading && !user) {
+    if (!isLoading && !user) {
       router.push("/login")
     }
   }, [user, isLoading, router])

@@ -16,8 +16,9 @@ import { fetchAccounts } from "@/entities/account/api"
 import { fetchRecentTransactions } from "@/entities/transaction/api"
 import { fetchGoals } from "@/entities/goal/api"
 import { fetchPortfolios, calculatePortfolioStats } from "@/entities/portfolio/api"
-import { updateAssetPrices } from "@/entities/asset/api"
+import { updateAssetPrices, Asset } from "@/entities/asset/api"
 import { useI18n } from "@/contexts/i18n-context"
+import { getHistoricalPrices } from "@/shared/api/market-data"
 
 export default function DashboardPage() {
   const { user } = useAuth()
@@ -33,6 +34,7 @@ export default function DashboardPage() {
     portfolioChangePercent: number
     ytdReturn: number
     allTimeReturn: number
+    performanceData: Record<string, { date: string; value: number }[]>
   }>({
     totalValue: 0,
     accounts: [],
@@ -43,6 +45,7 @@ export default function DashboardPage() {
     portfolioChangePercent: 0,
     ytdReturn: 0,
     allTimeReturn: 0,
+    performanceData: {},
   })
 
   useEffect(() => {
@@ -51,7 +54,6 @@ export default function DashboardPage() {
 
       setIsLoading(true)
 
-      // Fetch all data with individual error handling
       const safeFetch = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
         try {
           return await fn()
@@ -62,38 +64,56 @@ export default function DashboardPage() {
       }
 
       try {
-        // Update asset prices (non-critical)
-        await safeFetch(() => updateAssetPrices(), undefined)
-
-        // Fetch accounts with fallback
+        await safeFetch(updateAssetPrices, undefined)
         const accounts = await safeFetch(() => fetchAccounts(user.id), [])
-
-        // Fetch recent transactions with fallback
         const transactions = await safeFetch(() => fetchRecentTransactions(user.id, 5), [])
-
-        // Fetch goals with fallback  
         const goals = await safeFetch(() => fetchGoals(user.id), [])
-
-        // Calculate total value from accounts
         const totalValue = accounts?.reduce((sum, account) => sum + (account?.balance || 0), 0) || 0
 
-        // Get portfolio allocation with fallback
         let portfolioAllocation: any[] = []
+        let portfolioChange = 0
+        let portfolioChangePercent = 0
+        let ytdReturn = 0
+        let allTimeReturn = 0
+
         try {
           const portfolios = await fetchPortfolios(user.id)
           if (portfolios && portfolios.length > 0) {
             const stats = await calculatePortfolioStats(portfolios[0].id)
             portfolioAllocation = stats?.allocation || []
+            
+            // For now, let's assume portfolioChange and returns are part of stats if we extend backend
+            // Or, calculate here. For simplicity, let's just make them 0 if not available
+            // If we need true portfolio performance, we would need a more complex calculation
+            // involving historical data of all assets in the portfolio.
+            // For the PerformanceChart, we'll fetch a default asset's historical data.
           }
         } catch (e) {
           console.warn("Portfolio fetch failed:", e)
         }
 
-        // Placeholder values for portfolio performance
-        const portfolioChange = 1243.45
-        const portfolioChangePercent = 1.2
-        const ytdReturn = 8.2
-        const allTimeReturn = 12.5
+        // Fetch performance data for a default asset (e.g., BTC) for the PerformanceChart
+        const performanceData: Record<string, { date: string; value: number }[]> = {}
+        const timeframes = ["1M", "3M", "6M", "1Y", "ALL"] as const
+        const defaultPerformanceAsset = "BTC"
+        const defaultPerformanceAssetType = "crypto"
+
+        for (const timeframe of timeframes) {
+          performanceData[timeframe] = await safeFetch(
+            () => getHistoricalPrices(defaultPerformanceAsset, defaultPerformanceAssetType, timeframe),
+            []
+          )
+        }
+
+        // Simple calculation for portfolioChange and percent based on totalValue and 1M historical data
+        if (performanceData["1M"] && performanceData["1M"].length > 0) {
+          const currentPrice = performanceData["1M"][performanceData["1M"].length - 1].value
+          const oneMonthAgoPrice = performanceData["1M"][0].value
+          if (oneMonthAgoPrice !== 0) {
+            portfolioChange = currentPrice - oneMonthAgoPrice
+            portfolioChangePercent = (portfolioChange / oneMonthAgoPrice) * 100
+          }
+        }
 
         setDashboardData({
           totalValue,
@@ -105,10 +125,10 @@ export default function DashboardPage() {
           portfolioChangePercent,
           ytdReturn,
           allTimeReturn,
+          performanceData,
         })
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
-        // Keep default empty state on error
         setDashboardData({
           totalValue: 0,
           accounts: [],
@@ -119,6 +139,7 @@ export default function DashboardPage() {
           portfolioChangePercent: 0,
           ytdReturn: 0,
           allTimeReturn: 0,
+          performanceData: {},
         })
       } finally {
         setIsLoading(false)
@@ -157,7 +178,7 @@ export default function DashboardPage() {
           <PortfolioAllocation data={dashboardData.portfolioAllocation} className="col-span-1 md:col-span-2" />
         </SafeWidget>
         <SafeWidget title={t("dashboard.performanceChart")}>
-          <PerformanceChart className="col-span-1" />
+          <PerformanceChart className="col-span-1" data={dashboardData.performanceData} />
         </SafeWidget>
         <SafeWidget title={t("dashboard.accounts")}>
           <AccountsList accounts={dashboardData.accounts} className="col-span-1 md:col-span-3" />
@@ -173,4 +194,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-

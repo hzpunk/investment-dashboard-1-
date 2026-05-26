@@ -1,4 +1,4 @@
-﻿{
+{
   "brand": {
     "name": "InvestTrack"
   },
@@ -229,7 +229,14 @@
     "quantity": "Количество",
     "pricePerUnit": "Цена",
     "account": "Счёт",
-    "asset": "Актив"
+    "asset": "Актив",
+    "toast": {
+      "addSuccessTitle": "Транзакция добавлена!",
+      "addSuccessDescription": "Ваша транзакция успешно записана.",
+      "addErrorTitle": "Не удалось добавить транзакцию",
+      "addErrorDescription": "Произошла ошибка при добавлении транзакции. Пожалуйста, проверьте детали и попробуйте снова.",
+      "addErrorDescriptionGeneric": "Произошла непредвиденная ошибка при добавлении транзакции. Пожалуйста, попробуйте снова позже."
+    }
   },
   "goals": {
     "title": "Финансовые цели",
@@ -292,7 +299,8 @@
     "assetAllocationDescription": "Распределение по типам активов",
     "transactionAnalysis": "Анализ транзакций",
     "transactionAnalysisDescription": "Статистика ваших инвестиционных действий",
-    "noTransactionData": "Данные по транзакциям отсутствуют"
+    "noTransactionData": "Данные по транзакциям отсутствуют",
+    "noPerformanceData": "Нет данных о доходности"
   },
   "settings": {
     "title": "Настройки",

@@ -9,6 +9,8 @@ import { getPortfolioPerformance, getAssetAllocation, getTransactionStats } from
 import { BarChart, PieChart } from "lucide-react"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAssetTypeLabel, getTransactionTypeLabel } from "@/lib/i18n-display"
+import { cn } from "@/lib/utils"
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 export default function AnalyticsPage() {
   const { user } = useAuth()
@@ -17,12 +19,14 @@ export default function AnalyticsPage() {
   const [performanceData, setPerformanceData] = useState<any>({})
   const [allocationData, setAllocationData] = useState<any[]>([])
   const [transactionStats, setTransactionStats] = useState<any[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchAnalyticsData = async () => {
       if (!user) return
 
       setIsLoading(true)
+      setError(null)
 
       try {
         // Fetch portfolio performance data
@@ -31,7 +35,7 @@ export default function AnalyticsPage() {
           "3M": await getPortfolioPerformance(user.id, "3M"),
           "6M": await getPortfolioPerformance(user.id, "6M"),
           "1Y": await getPortfolioPerformance(user.id, "1Y"),
-          All: await getPortfolioPerformance(user.id, "All"),
+          ALL: await getPortfolioPerformance(user.id, "ALL"),
         }
         setPerformanceData(performance)
 
@@ -42,15 +46,16 @@ export default function AnalyticsPage() {
         // Fetch transaction statistics
         const transactions = await getTransactionStats(user.id)
         setTransactionStats(transactions)
-      } catch (error) {
-        console.error("Error fetching analytics data:", error)
+      } catch (err) {
+        console.error("Error fetching analytics data:", err)
+        setError(t("errors.loadFailed"))
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchAnalyticsData()
-  }, [user])
+  }, [user, t])
 
   if (isLoading) {
     return (
@@ -73,6 +78,22 @@ export default function AnalyticsPage() {
   // Calculate total allocation value
   const totalAllocationValue = allocationData.reduce((sum, item) => sum + item.value, 0)
 
+  const calculateMetrics = (data: any[]) => {
+    if (!data || data.length < 2) return { startValue: 0, endValue: 0, returnPercent: 0 }
+
+    const startValue = data[0].value
+    const endValue = data[data.length - 1].value
+    const returnPercent = ((endValue - startValue) / startValue) * 100
+
+    return {
+      startValue,
+      endValue,
+      returnPercent,
+    }
+  }
+
+  const timeframes = ["1M", "3M", "6M", "1Y", "ALL"] as const
+
   return (
     <div className="space-y-6">
       <DashboardHeader heading={t("analytics.title")} text={t("analytics.description")} />
@@ -86,57 +107,99 @@ export default function AnalyticsPage() {
           <CardContent>
             <Tabs defaultValue="1M" className="space-y-4">
               <TabsList>
-                <TabsTrigger value="1M">1M</TabsTrigger>
-                <TabsTrigger value="3M">3M</TabsTrigger>
-                <TabsTrigger value="6M">6M</TabsTrigger>
-                <TabsTrigger value="1Y">1Y</TabsTrigger>
-                <TabsTrigger value="All">{t("common.all")}</TabsTrigger>
+                {timeframes.map((timeframe) => (
+                  <TabsTrigger key={timeframe} value={timeframe}>{timeframe}</TabsTrigger>
+                ))}
               </TabsList>
-              {Object.entries(performanceData).map(([period, data]) => (
-                <TabsContent key={period} value={period} className="space-y-4">
-                  <div className="h-[300px] w-full">
-                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <linearGradient id={`gradient-${period}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.2" />
-                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-                      </linearGradient>
-                      <path
-                        d={`M0,${100 - (data as any)[0].value} ${(data as any).map((point: any, i: number) => `L${(i / ((data as any).length - 1)) * 100},${100 - point.value}`).join(" ")}`}
-                        fill="none"
-                        stroke="hsl(var(--primary))"
-                        strokeWidth="1.5"
-                      />
-                      <path
-                        d={`M0,${100 - (data as any)[0].value} ${(data as any).map((point: any, i: number) => `L${(i / ((data as any).length - 1)) * 100},${100 - point.value}`).join(" ")} L100,100 L0,100 Z`}
-                        fill={`url(#gradient-${period})`}
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{(data as any)[0].date}</span>
-                    <span>{(data as any)[Math.floor((data as any).length / 2)].date}</span>
-                    <span>{(data as any)[(data as any).length - 1].date}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t("performance.startingValue")}</p>
-                      <p className="text-lg font-bold">
-                        ${(100000 - ((data as any)[(data as any).length - 1].value - (data as any)[0].value) * 1000).toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t("performance.currentValue")}</p>
-                      <p className="text-lg font-bold">${(100000).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t("performance.return")}</p>
-                      <p className="text-lg font-bold text-green-500">
-                        +{((((data as any)[(data as any).length - 1].value - (data as any)[0].value) * 100) / (data as any)[0].value).toFixed(2)}%
-                      </p>
-                    </div>
-                  </div>
-                </TabsContent>
-              ))}
+              {error ? (
+                <div className="flex items-center justify-center h-[300px]">
+                  <p className="text-muted-foreground">{error}</p>
+                </div>
+              ) : (
+                timeframes.map((period) => {
+                  const dataArray = performanceData[period] as any[]
+                  if (!dataArray || dataArray.length < 2) {
+                    return (
+                      <TabsContent key={period} value={period} className="space-y-4">
+                        <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+                          {t("analytics.noPerformanceData")}
+                        </div>
+                      </TabsContent>
+                    )
+                  }
+
+                  const metrics = calculateMetrics(dataArray)
+
+                  return (
+                    <TabsContent key={period} value={period} className="space-y-4">
+                      <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={dataArray}>
+                            <defs>
+                              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8} />
+                                <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <XAxis
+                              dataKey="date"
+                              stroke="#888888"
+                              fontSize={12}
+                              tickLine={false}
+                              axisLine={false}
+                              tickFormatter={(value: string) => new Date(value).toLocaleDateString(t("date_locale"), { month: "short", day: "numeric" })}
+                            />
+                            <YAxis
+                              stroke="#888888"
+                              fontSize={12}
+                              tickLine={false}
+                              axisLine={false}
+                              tickFormatter={(value: number) => `$${value.toLocaleString()}`}
+                            />
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                            <Tooltip
+                              formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Value"]}
+                              labelFormatter={(label: string) => new Date(label).toLocaleDateString(t("date_locale"), { year: "numeric", month: "short", day: "numeric" })}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="value"
+                              stroke="var(--primary)"
+                              fillOpacity={1}
+                              fill="url(#colorValue)"
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">{t("performance.startingValue")}</p>
+                          <p className="text-lg font-bold">
+                            ${metrics.startValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">{t("performance.currentValue")}</p>
+                          <p className="text-lg font-bold">
+                            ${metrics.endValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">{t("performance.return")}</p>
+                          <p
+                            className={cn(
+                              "text-lg font-bold",
+                              metrics.returnPercent >= 0 ? "text-green-500" : "text-red-500"
+                            )}
+                          >
+                            {metrics.returnPercent >= 0 ? "+" : ""}
+                            {metrics.returnPercent.toFixed(2)}%
+                          </p>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  )
+                })}
             </Tabs>
           </CardContent>
         </Card>
@@ -156,14 +219,19 @@ export default function AnalyticsPage() {
                 <div className="relative h-32 w-32 rounded-full border-8 border-transparent bg-background flex items-center justify-center">
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground">{t("common.total")}</p>
-                    <p className="text-lg font-bold">${totalAllocationValue.toLocaleString()}</p>
+                    <p className="text-lg font-bold">
+                      ${totalAllocationValue.toLocaleString()}
+                    </p>
                   </div>
                 </div>
+                {/* This is a simplified representation. For actual donut chart, you'd use a charting library or more complex SVG/CSS. */}
+                {/* Example of how slices would be rendered - this part is likely placeholder or requires more advanced logic */}
                 {allocationData.map((item, index) => (
                   <div
                     key={item.type}
                     className={`absolute inset-0 rounded-full ${typeColors[item.type] || "bg-gray-500"}`}
                     style={{
+                      // This clipPath is a basic example and might need adjustment for actual donut slices
                       clipPath: `polygon(50% 50%, ${50 + 45 * Math.cos((index * 2 * Math.PI) / allocationData.length - Math.PI / 2)}% ${50 + 45 * Math.sin((index * 2 * Math.PI) / allocationData.length - Math.PI / 2)}%, ${50 + 45 * Math.cos(((index + 1) * 2 * Math.PI) / allocationData.length - Math.PI / 2)}% ${50 + 45 * Math.sin(((index + 1) * 2 * Math.PI) / allocationData.length - Math.PI / 2)}%)`,
                       opacity: 0.8,
                     }}
@@ -224,4 +292,3 @@ export default function AnalyticsPage() {
     </div>
   )
 }
-

@@ -1,61 +1,81 @@
-import { cryptoIdMap } from "@/shared/api/market-data"
+import { createLogger } from "@/lib/logger"
 
-type Asset = {
+const logger = createLogger("AssetAPI")
+
+export type Asset = {
   id: string
   symbol: string
   name: string
   type: "stock" | "bond" | "etf" | "crypto" | "commodity" | "other"
-  current_price: number
+  currentPrice: number
   currency: string
-  updated_at: string
+  updatedAt: string
 }
 
-type AssetInsert = Omit<Asset, "id" | "updated_at"> & { updated_at?: string }
+export type AssetInsert = Omit<Asset, "id" | "updatedAt"> & { updatedAt?: string }
 
-// Fetch all assets from the database
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
+  try {
+    const res = await fetch(url, options)
+    const data = await res.json().catch(() => null)
+
+    if (!res.ok) {
+      logger.warn(`API request failed: ${url}`, data?.error)
+      return null
+    }
+
+    return data as T
+  } catch (error) {
+    logger.error(`API request error: ${url}`, error)
+    return null
+  }
+}
+
 export async function fetchAssets() {
-  return []
+  const data = await apiFetch<{ assets: Asset[] }>("/api/data/assets")
+  return data?.assets || []
 }
 
-// Fetch a single asset by ID
 export async function fetchAssetById(id: string): Promise<Asset | null> {
-  const res = await fetch(`/api/data/assets?id=${id}`)
-  if (!res.ok) return null
-  return res.json()
+  const data = await apiFetch<{ asset: Asset }>(`/api/data/assets/${encodeURIComponent(id)}`)
+  return data?.asset || null
 }
 
-// Create a new asset
-export async function createAsset(asset: AssetInsert): Promise<Asset> {
-  const res = await fetch('/api/data/assets', {
+export async function createAsset(asset: AssetInsert) {
+  const data = await apiFetch<{ asset: Asset }>("/api/data/assets", {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(asset),
   })
-  if (!res.ok) throw new Error('Failed to create asset')
-  return res.json()
+  if (!data) throw new Error('Failed to create asset')
+  return data.asset
 }
 
-// Update an asset
-export async function updateAsset(id: string, updates: Partial<Asset>): Promise<Asset> {
-  const res = await fetch(`/api/data/assets?id=${id}`, {
+export async function updateAsset(id: string, updates: Partial<Asset>) {
+  const data = await apiFetch<{ asset: Asset }>(`/api/data/assets/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
   })
-  if (!res.ok) throw new Error('Failed to update asset')
-  return res.json()
+  if (!data) throw new Error('Failed to update asset')
+  return data.asset
 }
 
-// Delete an asset
-export async function deleteAsset(id: string): Promise<void> {
-  const res = await fetch(`/api/data/assets?id=${id}`, {
+export async function deleteAsset(id: string) {
+  const data = await apiFetch<{ success: boolean }>(`/api/data/assets/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
-  if (!res.ok) throw new Error('Failed to delete asset')
+  return data?.success || false
 }
 
-// Update asset prices from external APIs
 export async function updateAssetPrices() {
-  return true
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'http://localhost:3003';
+    const res = await fetch(`${baseUrl}/api/cron/update-prices`, { method: 'POST' })
+    return res.ok
+  } catch (e) {
+    logger.error('Failed to update prices:', e)
+    return false
+  }
 }
 

@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, successResponse, errorResponse } from '@/lib/api-handler'
+import { getHistoricalPrices } from '@/shared/api/market-data'
+import { subDays, subMonths, subYears, startOfDay } from 'date-fns'
 
-export const GET = withAuth(async (_request: NextRequest, user: { id: string; email: string }, ctx: { params: Promise<{ id: string }> }) => {
-  const { id } = await ctx.params
+export const GET = withAuth(async (_request, user, ctx) => {
+  const params = await ctx?.params
+  const id = params?.id as string
+
+  if (!id) {
+    return errorResponse('Portfolio ID required', 400)
+  }
 
   const portfolio = await prisma.portfolio.findFirst({
     where: { id, userId: user.id },
@@ -17,10 +24,9 @@ export const GET = withAuth(async (_request: NextRequest, user: { id: string; em
   })
 
   if (!portfolio) {
-    return errorResponse('Not found', 404)
+    return errorResponse('Portfolio not found', 404)
   }
 
-  // Calculate portfolio statistics
   let totalValue = 0
   const assetsByType: Record<string, { type: string; value: number }> = {}
 

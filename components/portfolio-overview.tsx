@@ -17,10 +17,10 @@ interface PortfolioOverviewProps {
 export function PortfolioOverview({
   className,
   totalValue,
-  portfolioChange = 1243.45,
-  portfolioChangePercent = 1.2,
-  ytdReturn = 8.2,
-  allTimeReturn = 12.5,
+  portfolioChange = 0,
+  portfolioChangePercent = 0,
+  ytdReturn = 0,
+  allTimeReturn = 0,
 }: PortfolioOverviewProps) {
   const { t } = useI18n()
   const isPositive = portfolioChange >= 0
@@ -63,14 +63,18 @@ export function PortfolioOverview({
                 <TrendingUp className="mr-2 h-5 w-5 text-muted-foreground" />
                 <h3 className="text-sm font-medium leading-none">{t("portfolioOverview.ytdReturn")}</h3>
               </div>
-              <p className="text-xl sm:text-2xl font-bold text-green-500">+{ytdReturn}%</p>
+              <p className={cn("text-xl sm:text-2xl font-bold", ytdReturn > 0 ? "text-green-500" : ytdReturn < 0 ? "text-red-500" : "")}>
+                {ytdReturn > 0 ? "+" : ""}{ytdReturn}%
+              </p>
             </div>
             <div className="space-y-2">
               <div className="flex items-center">
                 <TrendingUp className="mr-2 h-5 w-5 text-muted-foreground" />
                 <h3 className="text-sm font-medium leading-none">{t("portfolioOverview.allTime")}</h3>
               </div>
-              <p className="text-xl sm:text-2xl font-bold text-green-500">+{allTimeReturn}%</p>
+              <p className={cn("text-xl sm:text-2xl font-bold", allTimeReturn > 0 ? "text-green-500" : allTimeReturn < 0 ? "text-red-500" : "")}>
+                {allTimeReturn > 0 ? "+" : ""}{allTimeReturn}%
+              </p>
             </div>
           </div>
         </div>

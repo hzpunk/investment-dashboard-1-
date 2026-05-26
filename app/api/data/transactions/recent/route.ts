@@ -1,9 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireRequestUser } from '@/lib/api-auth'
+import { withAuth, successResponse } from '@/lib/api-handler'
 
-export async function GET(request: Request) {
-  const user = await requireRequestUser()
+export const GET = withAuth(async (request, user) => {
   const { searchParams } = new URL(request.url)
   const limitParam = searchParams.get('limit')
   const limit = Math.min(Math.max(Number(limitParam ?? '5') || 5, 1), 50)
@@ -26,5 +25,5 @@ export async function GET(request: Request) {
     }
   })
 
-  return NextResponse.json({ transactions })
-}
+  return successResponse({ transactions })
+})

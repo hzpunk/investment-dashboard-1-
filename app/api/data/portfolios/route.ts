@@ -7,7 +7,11 @@ export const GET = withAuth(async (_, user) => {
     where: { userId: user.id },
     orderBy: { createdAt: 'desc' },
   })
-  return successResponse({ portfolios })
+  const formattedPortfolios = portfolios.map(p => ({
+    ...p,
+    createdAt: p.createdAt.toISOString(),
+  }))
+  return successResponse({ portfolios: formattedPortfolios })
 })
 
 export const POST = withAuth(async (request: NextRequest, user): Promise<any> => {
@@ -27,7 +31,7 @@ export const POST = withAuth(async (request: NextRequest, user): Promise<any> =>
       },
     })
 
-    return successResponse({ portfolio }, 201)
+    return successResponse({ portfolio: { ...portfolio, createdAt: portfolio.createdAt.toISOString() } }, 201)
   } catch (error) {
     console.error('Error creating portfolio:', error)
     return errorResponse('Failed to create portfolio', 500)

@@ -1,3 +1,7 @@
+import { createLogger } from "@/lib/logger"
+
+const logger = createLogger("GoalAPI")
+
 export type Goal = {
   id: string
   userId: string
@@ -10,55 +14,64 @@ export type Goal = {
 
 export type GoalInsert = Omit<Goal, "id" | "createdAt"> & { createdAt?: string }
 
-// Fetch all goals for a user
-export async function fetchGoals(userId: string) {
-  void userId
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
   try {
-    const res = await fetch("/api/data/goals", { method: "GET" })
+    const res = await fetch(url, options)
     const data = await res.json().catch(() => null)
-    if (!res.ok) {
-      console.warn("fetchGoals failed:", data?.error)
-      return []
-    }
-    return (data?.goals as Goal[]) || []
-  } catch (e) {
-    console.warn("fetchGoals error:", e)
-    return []
-  }
-}
 
-// Fetch a single goal by ID
-export async function fetchGoalById(id: string): Promise<Goal | null> {
-  console.warn(`Not implemented: fetchGoalById(${id})`)
-  try {
-    const res = await fetch(`/api/data/goals/${id}`, { method: "GET" })
-    const data = await res.json().catch(() => null)
     if (!res.ok) {
-      console.warn("fetchGoalById failed:", data?.error)
+      logger.warn(`API request failed: ${url}`, data?.error)
       return null
     }
-    return data?.goal as Goal || null
-  } catch (e) {
-    console.warn("fetchGoalById error:", e)
+
+    return data as T
+  } catch (error) {
+    logger.error(`API request error: ${url}`, error)
     return null
   }
 }
 
-// Create a new goal
+export async function fetchGoals(userId: string) {
+  void userId
+  const data = await apiFetch<{ goals: Goal[] }>("/api/data/goals")
+  return data?.goals || []
+}
+
+export async function fetchGoalById(id: string): Promise<Goal | null> {
+  const data = await apiFetch<{ goal: Goal }>(`/api/data/goals/${encodeURIComponent(id)}`)
+  console.log("fetchGoalById data:", data)
+  return data?.goal || null
+}
+
 export async function createGoal(goal: GoalInsert) {
-  console.warn(`Not implemented: createGoal(${goal.name})`)
-  return null
+  const data = await apiFetch<{ goal: Goal }>("/api/data/goals", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: goal.name,
+      targetAmount: goal.targetAmount,
+      currentAmount: goal.currentAmount,
+      targetDate: goal.targetDate,
+    }),
+  })
+  return data?.goal || null
 }
 
-// Update a goal
 export async function updateGoal(id: string, updates: Partial<Goal>) {
-  console.warn(`Not implemented: updateGoal(${id})`)
-  return null
+  console.log("updateGoal params:", { id, updates })
+  const data = await apiFetch<{ goal: Goal }>(`/api/data/goals/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  })
+  console.log("updateGoal data:", data)
+  return data?.goal || null
 }
 
-// Delete a goal
 export async function deleteGoal(id: string) {
-  console.warn(`Not implemented: deleteGoal(${id})`)
-  return null
+  const data = await apiFetch<{ success: boolean }>(`/api/data/goals/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  })
+  return data?.success || false
 }
 

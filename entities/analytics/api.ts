@@ -1,126 +1,98 @@
-import { supabase } from "@/shared/api/supabase"
+import { createLogger } from "@/lib/logger"
 
-// Get portfolio performance over time
-export async function getPortfolioPerformance(userId: string, period: string) {
-  // In a real app, you would calculate this from transaction history
-  // For now, we'll generate some sample data
+const logger = createLogger("AnalyticsAPI")
 
-  let days = 30
-  switch (period) {
-    case "1M":
-      days = 30
-      break
-    case "3M":
-      days = 90
-      break
-    case "6M":
-      days = 180
-      break
-    case "1Y":
-      days = 365
-      break
-    case "All":
-      days = 1000
-      break
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
+  try {
+    const res = await fetch(url, options)
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      logger.warn(`API request failed: ${url}`, data?.error)
+      return null
+    }
+    return data as T
+  } catch (error) {
+    logger.error(`API request error: ${url}`, error)
+    return null
   }
-
-  return generatePerformanceData(days)
 }
 
-// Get asset allocation
+export async function getPortfolioPerformance(userId: string, period: string) {
+  const now = new Date();
+  let fromDate: Date;
+
+  switch (period) {
+    case "1M":
+      fromDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      break;
+    case "3M":
+      fromDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      break;
+    case "6M":
+      fromDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+      break;
+    case "1Y":
+      fromDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      break;
+    case "ALL":
+      fromDate = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate()); // Max 5 years as per API
+      break;
+    default:
+      fromDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+  }
+
+  try {
+    const data = await apiFetch<{ monthlyPerformance: any[] }>(`/api/analytics?from=${fromDate.toISOString()}&to=${now.toISOString()}`);
+    return data?.monthlyPerformance || [];
+  } catch (error) {
+    logger.error("Error fetching portfolio performance:", error);
+    return [];
+  }
+}
+
 export async function getAssetAllocation(userId: string) {
   try {
-    // Get user's portfolios
-    const { data: portfolios, error: portfoliosError } = await supabase
-      .from("portfolios")
-      .select("id")
-      .eq("user_id", userId)
-
-    if (portfoliosError) throw portfoliosError
-
-    if (!portfolios || portfolios.length === 0) {
+    const portfoliosData = await apiFetch<{ portfolios: any[] }>("/api/data/portfolios")
+    if (!portfoliosData?.portfolios || portfoliosData.portfolios.length === 0) {
       return []
     }
 
-    // Get portfolio assets with their types
-    const { data: portfolioAssets, error: assetsError } = await supabase
-      .from("portfolio_assets")
-      .select(`
-        portfolio_id,
-        asset_id,
-        quantity,
-        assets(id, type, current_price)
-      `)
-      .in(
-        "portfolio_id",
-        portfolios.map((p: typeof portfolios[0]) => p.id),
-      )
+    let allocation: any[] = []
+    for (const portfolio of portfoliosData.portfolios) {
+      const statsData = await apiFetch<{ allocation: any[] }>(`/api/data/portfolios/${portfolio.id}/stats`)
+      if (statsData?.allocation) {
+        allocation = [...allocation, ...statsData.allocation]
+      }
+    }
 
-    if (assetsError) throw assetsError
+    const mergedAllocation = allocation.reduce((acc, item) => {
+      if (!acc[item.type]) {
+        acc[item.type] = { type: item.type, value: 0 }
+      }
+      acc[item.type].value += item.value
+      return acc
+    }, {} as Record<string, { type: string; value: number }>)
 
-    // Group by asset type
-    const assetsByType = portfolioAssets.reduce(
-      (acc: Record<string, { type: string; value: number }>, item: typeof portfolioAssets[0]) => {
-        const asset = item.assets
-        const type = asset.type
-        const value = item.quantity * asset.current_price
-
-        if (!acc[type]) {
-          acc[type] = { type, value: 0 }
-        }
-
-        acc[type].value += value
-        return acc
-      },
-      {} as Record<string, { type: string; value: number }>,
-    )
-
-    return Object.values(assetsByType)
+    return Object.values(mergedAllocation)
   } catch (error) {
-    console.error("Error getting asset allocation:", error)
+    logger.error("Error getting asset allocation:", error)
     return []
   }
 }
 
-// Get transaction statistics
 export async function getTransactionStats(userId: string) {
+  void userId
   try {
-    // Get transaction count by type
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("type, count")
-      .eq("user_id", userId)
-      .group("type")
-
-    if (error) throw error
-
-    return data || []
+    const transactionsData = await apiFetch<{ transactions: any[] }>("/api/data/transactions")
+    if (!transactionsData?.transactions) return []
+    const typeCounts = transactionsData.transactions.reduce((acc, t) => {
+      acc[t.type] = (acc[t.type] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+    return Object.entries(typeCounts).map(([type, count]) => ({ type, count }))
   } catch (error) {
-    console.error("Error getting transaction stats:", error)
+    logger.error("Error getting transaction stats:", error)
     return []
   }
-}
-
-// Generate sample performance data
-function generatePerformanceData(days: number) {
-  const data = []
-  const today = new Date()
-  let value = 50 + Math.random() * 10
-
-  for (let i = days; i >= 0; i -= Math.max(1, Math.floor(days / 20))) {
-    const date = new Date(today)
-    date.setDate(today.getDate() - i)
-
-    // Add some randomness to the value
-    value += (Math.random() - 0.48) * 3
-    value = Math.max(30, Math.min(70, value))
-
-    data.push({
-      date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      value,
-    })
-  }
-
-  return data
 }
 

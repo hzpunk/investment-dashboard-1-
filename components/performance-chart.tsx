@@ -1,75 +1,45 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { getHistoricalPrices, cryptoIdMap } from "@/shared/api/market-data"
 import { useI18n } from "@/contexts/i18n-context"
 import { formatLocaleDate } from "@/lib/i18n-display"
 
 interface PerformanceChartProps {
   className?: string
-  symbol?: string
-  type?: "stock" | "crypto"
-  initialValue?: number
+  data: { date: string; value: number }[]
+  period: "1M" | "3M" | "6M" | "1Y" | "ALL"
 }
 
-export function PerformanceChart({
-  className,
-  symbol = "BTC",
-  type = "crypto",
-  initialValue = 100000,
-}: PerformanceChartProps) {
-  const { t, locale } = useI18n()
-  const [performanceData, setPerformanceData] = useState<Record<string, any[]>>({})
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export function PerformanceChart({ className, data, period }: PerformanceChartProps) {
+  const { t } = useI18n()
+  // Ensure setActiveTab handles the correct union type
+  const [activeTab, setActiveTab] = useState<PerformanceChartProps['period']>(period)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true)
-      setError(null)
+  if (!data || data.length < 2) {
+    return (
+      <div className={cn("flex h-[300px] items-center justify-center text-muted-foreground", className)}>
+        {t("performance.noData")}
+      </div>
+    )
+  }
 
-      try {
-        const timeframes = ["1M", "3M", "6M", "1Y", "ALL"] as const
-        const results: Record<string, any[]> = {}
+  const calculateMetrics = (chartData: { date: string; value: number }[]) => {
+    if (!chartData || chartData.length < 2) return { startValue: 0, endValue: 0, returnPercent: 0 }
 
-        // Determine the actual symbol to use
-        const actualSymbol = type === "crypto" ? cryptoIdMap[symbol] || "bitcoin" : symbol
-
-        // Fetch data for each timeframe
-        for (const timeframe of timeframes) {
-          const data = await getHistoricalPrices(actualSymbol, type, timeframe)
-          results[timeframe] = data
-        }
-
-        setPerformanceData(results)
-      } catch (err) {
-        console.error("Error fetching performance data:", err)
-        setError(t("errors.unavailable"))
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [symbol, t, type])
-
-  // Calculate returns and other metrics
-  const calculateMetrics = (data: any[]) => {
-    if (!data || data.length < 2) return { startValue: 0, endValue: 0, returnPercent: 0 }
-
-    const startValue = data[0].value
-    const endValue = data[data.length - 1].value
+    const startValue = chartData[0].value
+    const endValue = chartData[chartData.length - 1].value
     const returnPercent = ((endValue - startValue) / startValue) * 100
 
     return {
-      startValue: (initialValue / endValue) * startValue,
-      endValue: initialValue,
+      startValue,
+      endValue,
       returnPercent,
     }
   }
+
+  const metrics = calculateMetrics(data)
 
   return (
     <Card className={cn("", className)}>
@@ -78,108 +48,65 @@ export function PerformanceChart({
         <CardDescription>{t("performance.description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-[200px] w-full" />
-            <div className="flex justify-between">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-20" />
+        <Tabs defaultValue={activeTab} onValueChange={(value) => setActiveTab(value as PerformanceChartProps['period'])} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="1M">1M</TabsTrigger>
+            <TabsTrigger value="3M">3M</TabsTrigger>
+            <TabsTrigger value="6M">6M</TabsTrigger>
+            <TabsTrigger value="1Y">1Y</TabsTrigger>
+            <TabsTrigger value="ALL">{t("common.all")}</TabsTrigger>
+          </TabsList>
+          <TabsContent value={activeTab} className="space-y-4">
+            <div className="h-[300px] w-full">
+              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <linearGradient id={`gradient-${activeTab}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.2" />
+                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+                </linearGradient>
+                <path
+                  d={`M0,${100 - data[0].value} ${data.map((point, i) => `L${(i / (data.length - 1)) * 100},${100 - point.value}`).join(" ")}`}
+                  fill="none"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d={`M0,${100 - data[0].value} ${data.map((point, i) => `L${(i / (data.length - 1)) * 100},${100 - point.value}`).join(" ")} L100,100 L0,100 Z`}
+                  fill={`url(#gradient-${activeTab})`}
+                />
+              </svg>
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              {/* Convert date strings to Date objects */}
+              <span>{formatLocaleDate(new Date(data[0].date), t("date_locale"))}</span>
+              <span>{formatLocaleDate(new Date(data[Math.floor(data.length / 2)].date), t("date_locale"))}</span>
+              <span>{formatLocaleDate(new Date(data[data.length - 1].date), t("date_locale"))}</span>
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <Skeleton className="h-4 w-24 mb-2" />
-                <Skeleton className="h-6 w-32" />
+                <p className="text-sm text-muted-foreground">{t("performance.startingValue")}</p>
+                <p className="text-lg font-bold">
+                  ${metrics.startValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </p>
               </div>
               <div>
-                <Skeleton className="h-4 w-24 mb-2" />
-                <Skeleton className="h-6 w-32" />
+                <p className="text-sm text-muted-foreground">{t("performance.currentValue")}</p>
+                <p className="text-lg font-bold">
+                  ${metrics.endValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </p>
               </div>
               <div>
-                <Skeleton className="h-4 w-24 mb-2" />
-                <Skeleton className="h-6 w-32" />
-              </div>
-              <div>
-                <Skeleton className="h-4 w-24 mb-2" />
-                <Skeleton className="h-6 w-32" />
+                <p className="text-sm text-muted-foreground">{t("performance.return")}</p>
+                <p
+                  className={`text-lg font-bold ${metrics.returnPercent >= 0 ? "text-green-500" : "text-red-500"}`}
+                >
+                  {metrics.returnPercent >= 0 ? "+" : ""}
+                  {metrics.returnPercent.toFixed(2)}%
+                </p>
               </div>
             </div>
-          </div>
-        ) : error ? (
-          <div className="flex items-center justify-center h-[300px]">
-            <p className="text-muted-foreground">{error}</p>
-          </div>
-        ) : (
-          <Tabs defaultValue="1M" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="1M">1M</TabsTrigger>
-              <TabsTrigger value="3M">3M</TabsTrigger>
-              <TabsTrigger value="6M">6M</TabsTrigger>
-              <TabsTrigger value="1Y">1Y</TabsTrigger>
-              <TabsTrigger value="ALL">{t("common.all")}</TabsTrigger>
-            </TabsList>
-            {Object.entries(performanceData).map(([period, data]) => {
-              if (!data || data.length < 2) return null
-
-              const metrics = calculateMetrics(data)
-              const minValue = Math.min(...data.map((d) => d.value))
-              const maxValue = Math.max(...data.map((d) => d.value))
-              const valueRange = maxValue - minValue
-
-              return (
-                <TabsContent key={period} value={period} className="space-y-4">
-                  <div className="h-[200px] w-full">
-                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <linearGradient id={`gradient-${period}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.2" />
-                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-                      </linearGradient>
-                      <path
-                        d={`M0,${100 - ((data[0].value - minValue) / valueRange) * 80} ${data.map((point, i) => `L${(i / (data.length - 1)) * 100},${100 - ((point.value - minValue) / valueRange) * 80}`).join(" ")}`}
-                        fill="none"
-                        stroke="hsl(var(--primary))"
-                        strokeWidth="1.5"
-                      />
-                      <path
-                        d={`M0,${100 - ((data[0].value - minValue) / valueRange) * 80} ${data.map((point, i) => `L${(i / (data.length - 1)) * 100},${100 - ((point.value - minValue) / valueRange) * 80}`).join(" ")} L100,100 L0,100 Z`}
-                        fill={`url(#gradient-${period})`}
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{formatLocaleDate(new Date(data[0].date), locale)}</span>
-                    <span>{formatLocaleDate(new Date(data[Math.floor(data.length / 2)].date), locale)}</span>
-                    <span>{formatLocaleDate(new Date(data[data.length - 1].date), locale)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t("performance.startingValue")}</p>
-                      <p className="text-lg font-bold">
-                        ${metrics.startValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t("performance.currentValue")}</p>
-                      <p className="text-lg font-bold">${metrics.endValue.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t("performance.return")}</p>
-                      <p
-                        className={`text-lg font-bold ${metrics.returnPercent >= 0 ? "text-green-500" : "text-red-500"}`}
-                      >
-                        {metrics.returnPercent >= 0 ? "+" : ""}
-                        {metrics.returnPercent.toFixed(2)}%
-                      </p>
-                    </div>
-                  </div>
-                </TabsContent>
-              )
-            })}
-          </Tabs>
-        )}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   )
 }
-

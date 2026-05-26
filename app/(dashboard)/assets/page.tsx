@@ -20,11 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card"
 import { Plus, Pencil, Trash2, Search, RefreshCw } from "lucide-react"
 import { fetchAssets, createAsset, deleteAsset, updateAssetPrices } from "@/entities/asset/api"
-import type { Database } from "@/types/supabase"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAssetTypeLabel } from "@/lib/i18n-display"
-
-type Asset = Database["public"]["Tables"]["assets"]["Row"]
+import type { Asset } from "@/entities/asset/api"
 
 export default function AssetsPage() {
   const { user } = useAuth()
@@ -57,7 +55,7 @@ export default function AssetsPage() {
   }, [])
 
   const handleAddAsset = async () => {
-    if (!newAsset.symbol || !newAsset.name || !newAsset.type || !newAsset.current_price) {
+    if (!newAsset.symbol || !newAsset.name || !newAsset.type || !newAsset.currentPrice) {
       return
     }
 
@@ -68,7 +66,7 @@ export default function AssetsPage() {
         symbol: newAsset.symbol,
         name: newAsset.name,
         type: newAsset.type as any,
-        current_price: newAsset.current_price,
+        currentPrice: newAsset.currentPrice,
         currency: newAsset.currency || "USD",
       })
 
@@ -186,8 +184,8 @@ export default function AssetsPage() {
                   <Input
                     id="price"
                     type="number"
-                    value={newAsset.current_price || ""}
-                    onChange={(e) => setNewAsset({ ...newAsset, current_price: Number.parseFloat(e.target.value) })}
+                    value={newAsset.currentPrice || ""}
+                    onChange={(e) => setNewAsset({ ...newAsset, currentPrice: Number.parseFloat(e.target.value) })}
                     className="col-span-3"
                   />
                 </div>
@@ -245,7 +243,7 @@ export default function AssetsPage() {
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -274,13 +272,13 @@ export default function AssetsPage() {
                         <TableCell>{asset.name}</TableCell>
                         <TableCell>{getAssetTypeLabel(asset.type, t)}</TableCell>
                         <TableCell className="text-right">
-                          {asset.current_price.toLocaleString(undefined, {
+                          {asset.currentPrice.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
                           })}
                         </TableCell>
                         <TableCell>{asset.currency}</TableCell>
-                        <TableCell className="text-right">{new Date(asset.updated_at).toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{new Date(asset.updatedAt).toLocaleString()}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end space-x-2">
                             <Button variant="ghost" size="icon" asChild>

@@ -7,7 +7,7 @@ export const GET = withAuth(async () => {
     orderBy: { symbol: 'asc' },
   })
 
-  const formattedAssets = assets.map(asset => ({
+  const formattedAssets = assets.map((asset) => ({
     ...asset,
     updatedAt: asset.updatedAt.toISOString(),
   }))
@@ -23,7 +23,7 @@ export const POST = withAuth(async (request) => {
       symbol: data.symbol,
       name: data.name,
       type: data.type || 'stock',
-      currentPrice: data.currentPrice || 0,
+      currentPrice: data.currentPrice ?? 0,
       currency: data.currency || 'USD',
     },
   })

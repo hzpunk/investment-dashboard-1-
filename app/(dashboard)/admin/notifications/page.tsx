@@ -22,8 +22,6 @@ import {
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Bell, Send } from "lucide-react"
-import { supabase } from "@/lib/supabase"
-import { addNotification } from "@/shared/api/notifications"
 import { useI18n } from "@/contexts/i18n-context"
 
 export default function AdminNotificationsPage() {
@@ -92,15 +90,10 @@ export default function AdminNotificationsPage() {
 
       setIsLoading(true)
       try {
-        // Fetch notification settings from database
-        // In a real app, you would fetch these from your database
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
-        // Fetch users for notification targeting
-        const { data: userData, error: userError } = await supabase.from("profiles").select("id, username")
-
-        if (userError) throw userError
-        setUsers(userData || [])
+        const res = await fetch("/api/admin/users", { credentials: "include" })
+        const data = await res.json().catch(() => null)
+        if (!res.ok) throw new Error(data?.error || t("errors.unavailable"))
+        setUsers(data?.users || [])
 
         // Fetch notification templates
         // In a real app, you would fetch these from your database
@@ -154,9 +147,14 @@ export default function AdminNotificationsPage() {
     setMessage(null)
 
     try {
-      // In a real app, you would send this notification to users
-      // For now, we'll just add it to the local notifications
-      addNotification(newNotification.type as any, newNotification.title, newNotification.message)
+      const res = await fetch("/api/admin/notifications", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newNotification),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || t("admin.notificationSendFailed"))
 
       // Reset form
       setNewNotification({

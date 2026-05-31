@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
@@ -20,106 +20,73 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Search, UserPlus, UserX, ArrowUpDown } from "lucide-react"
-import { supabase } from "@/shared/api/supabase"
 import { useI18n } from "@/contexts/i18n-context"
 
-interface User {
+type AdminUser = {
   id: string
   email: string
   username: string
-  role: string
-  created_at: string
-  last_sign_in_at: string | null
+  role: "admin" | "user" | "premium"
+  emailVerified: boolean
+  createdAt: string
+  updatedAt: string
+  lastSignInAt: string | null
+}
+
+async function readJson(res: Response) {
+  return res.json().catch(() => null)
 }
 
 export default function AdminUsersPage() {
-  const { user, userRole } = useAuth()
+  const { user, userRole, isLoading: isAuthLoading } = useAuth()
   const { t } = useI18n()
-  const [users, setUsers] = useState<User[]>([])
+  const [users, setUsers] = useState<AdminUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [sortColumn, setSortColumn] = useState<keyof User>("username")
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
+  const [sortColumn, setSortColumn] = useState<keyof AdminUser>("username")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [newUser, setNewUser] = useState({
     email: "",
     password: "",
     username: "",
-    role: "user",
+    role: "user" as AdminUser["role"],
   })
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      if (userRole !== "admin") {
-        setIsLoading(false)
-        return
-      }
-
-      setIsLoading(true)
-      try {
-        // Get all users from auth
-        const { data: authUsers, error: authError } = await supabase.from("profiles").select("*")
-
-        if (authError) {
-          throw new Error("Failed to fetch users from profiles")
-        }
-
-        // Get auth data for emails
-        const { data: authData, error: authDataError } = await supabase.auth.admin.listUsers()
-
-        if (authDataError) {
-          // Continue with profiles data only
-        }
-
-        // Map auth emails to profiles
-        const usersWithEmail = authUsers.map((profile) => {
-          const authUser = authData?.users?.find((u) => u.id === profile.id)
-
-          return {
-            id: profile.id,
-            email: authUser?.email || "No email available",
-            username: profile.username || "Unknown",
-            role: profile.role || "user",
-            created_at: profile.created_at || new Date().toISOString(),
-            last_sign_in_at: authUser?.last_sign_in_at || null,
-          }
-        })
-
-        setUsers(usersWithEmail)
-      } catch (error: any) {
-        setMessage({ type: "error", text: error.message || "Failed to load users" })
-
-        // Provide fallback data
-        setUsers([
-          {
-            id: "1",
-            email: "admin@example.com",
-            username: "Admin User",
-            role: "admin",
-            created_at: new Date().toISOString(),
-            last_sign_in_at: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            email: "user@example.com",
-            username: "Regular User",
-            role: "user",
-            created_at: new Date().toISOString(),
-            last_sign_in_at: new Date().toISOString(),
-          },
-        ])
-      } finally {
-        setIsLoading(false)
-      }
+  const fetchUsers = useCallback(async () => {
+    if (isAuthLoading) return
+    if (userRole !== "admin") {
+      setIsLoading(false)
+      return
     }
 
-    fetchUsers()
-  }, [userRole])
+    setIsLoading(true)
+    setMessage(null)
 
-  // Check if user is admin
-  if (userRole !== "admin") {
+    try {
+      const res = await fetch("/api/admin/users", { credentials: "include" })
+      const data = await readJson(res)
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to load users")
+      }
+
+      setUsers(Array.isArray(data?.users) ? data.users : [])
+    } catch (error: any) {
+      setMessage({ type: "error", text: error.message || "Failed to load users" })
+      setUsers([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [isAuthLoading, userRole])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
+
+  if (!isAuthLoading && userRole !== "admin") {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
@@ -130,7 +97,7 @@ export default function AdminUsersPage() {
     )
   }
 
-  const handleSort = (column: keyof User) => {
+  const handleSort = (column: keyof AdminUser) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc")
     } else {
@@ -147,14 +114,14 @@ export default function AdminUsersPage() {
       return sortDirection === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
     }
 
-    return sortDirection === "asc" ? (aValue as any) - (bValue as any) : (bValue as any) - (aValue as any)
+    return sortDirection === "asc" ? Number(aValue) - Number(bValue) : Number(bValue) - Number(aValue)
   })
 
   const filteredUsers = sortedUsers.filter(
-    (user) =>
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchQuery.toLowerCase()),
+    (row) =>
+      row.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      row.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      row.role.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const handleAddUser = async () => {
@@ -167,50 +134,21 @@ export default function AdminUsersPage() {
     setMessage(null)
 
     try {
-      // Create user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: newUser.email,
-        password: newUser.password,
-        email_confirm: true,
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newUser),
       })
-
-      if (authError) throw authError
-
-      // Create profile with role
-      if (authData.user) {
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: authData.user.id,
-          username: newUser.username,
-          role: newUser.role,
-          created_at: new Date().toISOString(),
-        })
-
-        if (profileError) throw profileError
-
-        // Add to users list
-        setUsers([
-          ...users,
-          {
-            id: authData.user.id,
-            email: authData.user.email || "",
-            username: newUser.username,
-            role: newUser.role,
-            created_at: authData.user.created_at || new Date().toISOString(),
-            last_sign_in_at: null,
-          },
-        ])
-
-        // Reset form
-        setNewUser({
-          email: "",
-          password: "",
-          username: "",
-          role: "user",
-        })
-
-        setIsAddUserOpen(false)
-        setMessage({ type: "success", text: t("admin.userCreated") })
+      const data = await readJson(res)
+      if (!res.ok) {
+        throw new Error(data?.error || t("admin.userCreateFailed"))
       }
+
+      setUsers((current) => [data.user, ...current])
+      setNewUser({ email: "", password: "", username: "", role: "user" })
+      setIsAddUserOpen(false)
+      setMessage({ type: "success", text: t("admin.userCreated") })
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || t("admin.userCreateFailed") })
     } finally {
@@ -218,43 +156,61 @@ export default function AdminUsersPage() {
     }
   }
 
-  const handleUpdateUserRole = async (userId: string, newRole: string) => {
+  const handleUpdateUserRole = async (userId: string, role: AdminUser["role"]) => {
+    setUpdatingUserId(userId)
+    setMessage(null)
+
     try {
-      const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", userId)
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      })
+      const data = await readJson(res)
+      if (!res.ok) {
+        throw new Error(data?.error || t("admin.roleUpdateFailed"))
+      }
 
-      if (error) throw error
-
-      // Update local state
-      setUsers(
-        users.map((u) => {
-          if (u.id === userId) {
-            return { ...u, role: newRole }
-          }
-          return u
-        }),
-      )
-
+      setUsers((current) => current.map((row) => (row.id === userId ? data.user : row)))
       setMessage({ type: "success", text: t("admin.roleUpdated") })
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || t("admin.roleUpdateFailed") })
+      fetchUsers()
+    } finally {
+      setUpdatingUserId(null)
     }
   }
 
   const handleDeleteUser = async (userId: string) => {
+    if (userId === user?.id) {
+      setMessage({ type: "error", text: "You cannot delete your own admin account" })
+      return
+    }
+
     if (!confirm(t("admin.confirmDeleteUser"))) {
       return
     }
 
+    setUpdatingUserId(userId)
+    setMessage(null)
+
     try {
-      const { error } = await supabase.auth.admin.deleteUser(userId)
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+      const data = await readJson(res)
+      if (!res.ok) {
+        throw new Error(data?.error || t("admin.userDeleteFailed"))
+      }
 
-      if (error) throw error
-
-      // Update local state
-      setUsers(users.filter((u) => u.id !== userId))
+      setUsers((current) => current.filter((row) => row.id !== userId))
       setMessage({ type: "success", text: t("admin.userDeleted") })
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || t("admin.userDeleteFailed") })
+    } finally {
+      setUpdatingUserId(null)
     }
   }
 
@@ -282,7 +238,7 @@ export default function AdminUsersPage() {
                   id="email"
                   type="email"
                   value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  onChange={(event) => setNewUser({ ...newUser, email: event.target.value })}
                   className="col-span-3"
                 />
               </div>
@@ -293,7 +249,7 @@ export default function AdminUsersPage() {
                 <Input
                   id="username"
                   value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                  onChange={(event) => setNewUser({ ...newUser, username: event.target.value })}
                   className="col-span-3"
                 />
               </div>
@@ -305,7 +261,7 @@ export default function AdminUsersPage() {
                   id="password"
                   type="password"
                   value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  onChange={(event) => setNewUser({ ...newUser, password: event.target.value })}
                   className="col-span-3"
                 />
               </div>
@@ -313,12 +269,16 @@ export default function AdminUsersPage() {
                 <Label htmlFor="role" className="text-right">
                   {t("common.type")}
                 </Label>
-                <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
+                <Select
+                  value={newUser.role}
+                  onValueChange={(value) => setNewUser({ ...newUser, role: value as AdminUser["role"] })}
+                >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder={t("common.type")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">{t("role.user")}</SelectItem>
+                    <SelectItem value="premium">Premium</SelectItem>
                     <SelectItem value="admin">{t("role.admin")}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -351,7 +311,7 @@ export default function AdminUsersPage() {
                 placeholder={t("admin.searchUsers")}
                 className="pl-8"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(event) => setSearchQuery(event.target.value)}
               />
             </div>
           </div>
@@ -384,7 +344,7 @@ export default function AdminUsersPage() {
                       </Button>
                     </TableHead>
                     <TableHead>
-                      <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("created_at")}>
+                      <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("createdAt")}>
                         {t("common.createdAt")}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
@@ -403,37 +363,41 @@ export default function AdminUsersPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.username}</TableCell>
-                        <TableCell>{user.email}</TableCell>
+                    filteredUsers.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium">{row.username}</TableCell>
+                        <TableCell>{row.email}</TableCell>
                         <TableCell>
-                          <Select value={user.role} onValueChange={(value) => handleUpdateUserRole(user.id, value)}>
+                          <Select
+                            value={row.role}
+                            disabled={updatingUserId === row.id}
+                            onValueChange={(value) => handleUpdateUserRole(row.id, value as AdminUser["role"])}
+                          >
                             <SelectTrigger className="h-8 w-28">
                               <SelectValue placeholder={t("common.type")} />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="user">{t("role.user")}</SelectItem>
+                              <SelectItem value="premium">Premium</SelectItem>
                               <SelectItem value="admin">{t("role.admin")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell>{new Date(row.createdAt).toLocaleDateString()}</TableCell>
                         <TableCell>
-                          {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : t("admin.never")}
+                          {row.lastSignInAt ? new Date(row.lastSignInAt).toLocaleDateString() : t("admin.never")}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="h-8 px-2"
-                            >
-                              <UserX className="h-4 w-4 mr-1" />
-                              {t("common.delete")}
-                            </Button>
-                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteUser(row.id)}
+                            disabled={updatingUserId === row.id || row.id === user?.id}
+                            className="h-8 px-2"
+                          >
+                            <UserX className="h-4 w-4 mr-1" />
+                            {t("common.delete")}
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -447,4 +411,3 @@ export default function AdminUsersPage() {
     </div>
   )
 }
-

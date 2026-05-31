@@ -12,7 +12,13 @@ export type Asset = {
   updatedAt: string
 }
 
-export type AssetInsert = Omit<Asset, "id" | "updatedAt"> & { updatedAt?: string }
+export type AssetInsert = {
+  symbol: string
+  name: string
+  type: Asset["type"]
+  currentPrice: number
+  currency: string
+}
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
   try {
@@ -68,11 +74,12 @@ export async function deleteAsset(id: string) {
   return data?.success || false
 }
 
-export async function updateAssetPrices() {
+export async function triggerAssetPricesUpdate() {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'http://localhost:3003';
-    const res = await fetch(`${baseUrl}/api/cron/update-prices`, { method: 'POST' })
-    return res.ok
+    const data = await apiFetch<{ success: boolean; result?: unknown }>("/api/admin/update-prices", {
+      method: "POST",
+    })
+    return data?.success === true
   } catch (e) {
     logger.error('Failed to update prices:', e)
     return false

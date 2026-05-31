@@ -2,6 +2,30 @@ import { NextRequest } from 'next/server'
 import { withAuth, successResponse, errorResponse } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 
+export const GET = withAuth(async (request, user, ctx) => {
+  const params = await ctx?.params
+  const id = params?.id as string
+
+  if (!id) {
+    return errorResponse('ID required', 400)
+  }
+
+  const asset = await prisma.asset.findUnique({
+    where: { id },
+  })
+
+  if (!asset) {
+    return errorResponse('Asset not found', 404)
+  }
+
+  return successResponse({
+    asset: {
+      ...asset,
+      updatedAt: asset.updatedAt.toISOString(),
+    },
+  })
+})
+
 export const PUT = withAuth(async (request, user, ctx) => {
   const params = await ctx?.params
   const id = params?.id as string

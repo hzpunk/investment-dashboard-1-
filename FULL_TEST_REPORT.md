@@ -74,7 +74,7 @@
 - [ ] POST /api/ai/chat
 - [ ] GET /api/health
 - [ ] GET /api/market-data
-- [ ] GET /api/cron/update-prices
+- [ ] POST /api/admin/update-prices
 
 ---
 

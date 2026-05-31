@@ -159,28 +159,11 @@ User → Nginx → Next.js → PostgreSQL
 
 ### 1. Application Layer
 
-**Current:** Single Next.js instance
-**Recommended:** 
-- Vercel Edge Functions (for auth/API)
-- Static generation for landing pages
-- Serverless functions for data API
-
-```typescript
-// vercel.json
-{
-  "functions": {
-    "app/api/**/*.ts": {
-      "maxDuration": 30
-    }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/update-prices",
-      "schedule": "0 */6 * * *"
-    }
-  ]
-}
-```
+**Current:** Single local/containerized Next.js instance
+**Recommended:**
+- Run API routes in the same Next.js app
+- Use Prisma services for server-side business logic
+- Trigger maintenance tasks through authenticated local endpoints, such as `POST /api/admin/update-prices`
 
 ### 2. Database Layer
 

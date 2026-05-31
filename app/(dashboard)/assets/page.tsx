@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Plus, Pencil, Trash2, Search, RefreshCw } from "lucide-react"
-import { fetchAssets, createAsset, deleteAsset, updateAssetPrices } from "@/entities/asset/api"
+import { fetchAssets, createAsset, deleteAsset, triggerAssetPricesUpdate } from "@/entities/asset/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAssetTypeLabel } from "@/lib/i18n-display"
 import type { Asset } from "@/entities/asset/api"
@@ -96,7 +96,7 @@ export default function AssetsPage() {
   const handleRefreshPrices = async () => {
     setIsRefreshing(true)
     try {
-      await updateAssetPrices()
+      await triggerAssetPricesUpdate()
       // Reload assets with updated prices
       const updatedAssets = await fetchAssets()
       setAssets(updatedAssets)

@@ -13,12 +13,16 @@ export const GET = withAuth(async (request, user) => {
     return errorResponse('Profile not found', 404)
   }
 
-  return successResponse(profile)
+  return successResponse({
+    ...profile,
+    avatarUrl: profile.avatarUrl ?? null,
+    createdAt: profile.createdAt.toISOString(),
+  })
 })
 
 // PUT /api/data/profiles - Update current user profile
 export const PUT = withAuth(async (request, user) => {
-  let data: { username?: string; avatar_url?: string }
+  let data: { username?: string; avatarUrl?: string }
   
   try {
     data = await request.json()
@@ -47,9 +51,13 @@ export const PUT = withAuth(async (request, user) => {
     where: { id: existing.id },
     data: {
       username: data.username,
-      avatarUrl: data.avatar_url,
+      avatarUrl: data.avatarUrl,
     },
   })
 
-  return successResponse(profile)
+  return successResponse({
+    ...profile,
+    avatarUrl: profile.avatarUrl ?? null,
+    createdAt: profile.createdAt.toISOString(),
+  })
 })

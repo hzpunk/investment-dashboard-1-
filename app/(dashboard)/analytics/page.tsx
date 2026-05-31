@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils"
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 export default function AnalyticsPage() {
-  const { user } = useAuth()
-  const { t } = useI18n()
+  const { user, isLoading: isAuthLoading } = useAuth()
+  const { locale, t } = useI18n()
   const [isLoading, setIsLoading] = useState(true)
   const [performanceData, setPerformanceData] = useState<any>({})
   const [allocationData, setAllocationData] = useState<any[]>([])
@@ -23,7 +23,15 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     const fetchAnalyticsData = async () => {
-      if (!user) return
+      if (isAuthLoading) return
+
+      if (!user) {
+        setPerformanceData({})
+        setAllocationData([])
+        setTransactionStats([])
+        setIsLoading(false)
+        return
+      }
 
       setIsLoading(true)
       setError(null)
@@ -37,33 +45,57 @@ export default function AnalyticsPage() {
           "1Y": await getPortfolioPerformance(user.id, "1Y"),
           ALL: await getPortfolioPerformance(user.id, "ALL"),
         }
-        setPerformanceData(performance)
+        setPerformanceData(
+          Object.fromEntries(
+            Object.entries(performance).map(([period, rows]) => [
+              period,
+              Array.isArray(rows)
+                ? rows
+                    .map((row: any) => ({
+                      date: typeof row?.date === "string" ? row.date : row?.month ? `${row.month}-01T00:00:00.000Z` : "",
+                      value: Number(row?.value ?? row?.invested ?? 0),
+                    }))
+                    .filter((row) => row.date && Number.isFinite(row.value))
+                : [],
+            ]),
+          ),
+        )
 
         // Fetch asset allocation data
         const allocation = await getAssetAllocation(user.id)
-        setAllocationData(allocation)
+        setAllocationData(
+          Array.isArray(allocation)
+            ? allocation
+                .map((item: any) => ({
+                  type: typeof item?.type === "string" ? item.type : "other",
+                  value: Number(item?.value ?? 0),
+                }))
+                .filter((item) => Number.isFinite(item.value) && item.value > 0)
+            : [],
+        )
 
         // Fetch transaction statistics
         const transactions = await getTransactionStats(user.id)
-        setTransactionStats(transactions)
+        setTransactionStats(
+          Array.isArray(transactions)
+            ? transactions
+                .map((stat: any) => ({
+                  type: typeof stat?.type === "string" ? stat.type : "other",
+                  count: Number(stat?.count ?? 0),
+                }))
+                .filter((stat) => Number.isFinite(stat.count) && stat.count > 0)
+            : [],
+        )
       } catch (err) {
         console.error("Error fetching analytics data:", err)
-        setError(t("errors.loadFailed"))
+        setError(t("errors.unavailable"))
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchAnalyticsData()
-  }, [user, t])
-
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-      </div>
-    )
-  }
+  }, [isAuthLoading, user, t])
 
   // Map asset types to colors
   const typeColors: Record<string, string> = {
@@ -77,13 +109,25 @@ export default function AnalyticsPage() {
 
   // Calculate total allocation value
   const totalAllocationValue = allocationData.reduce((sum, item) => sum + item.value, 0)
+  const maxTransactionCount = useMemo(
+    () => Math.max(0, ...transactionStats.map((stat: any) => stat.count)),
+    [transactionStats],
+  )
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      </div>
+    )
+  }
 
   const calculateMetrics = (data: any[]) => {
     if (!data || data.length < 2) return { startValue: 0, endValue: 0, returnPercent: 0 }
 
-    const startValue = data[0].value
-    const endValue = data[data.length - 1].value
-    const returnPercent = ((endValue - startValue) / startValue) * 100
+    const startValue = Number(data[0].value) || 0
+    const endValue = Number(data[data.length - 1].value) || 0
+    const returnPercent = startValue > 0 ? ((endValue - startValue) / startValue) * 100 : 0
 
     return {
       startValue,
@@ -147,7 +191,7 @@ export default function AnalyticsPage() {
                               fontSize={12}
                               tickLine={false}
                               axisLine={false}
-                              tickFormatter={(value: string) => new Date(value).toLocaleDateString(t("date_locale"), { month: "short", day: "numeric" })}
+                              tickFormatter={(value: string) => new Date(value).toLocaleDateString(locale, { month: "short", day: "numeric" })}
                             />
                             <YAxis
                               stroke="#888888"
@@ -159,7 +203,7 @@ export default function AnalyticsPage() {
                             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                             <Tooltip
                               formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Value"]}
-                              labelFormatter={(label: string) => new Date(label).toLocaleDateString(t("date_locale"), { year: "numeric", month: "short", day: "numeric" })}
+                              labelFormatter={(label: string) => new Date(label).toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" })}
                             />
                             <Area
                               type="monotone"
@@ -199,7 +243,7 @@ export default function AnalyticsPage() {
                       </div>
                     </TabsContent>
                   )
-                })}
+                }))}
             </Tabs>
           </CardContent>
         </Card>
@@ -240,20 +284,24 @@ export default function AnalyticsPage() {
               </div>
             </div>
             <div className="space-y-2 mt-4">
-              {allocationData.map((item) => (
-                <div key={item.type} className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className={`h-3 w-3 rounded-full mr-2 ${typeColors[item.type] || "bg-gray-500"}`} />
-                    <span className="text-sm">{getAssetTypeLabel(item.type, t)}</span>
+              {allocationData.length === 0 ? (
+                <div className="text-sm text-muted-foreground">{t("portfolios.noAssetsForAllocation")}</div>
+              ) : (
+                allocationData.map((item) => (
+                  <div key={item.type} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`h-3 w-3 rounded-full mr-2 ${typeColors[item.type] || "bg-gray-500"}`} />
+                      <span className="text-sm">{getAssetTypeLabel(item.type, t)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        {totalAllocationValue > 0 ? Math.round((item.value / totalAllocationValue) * 100) : 0}%
+                      </span>
+                      <span className="text-xs text-muted-foreground">${item.value.toLocaleString()}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      {totalAllocationValue > 0 ? Math.round((item.value / totalAllocationValue) * 100) : 0}%
-                    </span>
-                    <span className="text-xs text-muted-foreground">${item.value.toLocaleString()}</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -274,7 +322,7 @@ export default function AnalyticsPage() {
                 </div>
               ) : (
                 transactionStats.map((stat) => {
-                  const height = `${(stat.count / Math.max(...transactionStats.map((s: any) => s.count))) * 100}%`
+                  const height = `${maxTransactionCount > 0 ? (stat.count / maxTransactionCount) * 100 : 0}%`
                   return (
                     <div key={stat.type} className="flex flex-col items-center">
                       <div className="w-16 bg-primary/80 rounded-t-md flex items-end justify-center" style={{ height }}>

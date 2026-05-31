@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,10 +17,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Plus, Pencil, Trash2 } from "lucide-react"
-import type { Database } from "@/types/supabase"
+import { createGoal, deleteGoal, type Goal } from "@/entities/goal/api"
 import { useI18n } from "@/contexts/i18n-context"
-
-type Goal = Database["public"]["Tables"]["goals"]["Row"]
 
 interface GoalsListProps {
   className?: string
@@ -34,26 +31,26 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [newGoal, setNewGoal] = useState<Partial<Goal>>({
-    current_amount: 0,
+    currentAmount: 0,
   })
 
   const handleAddGoal = async () => {
-    if (!user || !newGoal.name || !newGoal.target_amount) {
+    if (!user || !newGoal.name || !newGoal.targetAmount) {
       return
     }
 
     setIsLoading(true)
 
     try {
-      const { error } = await supabase.from("goals").insert({
-        user_id: user.id,
+      const created = await createGoal({
+        userId: user.id,
         name: newGoal.name,
-        target_amount: newGoal.target_amount,
-        current_amount: newGoal.current_amount || 0,
-        target_date: newGoal.target_date,
+        targetAmount: newGoal.targetAmount,
+        currentAmount: newGoal.currentAmount || 0,
+        targetDate: newGoal.targetDate || null,
       })
 
-      if (error) throw error
+      if (!created) throw new Error("Failed to create goal")
 
       // Refresh the page to show the new goal
       window.location.reload()
@@ -71,9 +68,8 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
     }
 
     try {
-      const { error } = await supabase.from("goals").delete().eq("id", id)
-
-      if (error) throw error
+      const ok = await deleteGoal(id)
+      if (!ok) throw new Error("Failed to delete goal")
 
       // Refresh the page to update the goals list
       window.location.reload()
@@ -120,8 +116,8 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
                 <Input
                   id="goal-target"
                   type="number"
-                  value={newGoal.target_amount || ""}
-                  onChange={(e) => setNewGoal({ ...newGoal, target_amount: Number.parseFloat(e.target.value) })}
+                  value={newGoal.targetAmount || ""}
+                  onChange={(e) => setNewGoal({ ...newGoal, targetAmount: Number.parseFloat(e.target.value) })}
                   className="col-span-3"
                 />
               </div>
@@ -132,8 +128,8 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
                 <Input
                   id="goal-current"
                   type="number"
-                  value={newGoal.current_amount || ""}
-                  onChange={(e) => setNewGoal({ ...newGoal, current_amount: Number.parseFloat(e.target.value) })}
+                  value={newGoal.currentAmount || ""}
+                  onChange={(e) => setNewGoal({ ...newGoal, currentAmount: Number.parseFloat(e.target.value) })}
                   className="col-span-3"
                 />
               </div>
@@ -144,8 +140,8 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
                 <Input
                   id="goal-date"
                   type="date"
-                  value={newGoal.target_date || ""}
-                  onChange={(e) => setNewGoal({ ...newGoal, target_date: e.target.value })}
+                  value={newGoal.targetDate || ""}
+                  onChange={(e) => setNewGoal({ ...newGoal, targetDate: e.target.value })}
                   className="col-span-3"
                 />
               </div>
@@ -169,17 +165,17 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
             </div>
           ) : (
             goals.map((goal) => {
-              const currentAmount = goal.current_amount || 0
-              const targetAmount = goal.target_amount || 1 // avoid division by zero
+              const currentAmount = goal.currentAmount || 0
+              const targetAmount = goal.targetAmount || 1
               const progress = Math.min(100, Math.round((currentAmount / targetAmount) * 100))
               return (
                 <div key={goal.id} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-medium">{goal.name}</h3>
-                      {goal.target_date && (
+                      {goal.targetDate && (
                         <p className="text-xs text-muted-foreground">
-                          {t("goals.target")}: {new Date(goal.target_date).toLocaleDateString()}
+                          {t("goals.target")}: {new Date(goal.targetDate).toLocaleDateString()}
                         </p>
                       )}
                     </div>

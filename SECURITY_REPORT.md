@@ -95,23 +95,7 @@ if (!PASSWORD_REGEX.test(password)) {
 **Impact:** CSRF attacks possible
 
 **Remediation:**
-```javascript
-// next.config.mjs
-export default {
-  async headers() {
-    return [
-      {
-        source: '/api/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Origin', value: process.env.ALLOWED_ORIGIN || '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,DELETE,OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
-        ],
-      },
-    ]
-  },
-}
-```
+Use same-origin API calls from the Next.js app. Do not add permissive CORS headers unless a real cross-origin integration is introduced and explicitly allowlisted.
 
 ---
 

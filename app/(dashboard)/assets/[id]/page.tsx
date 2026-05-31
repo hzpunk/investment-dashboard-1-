@@ -13,12 +13,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { fetchAssetById, updateAsset, deleteAsset } from "@/entities/asset/api"
+import { fetchAssetById, updateAsset, deleteAsset, type Asset } from "@/entities/asset/api"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
-import type { Database } from "@/types/supabase"
 import { getHistoricalPrices, cryptoIdMap } from "@/shared/api/market-data"
-
-type Asset = Database["public"]["Tables"]["assets"]["Row"]
 
 export default function AssetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -56,7 +53,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         setName(assetData.name)
         setSymbol(assetData.symbol)
         setType(assetData.type)
-        setCurrentPrice(assetData.current_price)
+        setCurrentPrice(assetData.currentPrice)
         setCurrency(assetData.currency)
 
         // Load historical data
@@ -97,7 +94,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         name,
         symbol,
         type: type as any,
-        current_price: currentPrice,
+        currentPrice,
         currency,
       })
 
@@ -234,7 +231,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               </div>
               <div className="space-y-2">
                 <Label>{t("common.lastUpdated")}</Label>
-                <div className="p-2 border rounded-md bg-muted/50">{new Date(asset.updated_at).toLocaleString()}</div>
+                <div className="p-2 border rounded-md bg-muted/50">{new Date(asset.updatedAt).toLocaleString()}</div>
               </div>
             </CardContent>
             {isAdmin && (

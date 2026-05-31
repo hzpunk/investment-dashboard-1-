@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
 import { useI18n } from "@/contexts/i18n-context"
 
 export default function AdminSecurityPage() {
@@ -39,64 +38,47 @@ export default function AdminSecurityPage() {
 
       setIsLoading(true)
       try {
-        // In a real app, you would fetch these settings from your database
-        // For now, we'll just simulate a delay
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        const res = await fetch("/api/admin/settings", { credentials: "include" })
+        const data = await res.json().catch(() => null)
 
-        // Try to create the admin_settings table if it doesn't exist
-        try {
-          const { error: createTableError } = await supabase.rpc("create_admin_settings_if_not_exists")
+        if (!res.ok) throw new Error(data?.error || t("admin.settingsSaveFailed"))
 
-          if (createTableError && !createTableError.message.includes("does not exist")) {
-          }
+        const settings = (data?.settings || []).reduce(
+          (acc: typeof securitySettings, setting: { settingKey: string; settingValue: string }) => {
+            switch (setting.settingKey) {
+              case "security.password_min_length":
+                acc.passwordMinLength = setting.settingValue
+                break
+              case "security.require_special_chars":
+                acc.requireSpecialChars = setting.settingValue === "true"
+                break
+              case "security.require_numbers":
+                acc.requireNumbers = setting.settingValue === "true"
+                break
+              case "security.require_uppercase":
+                acc.requireUppercase = setting.settingValue === "true"
+                break
+              case "security.max_login_attempts":
+                acc.maxLoginAttempts = setting.settingValue
+                break
+              case "security.lockout_duration":
+                acc.lockoutDuration = setting.settingValue
+                break
+              case "security.session_timeout":
+                acc.sessionTimeout = setting.settingValue
+                break
+              case "security.two_factor_enabled":
+                acc.twoFactorEnabled = setting.settingValue === "true"
+                break
+            }
+            return acc
+          },
+          { ...securitySettings },
+        )
 
-          // Try to fetch settings
-          const { data, error } = await supabase.from("admin_settings").select("*")
-
-          if (error) {
-            // If table doesn't exist, we'll use default settings
-          } else if (data && data.length > 0) {
-            // If we have settings in the database, use them
-            const settings = data.reduce(
-              (acc, setting) => {
-                switch (setting.setting_key) {
-                  case "security.password_min_length":
-                    acc.passwordMinLength = setting.setting_value
-                    break
-                  case "security.require_special_chars":
-                    acc.requireSpecialChars = setting.setting_value === "true"
-                    break
-                  case "security.require_numbers":
-                    acc.requireNumbers = setting.setting_value === "true"
-                    break
-                  case "security.require_uppercase":
-                    acc.requireUppercase = setting.setting_value === "true"
-                    break
-                  case "security.max_login_attempts":
-                    acc.maxLoginAttempts = setting.setting_value
-                    break
-                  case "security.lockout_duration":
-                    acc.lockoutDuration = setting.setting_value
-                    break
-                  case "security.session_timeout":
-                    acc.sessionTimeout = setting.setting_value
-                    break
-                  case "security.two_factor_enabled":
-                    acc.twoFactorEnabled = setting.setting_value === "true"
-                    break
-                }
-                return acc
-              },
-              { ...securitySettings },
-            )
-
-            setSecuritySettings(settings)
-          }
-        } catch (error) {
-          // Continue with default settings
-        }
+        setSecuritySettings(settings)
       } catch (error) {
-        // We'll continue with default settings
+        setMessage({ type: "error", text: t("errors.unavailable") })
       } finally {
         setIsLoading(false)
       }
@@ -122,11 +104,26 @@ export default function AdminSecurityPage() {
     setMessage(null)
 
     try {
-      // In a real app, you would save these settings to your database
-      // For now, we'll just simulate a delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const settings = [
+        ["security.password_min_length", securitySettings.passwordMinLength],
+        ["security.require_special_chars", securitySettings.requireSpecialChars],
+        ["security.require_numbers", securitySettings.requireNumbers],
+        ["security.require_uppercase", securitySettings.requireUppercase],
+        ["security.max_login_attempts", securitySettings.maxLoginAttempts],
+        ["security.lockout_duration", securitySettings.lockoutDuration],
+        ["security.session_timeout", securitySettings.sessionTimeout],
+        ["security.two_factor_enabled", securitySettings.twoFactorEnabled],
+      ].map(([key, value]) => ({ key, value }))
 
-      // We'll just simulate success since we can't create the table in this context
+      const res = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || t("admin.settingsSaveFailed"))
+
       setMessage({ type: "success", text: t("admin.settingsSaved") })
     } catch (error) {
       setMessage({ type: "error", text: t("admin.settingsSaveFailed") })

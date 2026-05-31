@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     }
     
     // Max range: 5 years
-    const maxRange = 5 * 365 * 24 * 60 * 60 * 1000
+    const maxRange = 5 * 366 * 24 * 60 * 60 * 1000
     if (toDate.getTime() - fromDate.getTime() > maxRange) {
       return NextResponse.json({ error: 'Date range too large (max 5 years)' }, { status: 400 })
     }
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
           select: {
             quantity: true,
             averageBuyPrice: true,
-            asset: { select: { symbol: true, currentPrice: true, type: true } },
+            asset: { select: { symbol: true, name: true, currentPrice: true, type: true } },
           },
         },
       },
@@ -212,7 +212,9 @@ function calculateAnalytics(
   const monthlyPerformance = Object.entries(monthlyData)
     .map(([month, data]) => ({
       month,
+      date: `${month}-01T00:00:00.000Z`,
       invested: data.invested,
+      value: data.invested,
     }))
     .sort((a, b) => a.month.localeCompare(b.month))
 

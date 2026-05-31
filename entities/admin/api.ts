@@ -1,142 +1,76 @@
-import { supabase } from "@/shared/api/supabase"
-import type { Database } from "@/types/supabase"
-
-type AdminSetting = Database["public"]["Tables"]["admin_settings"]["Row"]
-type UserRole = Database["public"]["Tables"]["user_roles"]["Row"]
-type AuditLog = Database["public"]["Tables"]["audit_logs"]["Row"]
-
-// Admin Settings API
-export async function fetchAdminSettings() {
-  const { data, error } = await supabase.from("admin_settings").select("*").order("setting_key")
-
-  if (error) throw error
-  return data || []
+type AdminSetting = {
+  id: string
+  settingKey: string
+  settingValue: string
+  description: string | null
+  updatedAt: string
 }
 
-export async function updateAdminSetting(id: string, value: string) {
-  const { data, error } = await supabase
-    .from("admin_settings")
-    .update({
-      setting_value: value,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
+type AdminSettingResponse = {
+  id: string
+  settingKey: string
+  settingValue: string
+  description: string | null
+  updatedAt: string
 }
 
-export async function createAdminSetting(setting: Omit<AdminSetting, "id" | "updated_at">) {
-  const { data, error } = await supabase
-    .from("admin_settings")
-    .insert({
-      ...setting,
-      updated_at: new Date().toISOString(),
-    })
-    .select()
-    .single()
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    credentials: "include",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers ?? {}),
+    },
+  })
 
-  if (error) throw error
-  return data
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data?.error || "Request failed")
+  }
+
+  return data as T
 }
 
-// User Roles API
-export async function fetchUserRoles() {
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select(`
-      *,
-      profiles(username, avatar_url)
-    `)
-    .order("assigned_at", { ascending: false })
-
-  if (error) throw error
-  return data || []
-}
-
-export async function assignUserRole(userId: string, role: "admin" | "user" | "premium") {
-  // Check if user already has a role
-  const { data: existingRole } = await supabase.from("user_roles").select("id").eq("user_id", userId).single()
-
-  if (existingRole) {
-    // Update existing role
-    const { data, error } = await supabase
-      .from("user_roles")
-      .update({
-        role,
-        assigned_at: new Date().toISOString(),
-      })
-      .eq("id", existingRole.id)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data
-  } else {
-    // Create new role
-    const { data, error } = await supabase
-      .from("user_roles")
-      .insert({
-        user_id: userId,
-        role,
-        assigned_at: new Date().toISOString(),
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-    return data
+function toLegacySetting(setting: AdminSettingResponse): AdminSetting {
+  return {
+    id: setting.id,
+    settingKey: setting.settingKey,
+    settingValue: setting.settingValue,
+    description: setting.description,
+    updatedAt: setting.updatedAt,
   }
 }
 
-export async function removeUserRole(id: string) {
-  const { error } = await supabase.from("user_roles").delete().eq("id", id)
-
-  if (error) throw error
-  return true
+export async function fetchAdminSettings() {
+  const data = await apiFetch<{ settings: AdminSettingResponse[] }>("/api/admin/settings")
+  return data.settings.map(toLegacySetting)
 }
 
-// Audit Logs API
-export async function fetchAuditLogs(limit = 100) {
-  const { data, error } = await supabase
-    .from("audit_logs")
-    .select(`
-      *,
-      profiles(username)
-    `)
-    .order("created_at", { ascending: false })
-    .limit(limit)
+export async function updateAdminSetting(id: string, value: string) {
+  const data = await apiFetch<{ setting: AdminSettingResponse }>(`/api/admin/settings/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ value }),
+  })
 
-  if (error) throw error
-  return data || []
+  return toLegacySetting(data.setting)
 }
 
-export async function createAuditLog(log: Omit<AuditLog, "id" | "created_at">) {
-  const { data, error } = await supabase
-    .from("audit_logs")
-    .insert({
-      ...log,
-      created_at: new Date().toISOString(),
-    })
-    .select()
-    .single()
+export async function createAdminSetting(setting: Omit<AdminSetting, "id" | "updatedAt">) {
+  const data = await apiFetch<{ setting: AdminSettingResponse }>("/api/admin/settings", {
+    method: "POST",
+    body: JSON.stringify({
+      key: setting.settingKey,
+      value: setting.settingValue,
+      description: setting.description,
+    }),
+  })
 
-  if (error) throw error
-  return data
+  return toLegacySetting(data.setting)
 }
 
-// Check if user is admin
 export async function isUserAdmin(userId: string) {
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .single()
-
-  if (error && error.code !== "PGRST116") throw error
-  return !!data
+  const data = await apiFetch<{ user: { id: string; role: string } | null }>("/api/auth/me")
+  return data.user?.id === userId && data.user.role === "admin"
 }
-

@@ -23,7 +23,6 @@ import { Plus, ArrowUpRight, ArrowDownRight, Search } from "lucide-react"
 import { fetchTransactions, createTransaction, Transaction } from "@/entities/transaction/api"
 import { fetchAccounts } from "@/entities/account/api"
 import { fetchAssets } from "@/entities/asset/api"
-import type { Database } from "@/types/supabase"
 import { useI18n } from "@/contexts/i18n-context"
 import { getTransactionTypeLabel } from "@/lib/i18n-display"
 

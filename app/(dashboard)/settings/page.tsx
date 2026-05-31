@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { supabase } from "@/lib/supabase"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,9 +10,14 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useI18n } from "@/contexts/i18n-context"
-import type { Database } from "@/types/supabase"
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+type Profile = {
+  id: string
+  username: string
+  avatarUrl: string | null
+  role: string | null
+  createdAt: string
+}
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -38,14 +42,15 @@ export default function SettingsPage() {
 
       setIsLoading(true)
       try {
-        const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-        if (error) throw error
+        const res = await fetch("/api/data/profiles", { credentials: "include" })
+        const data = await res.json().catch(() => null)
+        if (!res.ok) throw new Error(data?.error || t("settings.profileUpdateFailed"))
 
         setProfile(data)
         setUsername(data.username || "")
-        setAvatarUrl(data.avatar_url || "")
+        setAvatarUrl(data.avatarUrl || "")
       } catch (error) {
+        setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
       } finally {
         setIsLoading(false)
       }
@@ -61,16 +66,19 @@ export default function SettingsPage() {
     setMessage(null)
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
+      const res = await fetch("/api/data/profiles", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           username,
-          avatar_url: avatarUrl,
-        })
-        .eq("id", user.id)
+          avatarUrl,
+        }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || t("settings.profileUpdateFailed"))
 
-      if (error) throw error
-
+      setProfile(data)
       setMessage({ type: "success", text: t("settings.profileUpdated") })
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || t("settings.profileUpdateFailed") })
@@ -91,11 +99,14 @@ export default function SettingsPage() {
     setMessage(null)
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
+      const res = await fetch("/api/auth/password", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword }),
       })
-
-      if (error) throw error
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || t("settings.passwordUpdateFailed"))
 
       setCurrentPassword("")
       setNewPassword("")

@@ -1,8 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, successResponse, errorResponse } from '@/lib/api-handler'
-import { getHistoricalPrices } from '@/shared/api/market-data'
-import { subDays, subMonths, subYears, startOfDay } from 'date-fns'
+import { getPortfolioSummary } from '@/lib/services/portfolio-summary'
 
 export const GET = withAuth(async (_request, user, ctx) => {
   const params = await ctx?.params
@@ -27,23 +25,13 @@ export const GET = withAuth(async (_request, user, ctx) => {
     return errorResponse('Portfolio not found', 404)
   }
 
-  let totalValue = 0
-  const assetsByType: Record<string, { type: string; value: number }> = {}
-
-  for (const item of portfolio.assets) {
-    const asset = item.asset
-    const value = item.quantity * asset.currentPrice
-    totalValue += value
-
-    if (!assetsByType[asset.type]) {
-      assetsByType[asset.type] = { type: asset.type, value: 0 }
-    }
-    assetsByType[asset.type].value += value
-  }
+  const summary = await getPortfolioSummary(user.id)
 
   return successResponse({
-    totalValue,
-    assetCount: portfolio.assets.length,
-    allocation: Object.values(assetsByType),
+    totalValue: summary.totalValue,
+    assetCount: summary.holdings.length,
+    allocation: summary.allocation,
+    holdings: summary.holdings,
+    source: summary.source,
   })
 })

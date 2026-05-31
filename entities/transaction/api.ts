@@ -28,13 +28,13 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null
 
     if (!res.ok) {
       logger.warn(`API request failed: ${url}`, data?.error)
-      return null
+      throw new Error(data?.error || "Request failed")
     }
 
     return data as T
   } catch (error) {
     logger.error(`API request error: ${url}`, error)
-    return null
+    throw error
   }
 }
 
@@ -55,12 +55,12 @@ export async function createTransaction(transaction: TransactionInsert) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      account_id: transaction.accountId,
-      asset_id: transaction.assetId,
+      accountId: transaction.accountId,
+      assetId: transaction.assetId,
       type: transaction.type,
       quantity: transaction.quantity,
-      price_per_unit: transaction.pricePerUnit,
-      total_amount: transaction.totalAmount,
+      pricePerUnit: transaction.pricePerUnit,
+      totalAmount: transaction.totalAmount,
       fee: transaction.fee,
       currency: transaction.currency,
       date: transaction.date,

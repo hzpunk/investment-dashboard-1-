@@ -51,29 +51,10 @@ export async function getPortfolioPerformance(userId: string, period: string) {
 }
 
 export async function getAssetAllocation(userId: string) {
+  void userId
   try {
-    const portfoliosData = await apiFetch<{ portfolios: any[] }>("/api/data/portfolios")
-    if (!portfoliosData?.portfolios || portfoliosData.portfolios.length === 0) {
-      return []
-    }
-
-    let allocation: any[] = []
-    for (const portfolio of portfoliosData.portfolios) {
-      const statsData = await apiFetch<{ allocation: any[] }>(`/api/data/portfolios/${portfolio.id}/stats`)
-      if (statsData?.allocation) {
-        allocation = [...allocation, ...statsData.allocation]
-      }
-    }
-
-    const mergedAllocation = allocation.reduce((acc, item) => {
-      if (!acc[item.type]) {
-        acc[item.type] = { type: item.type, value: 0 }
-      }
-      acc[item.type].value += item.value
-      return acc
-    }, {} as Record<string, { type: string; value: number }>)
-
-    return Object.values(mergedAllocation)
+    const data = await apiFetch<{ allocation: Array<{ type: string; value: number }> }>("/api/portfolio/allocation")
+    return data?.allocation || []
   } catch (error) {
     logger.error("Error getting asset allocation:", error)
     return []
@@ -83,9 +64,9 @@ export async function getAssetAllocation(userId: string) {
 export async function getTransactionStats(userId: string) {
   void userId
   try {
-    const transactionsData = await apiFetch<{ transactions: any[] }>("/api/data/transactions")
-    if (!transactionsData?.transactions) return []
-    const typeCounts = transactionsData.transactions.reduce((acc, t) => {
+    const transactionsData = await apiFetch<any[]>("/api/data/transactions")
+    if (!Array.isArray(transactionsData)) return []
+    const typeCounts = transactionsData.reduce((acc, t) => {
       acc[t.type] = (acc[t.type] || 0) + 1
       return acc
     }, {} as Record<string, number>)

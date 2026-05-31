@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState, use } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/auth-context"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAssetTypeLabel } from "@/lib/i18n-display"
@@ -14,14 +16,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { fetchAssetById, updateAsset, deleteAsset, type Asset } from "@/entities/asset/api"
-import { ArrowLeft, Save, Trash2 } from "lucide-react"
+import { ArrowLeft, Info, Save, Trash2 } from "lucide-react"
 import { getHistoricalPrices, cryptoIdMap } from "@/shared/api/market-data"
+import { supportedAssetCurrencies, type AssetTypeValue } from "@/shared/config/asset-presets"
+import { queryKeys } from "@/lib/query-options"
+
+const assetTypes: AssetTypeValue[] = ["stock", "bond", "etf", "crypto", "commodity", "other"]
+const tickerPattern = /^[A-Z0-9._-]{1,15}$/
 
 export default function AssetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { user, userRole } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [asset, setAsset] = useState<Asset | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -33,8 +41,8 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   // Form state
   const [name, setName] = useState("")
   const [symbol, setSymbol] = useState("")
-  const [type, setType] = useState<string>("")
-  const [currentPrice, setCurrentPrice] = useState<number>(0)
+  const [type, setType] = useState<AssetTypeValue>("stock")
+  const [currentPrice, setCurrentPrice] = useState("0")
   const [currency, setCurrency] = useState("")
 
   useEffect(() => {
@@ -53,7 +61,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         setName(assetData.name)
         setSymbol(assetData.symbol)
         setType(assetData.type)
-        setCurrentPrice(assetData.currentPrice)
+        setCurrentPrice(String(assetData.currentPrice))
         setCurrency(assetData.currency)
 
         // Load historical data
@@ -83,26 +91,73 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
+  const getValidationError = () => {
+    const normalizedSymbol = symbol.trim().toUpperCase()
+    const normalizedName = name.trim()
+    const price = Number(currentPrice)
+
+    if (!normalizedSymbol) return t("assets.form.validation.tickerRequired")
+    if (!tickerPattern.test(normalizedSymbol)) return t("assets.form.validation.tickerFormat")
+    if (!normalizedName) return t("assets.form.validation.nameRequired")
+    if (!assetTypes.includes(type)) return t("assets.form.validation.typeRequired")
+    if (!Number.isFinite(price) || price < 0) return t("assets.form.validation.priceInvalid")
+    if (!supportedAssetCurrencies.includes(currency as (typeof supportedAssetCurrencies)[number])) {
+      return t("assets.form.validation.currencyRequired")
+    }
+
+    return null
+  }
+
+  const getSubmitErrorMessage = (error: unknown) => {
+    const code = error instanceof Error ? (error as Error & { code?: string }).code : undefined
+    if (code === "DUPLICATE_SYMBOL") return t("assets.form.validation.duplicateSymbol")
+    if (code === "TICKER_REQUIRED") return t("assets.form.validation.tickerRequired")
+    if (code === "TICKER_INVALID") return t("assets.form.validation.tickerFormat")
+    if (code === "NAME_REQUIRED") return t("assets.form.validation.nameRequired")
+    if (code === "TYPE_INVALID") return t("assets.form.validation.typeRequired")
+    if (code === "PRICE_INVALID") return t("assets.form.validation.priceInvalid")
+    if (code === "CURRENCY_INVALID") return t("assets.form.validation.currencyRequired")
+    return t("assets.form.validation.requestFailed")
+  }
+
   const handleUpdateAsset = async () => {
     if (!asset) return
+
+    const validationError = getValidationError()
+    if (validationError) {
+      setMessage({ type: "error", text: validationError })
+      return
+    }
 
     setIsSaving(true)
     setMessage(null)
 
     try {
       const updatedAsset = await updateAsset(asset.id, {
-        name,
-        symbol,
-        type: type as any,
-        currentPrice,
+        name: name.trim(),
+        symbol: symbol.trim().toUpperCase(),
+        type,
+        currentPrice: Number(currentPrice),
         currency,
       })
 
       setAsset(updatedAsset)
-      setMessage({ type: "success", text: t("actions.saveChanges") })
+      setSymbol(updatedAsset.symbol)
+      setName(updatedAsset.name)
+      setType(updatedAsset.type)
+      setCurrentPrice(String(updatedAsset.currentPrice))
+      setCurrency(updatedAsset.currency)
+      queryClient.setQueryData<Asset[]>(queryKeys.assets(), (current = []) =>
+        current.map((item) => (item.id === updatedAsset.id ? updatedAsset : item)),
+      )
+      void queryClient.invalidateQueries({ queryKey: ["portfolio-allocation"] })
+      void queryClient.invalidateQueries({ queryKey: ["portfolio"] })
+      void queryClient.invalidateQueries({ queryKey: ["portfolios"] })
+      void queryClient.invalidateQueries({ queryKey: ["analytics"] })
+      setMessage({ type: "success", text: t("assets.updateSuccess") })
     } catch (error) {
       console.error("Error updating asset:", error)
-      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
+      setMessage({ type: "error", text: getSubmitErrorMessage(error) })
     } finally {
       setIsSaving(false)
     }
@@ -117,10 +172,15 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
 
     try {
       await deleteAsset(asset.id)
+      queryClient.setQueryData<Asset[]>(queryKeys.assets(), (current = []) => current.filter((item) => item.id !== asset.id))
+      void queryClient.invalidateQueries({ queryKey: ["portfolio-allocation"] })
+      void queryClient.invalidateQueries({ queryKey: ["portfolio"] })
+      void queryClient.invalidateQueries({ queryKey: ["portfolios"] })
+      void queryClient.invalidateQueries({ queryKey: ["analytics"] })
       router.push("/assets")
     } catch (error) {
       console.error("Error deleting asset:", error)
-      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
+      setMessage({ type: "error", text: t("assets.deleteFailed") })
     }
   }
 
@@ -140,10 +200,10 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           {t("assets.notFoundDescription")}
         </p>
         <Button asChild variant="outline">
-          <a href="/assets">
+          <Link href="/assets">
             <ArrowLeft className="mr-2 h-4 w-4" />
             {t("actions.backToAssets")}
-          </a>
+          </Link>
         </Button>
       </div>
     )
@@ -155,10 +215,10 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     <div className="space-y-6">
       <DashboardHeader heading={asset.name} text={`${asset.symbol} - ${getAssetTypeLabel(asset.type, t)}`}>
         <Button variant="outline" asChild>
-          <a href="/assets">
+          <Link href="/assets">
             <ArrowLeft className="mr-2 h-4 w-4" />
             {t("common.back")}
-          </a>
+          </Link>
         </Button>
       </DashboardHeader>
 
@@ -180,52 +240,62 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                   <AlertDescription>{message.text}</AlertDescription>
                 </Alert>
               )}
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>{t("assets.form.catalogNotice")}</AlertDescription>
+              </Alert>
               <div className="space-y-2">
-                <Label htmlFor="name">{t("common.name")}</Label>
+                <Label htmlFor="name">{t("assets.form.name")}</Label>
                 <Input id="name" value={name} onChange={(e) => setName(e.target.value)} disabled={!isAdmin} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="symbol">{t("common.symbol")}</Label>
-                <Input id="symbol" value={symbol} onChange={(e) => setSymbol(e.target.value)} disabled={!isAdmin} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="type">{t("assets.typeLabel")}</Label>
-                <Select value={type} onValueChange={setType} disabled={!isAdmin}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("assets.selectAssetType")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="stock">{t("assetType.stock")}</SelectItem>
-                    <SelectItem value="bond">{t("assetType.bond")}</SelectItem>
-                    <SelectItem value="etf">{t("assetType.etf")}</SelectItem>
-                    <SelectItem value="crypto">{t("assetType.crypto")}</SelectItem>
-                    <SelectItem value="commodity">{t("assetType.commodity")}</SelectItem>
-                    <SelectItem value="other">{t("assetType.other")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="price">{t("assets.currentPrice")}</Label>
+                <Label htmlFor="symbol">{t("assets.form.ticker")}</Label>
                 <Input
-                  id="price"
-                  type="number"
-                  value={currentPrice}
-                  onChange={(e) => setCurrentPrice(Number.parseFloat(e.target.value))}
+                  id="symbol"
+                  value={symbol}
+                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
                   disabled={!isAdmin}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="currency">{t("common.currency")}</Label>
+                <Label htmlFor="type">{t("assets.typeLabel")}</Label>
+                <Select value={type} onValueChange={(value) => setType(value as AssetTypeValue)} disabled={!isAdmin}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("assets.selectAssetType")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assetTypes.map((assetType) => (
+                      <SelectItem key={assetType} value={assetType}>
+                        {getAssetTypeLabel(assetType, t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="price">{t("assets.form.currentPrice")}</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={currentPrice}
+                  onChange={(e) => setCurrentPrice(e.target.value)}
+                  disabled={!isAdmin}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="currency">{t("assets.form.currency")}</Label>
                 <Select value={currency} onValueChange={setCurrency} disabled={!isAdmin}>
                   <SelectTrigger>
                     <SelectValue placeholder={t("transactions.selectCurrency")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
-                    <SelectItem value="GBP">GBP</SelectItem>
-                    <SelectItem value="JPY">JPY</SelectItem>
-                    <SelectItem value="CAD">CAD</SelectItem>
+                    {supportedAssetCurrencies.map((supportedCurrency) => (
+                      <SelectItem key={supportedCurrency} value={supportedCurrency}>
+                        {supportedCurrency}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

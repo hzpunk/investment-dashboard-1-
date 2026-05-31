@@ -43,12 +43,36 @@ export function withAuth<T>(handler: ApiHandler<T>) {
     req: NextRequest,
     ctx: RouteContext
   ): Promise<NextResponse> => {
+    const startedAt = performance.now()
+    let status = 500
+
     try {
       const user = await requireRequestUser()
-      return await handler(req, user, ctx)
+      const response = await handler(req, user, ctx)
+      status = response.status
+      return response
     } catch (error) {
+      const errorStatus = typeof (error as any)?.status === 'number' ? (error as any).status : undefined
+
+      if (errorStatus === 401) {
+        status = 401
+        return NextResponse.json(
+          { error: 'Unauthorized', code: 'UNAUTHORIZED' },
+          { status: 401 }
+        )
+      }
+
+      if (errorStatus === 403) {
+        status = 403
+        return NextResponse.json(
+          { error: 'Forbidden', code: 'FORBIDDEN' },
+          { status: 403 }
+        )
+      }
+
       // Handle 401 from requireRequestUser
       if (error instanceof ApiError && error.statusCode === 401) {
+        status = 401
         return NextResponse.json(
           { error: 'Unauthorized', code: 'UNAUTHORIZED' },
           { status: 401 }
@@ -57,6 +81,7 @@ export function withAuth<T>(handler: ApiHandler<T>) {
 
       // Handle custom API errors
       if (error instanceof ApiError) {
+        status = error.statusCode
         return NextResponse.json(
           { error: error.message, code: error.code },
           { status: error.statusCode }
@@ -64,12 +89,18 @@ export function withAuth<T>(handler: ApiHandler<T>) {
       }
 
       // Log and return 500 for unexpected errors
-      // eslint-disable-next-line no-console
       console.error('API Error:', error)
+      status = 500
       return NextResponse.json(
         { error: 'Internal server error', code: 'INTERNAL_ERROR' },
         { status: 500 }
       )
+    } finally {
+      if (process.env.NODE_ENV !== 'production') {
+        const durationMs = Math.round(performance.now() - startedAt)
+        const pathname = new URL(req.url).pathname
+        console.info(`[api] ${req.method} ${pathname} -> ${status} in ${durationMs}ms`)
+      }
     }
   }
 }

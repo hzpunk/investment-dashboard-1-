@@ -42,6 +42,22 @@ services:
         reservations:
           memory: 2G
 
+  redis:
+    image: redis:7-alpine
+    container_name: investment-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data_dev:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data_dev:
   ollama_data_dev:
+  redis_data_dev:

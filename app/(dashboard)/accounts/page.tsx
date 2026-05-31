@@ -1,6 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
@@ -18,51 +20,56 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Pencil, Trash2, Search } from "lucide-react"
-import { fetchAccounts, createAccount, deleteAccount, Account } from "@/entities/account/api"
+import { Plus, Pencil, Trash2, Search, RefreshCw } from "lucide-react"
+import { createAccount, deleteAccount, Account } from "@/entities/account/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAccountTypeLabel } from "@/lib/i18n-display"
+import { accountsQuery, queryKeys } from "@/lib/query-options"
 
 export default function AccountsPage() {
   const { user } = useAuth()
   const { t } = useI18n()
-  const [accounts, setAccounts] = useState<Account[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [newAccount, setNewAccount] = useState<Partial<Account>>({
     type: "brokerage",
     currency: "USD",
   })
 
-  useEffect(() => {
-    const loadAccounts = async () => {
+  const userId = user?.id ?? ""
+  const accountsResult = useQuery({ ...accountsQuery(userId), enabled: Boolean(user) })
+  const accounts = accountsResult.data ?? []
+
+  const createAccountMutation = useMutation({
+    mutationFn: createAccount,
+    onSuccess: (createdAccount) => {
+      if (!createdAccount || !user) return
+      queryClient.setQueryData<Account[]>(queryKeys.accounts(user.id), (current = []) => [...current, createdAccount])
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portfolioAllocation(user.id) })
+    },
+  })
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: (_result, id) => {
       if (!user) return
-
-      setIsLoading(true)
-      try {
-        const data = await fetchAccounts(user.id)
-        setAccounts(data)
-      } catch (error) {
-        console.error("Error fetching accounts:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadAccounts()
-  }, [user])
+      queryClient.setQueryData<Account[]>(queryKeys.accounts(user.id), (current = []) =>
+        current.filter((account) => account.id !== id),
+      )
+      void queryClient.invalidateQueries({ queryKey: queryKeys.transactions(user.id) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.recentTransactions(user.id, 5) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portfolioAllocation(user.id) })
+    },
+  })
 
   const handleAddAccount = async () => {
     if (!user || !newAccount.name || !newAccount.type) {
       return
     }
 
-    setIsSubmitting(true)
-
     try {
-      const createdAccount = await createAccount({
+      const createdAccount = await createAccountMutation.mutateAsync({
         userId: user.id,
         name: newAccount.name,
         type: newAccount.type as any,
@@ -75,7 +82,6 @@ export default function AccountsPage() {
         return
       }
 
-      setAccounts([...accounts, createdAccount])
       setNewAccount({
         type: "brokerage",
         currency: "USD",
@@ -83,7 +89,6 @@ export default function AccountsPage() {
     } catch (error) {
       console.error("Error adding account:", error)
     } finally {
-      setIsSubmitting(false)
       setIsAddAccountOpen(false)
     }
   }
@@ -94,8 +99,7 @@ export default function AccountsPage() {
     }
 
     try {
-      await deleteAccount(id)
-      setAccounts(accounts.filter((account) => account.id !== id))
+      await deleteAccountMutation.mutateAsync(id)
     } catch (error) {
       console.error("Error deleting account:", error)
     }
@@ -106,10 +110,16 @@ export default function AccountsPage() {
       account?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       account?.type?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
+  const isLoading = accountsResult.isLoading && !accountsResult.data
+  const isRefreshing = accountsResult.isFetching && !isLoading
+  const isSubmitting = createAccountMutation.isPending
 
   return (
     <div className="space-y-6">
       <DashboardHeader heading={t("accounts.title")} text={t("accounts.description")}>
+        {isRefreshing ? (
+          <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+        ) : null}
         <Dialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -254,12 +264,17 @@ export default function AccountsPage() {
                         <TableCell>
                           <div className="flex items-center justify-end space-x-2">
                             <Button variant="ghost" size="icon" asChild>
-                              <a href={`/accounts/${account.id}`}>
+                              <Link href={`/accounts/${account.id}`}>
                                 <Pencil className="h-4 w-4" />
                                 <span className="sr-only">{t("common.edit")}</span>
-                              </a>
+                              </Link>
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteAccount(account.id)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteAccount(account.id)}
+                              disabled={deleteAccountMutation.isPending}
+                            >
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">{t("common.delete")}</span>
                             </Button>

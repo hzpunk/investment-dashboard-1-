@@ -5,6 +5,8 @@ export const env = {
   // External APIs
   ALPHA_VANTAGE_API_KEY: process.env.ALPHA_VANTAGE_API_KEY || "demo",
   COINGECKO_API_KEY: process.env.COINGECKO_API_KEY || "",
+  REDIS_URL: process.env.REDIS_URL || "",
+  CACHE_ENABLED: process.env.CACHE_ENABLED !== "false",
 
   // App settings
   APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",

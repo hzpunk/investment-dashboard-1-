@@ -153,7 +153,12 @@
   },
   "portfolioAllocation": {
     "title": "Portfolio allocation",
-    "description": "How your investments are distributed"
+    "description": "How your investments are distributed",
+    "emptyTitle": "No allocation data yet",
+    "emptyDescription": "Add assets or transactions to see your portfolio distribution.",
+    "total": "Total",
+    "value": "Value",
+    "percentage": "Percentage"
   },
   "performance": {
     "title": "Performance",
@@ -186,9 +191,11 @@
   },
   "assets": {
     "title": "Assets",
-    "description": "Manage investment assets in your portfolio.",
+    "description": "Manage instruments available for transactions and portfolio tracking.",
+    "addAsset": "Add asset",
+    "editAsset": "Edit asset",
     "addDialogTitle": "Add new asset",
-    "addDialogDescription": "Enter asset details.",
+    "addDialogDescription": "Choose or enter an instrument for the catalog.",
     "selectAssetType": "Select asset type",
     "sharesUnits": "Shares/units",
     "shares": "Shares",
@@ -200,15 +207,43 @@
     "updatePrices": "Update prices",
     "updatingPrices": "Updating...",
     "confirmDelete": "Delete this asset?",
+    "deleteFailed": "Could not delete this asset.",
+    "updateSuccess": "Asset updated.",
     "details": "Asset details",
-    "detailsDescription": "View and update asset information.",
+    "detailsDescription": "View and update catalog instrument information.",
     "typeLabel": "Asset type",
     "priceChart": "Price chart",
     "priceHistory": "Price history",
     "historyDescription": "Historical price data for",
     "noHistory": "No historical data available for this asset.",
     "notFound": "Asset not found",
-    "notFoundDescription": "This asset does not exist or you do not have access."
+    "notFoundDescription": "This asset does not exist or you do not have access.",
+    "form": {
+      "description": "Choose a known instrument or create a custom catalog entry.",
+      "catalogNotice": "This adds an instrument to the catalog. To include it in your portfolio allocation, create a buy transaction.",
+      "type": "Type",
+      "preset": "Instrument",
+      "customInstrument": "Custom instrument",
+      "ticker": "Ticker",
+      "tickerPlaceholder": "Example: BTC",
+      "name": "Name",
+      "namePlaceholder": "Example: Bitcoin",
+      "currentPrice": "Current price",
+      "currency": "Currency",
+      "selectTypeFirst": "Select asset type first",
+      "selectInstrument": "Select instrument",
+      "manualEntry": "Manual entry",
+      "validation": {
+        "tickerRequired": "Ticker is required",
+        "tickerFormat": "Ticker must be 1-15 characters and may contain letters, numbers, dots, dashes, or underscores",
+        "nameRequired": "Name is required",
+        "typeRequired": "Select an asset type",
+        "currencyRequired": "Select a supported currency",
+        "priceInvalid": "Price must be a valid number",
+        "duplicateSymbol": "An asset with this ticker already exists",
+        "requestFailed": "Could not save asset. Check the form and try again."
+      }
+    }
   },
   "transactions": {
     "title": "Transactions",

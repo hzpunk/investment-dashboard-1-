@@ -1,101 +1,71 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getPortfolioPerformance, getAssetAllocation, getTransactionStats } from "@/entities/analytics/api"
-import { BarChart, PieChart } from "lucide-react"
+import { BarChart, PieChart, RefreshCw } from "lucide-react"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAssetTypeLabel, getTransactionTypeLabel } from "@/lib/i18n-display"
 import { cn } from "@/lib/utils"
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { analyticsQuery } from "@/lib/query-options"
 
 export default function AnalyticsPage() {
   const { user, isLoading: isAuthLoading } = useAuth()
   const { locale, t } = useI18n()
-  const [isLoading, setIsLoading] = useState(true)
-  const [performanceData, setPerformanceData] = useState<any>({})
-  const [allocationData, setAllocationData] = useState<any[]>([])
-  const [transactionStats, setTransactionStats] = useState<any[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const userId = user?.id ?? ""
+  const analyticsResult = useQuery({
+    ...analyticsQuery(userId),
+    enabled: !isAuthLoading && Boolean(user),
+  })
 
-  useEffect(() => {
-    const fetchAnalyticsData = async () => {
-      if (isAuthLoading) return
+  const performanceData = useMemo(() => {
+    const performance = analyticsResult.data?.performanceData ?? {}
+    return Object.fromEntries(
+      Object.entries(performance).map(([period, rows]) => [
+        period,
+        Array.isArray(rows)
+          ? rows
+              .map((row: any) => ({
+                date: typeof row?.date === "string" ? row.date : row?.month ? `${row.month}-01T00:00:00.000Z` : "",
+                value: Number(row?.value ?? row?.invested ?? 0),
+              }))
+              .filter((row) => row.date && Number.isFinite(row.value))
+          : [],
+      ]),
+    )
+  }, [analyticsResult.data])
 
-      if (!user) {
-        setPerformanceData({})
-        setAllocationData([])
-        setTransactionStats([])
-        setIsLoading(false)
-        return
-      }
+  const allocationData = useMemo(() => {
+    const allocation = analyticsResult.data?.allocationData ?? []
+    return Array.isArray(allocation)
+      ? allocation
+          .map((item: any) => ({
+            type: typeof item?.type === "string" ? item.type : "other",
+            value: Number(item?.value ?? 0),
+          }))
+          .filter((item) => Number.isFinite(item.value) && item.value > 0)
+      : []
+  }, [analyticsResult.data])
 
-      setIsLoading(true)
-      setError(null)
+  const transactionStats = useMemo(() => {
+    const transactions = analyticsResult.data?.transactionStats ?? []
+    return Array.isArray(transactions)
+      ? transactions
+          .map((stat: any) => ({
+            type: typeof stat?.type === "string" ? stat.type : "other",
+            count: Number(stat?.count ?? 0),
+          }))
+          .filter((stat) => Number.isFinite(stat.count) && stat.count > 0)
+      : []
+  }, [analyticsResult.data])
 
-      try {
-        // Fetch portfolio performance data
-        const performance = {
-          "1M": await getPortfolioPerformance(user.id, "1M"),
-          "3M": await getPortfolioPerformance(user.id, "3M"),
-          "6M": await getPortfolioPerformance(user.id, "6M"),
-          "1Y": await getPortfolioPerformance(user.id, "1Y"),
-          ALL: await getPortfolioPerformance(user.id, "ALL"),
-        }
-        setPerformanceData(
-          Object.fromEntries(
-            Object.entries(performance).map(([period, rows]) => [
-              period,
-              Array.isArray(rows)
-                ? rows
-                    .map((row: any) => ({
-                      date: typeof row?.date === "string" ? row.date : row?.month ? `${row.month}-01T00:00:00.000Z` : "",
-                      value: Number(row?.value ?? row?.invested ?? 0),
-                    }))
-                    .filter((row) => row.date && Number.isFinite(row.value))
-                : [],
-            ]),
-          ),
-        )
-
-        // Fetch asset allocation data
-        const allocation = await getAssetAllocation(user.id)
-        setAllocationData(
-          Array.isArray(allocation)
-            ? allocation
-                .map((item: any) => ({
-                  type: typeof item?.type === "string" ? item.type : "other",
-                  value: Number(item?.value ?? 0),
-                }))
-                .filter((item) => Number.isFinite(item.value) && item.value > 0)
-            : [],
-        )
-
-        // Fetch transaction statistics
-        const transactions = await getTransactionStats(user.id)
-        setTransactionStats(
-          Array.isArray(transactions)
-            ? transactions
-                .map((stat: any) => ({
-                  type: typeof stat?.type === "string" ? stat.type : "other",
-                  count: Number(stat?.count ?? 0),
-                }))
-                .filter((stat) => Number.isFinite(stat.count) && stat.count > 0)
-            : [],
-        )
-      } catch (err) {
-        console.error("Error fetching analytics data:", err)
-        setError(t("errors.unavailable"))
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchAnalyticsData()
-  }, [isAuthLoading, user, t])
+  const isLoading = !user ? false : analyticsResult.isLoading && !analyticsResult.data
+  const isRefreshing = analyticsResult.isFetching && !isLoading
+  const error = analyticsResult.isError ? t("errors.unavailable") : null
 
   // Map asset types to colors
   const typeColors: Record<string, string> = {
@@ -140,7 +110,11 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader heading={t("analytics.title")} text={t("analytics.description")} />
+      <DashboardHeader heading={t("analytics.title")} text={t("analytics.description")}>
+        {isRefreshing ? (
+          <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+        ) : null}
+      </DashboardHeader>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card className="lg:col-span-2">

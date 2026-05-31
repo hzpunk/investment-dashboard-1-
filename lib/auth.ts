@@ -42,11 +42,13 @@ export async function getUserBySessionToken(token: string) {
       tokenHash,
       expiresAt: { gt: new Date() },
     },
-    include: {
+    select: {
       user: {
-        include: {
-          profile: true,
-          roles: true,
+        select: {
+          id: true,
+          email: true,
+          profile: { select: { username: true } },
+          roles: { select: { role: true }, take: 1 },
         },
       },
     },

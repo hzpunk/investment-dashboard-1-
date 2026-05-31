@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState, use } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
@@ -24,15 +26,15 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Save, Trash2, Plus } from "lucide-react"
 import {
-  fetchPortfolioWithAssets,
   updatePortfolio,
   deletePortfolio,
   addAssetToPortfolio,
   removeAssetFromPortfolio,
 } from "@/entities/portfolio/api"
-import { fetchAssets, type Asset } from "@/entities/asset/api"
+import { type Asset } from "@/entities/asset/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAssetTypeLabel } from "@/lib/i18n-display"
+import { assetsQuery, portfolioQuery, queryKeys } from "@/lib/query-options"
 
 type PortfolioAsset = {
   portfolioId: string
@@ -56,10 +58,7 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
   const { user } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
-  const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
-  const [availableAssets, setAvailableAssets] = useState<Asset[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
+  const queryClient = useQueryClient()
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false)
   const [newAsset, setNewAsset] = useState<{
@@ -75,59 +74,90 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
 
+  const userId = user?.id ?? ""
+  const enabled = Boolean(user)
+  const portfolioResult = useQuery({ ...portfolioQuery(userId, id), enabled })
+  const assetsResult = useQuery({ ...assetsQuery(), enabled })
+  const portfolio = portfolioResult.data as unknown as Portfolio | null
+  const availableAssets = assetsResult.data ?? []
+
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return
+    if (!portfolio) return
+    setName(portfolio.name)
+    setDescription(portfolio.description || "")
+  }, [portfolio?.id])
 
-      setIsLoading(true)
-      try {
-        const portfolioData = await fetchPortfolioWithAssets(id)
-        if (!portfolioData) {
-          setMessage({ type: "error", text: t("errors.unavailable") })
-          return
-        }
-        setPortfolio(portfolioData as unknown as Portfolio)
-        setName(portfolioData.name)
-        setDescription(portfolioData.description || "")
+  const invalidatePortfolioData = () => {
+    if (!user) return
+    void queryClient.invalidateQueries({ queryKey: queryKeys.portfolio(user.id, id) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.portfolios(user.id) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.portfolioAllocation(user.id) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.analytics(user.id) })
+  }
 
-        const assetsData = await fetchAssets()
-        setAvailableAssets(assetsData)
-      } catch (error) {
-        setMessage({ type: "error", text: t("errors.unavailable") })
-      } finally {
-        setIsLoading(false)
+  const updatePortfolioMutation = useMutation({
+    mutationFn: () => updatePortfolio(id, { name, description }),
+    onSuccess: (updatedPortfolio) => {
+      if (!updatedPortfolio || !user) return
+      queryClient.setQueryData<Portfolio | null>(queryKeys.portfolio(user.id, id), (current) =>
+        current ? { ...current, name: updatedPortfolio.name, description: updatedPortfolio.description } : current,
+      )
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portfolios(user.id) })
+    },
+  })
+
+  const deletePortfolioMutation = useMutation({
+    mutationFn: () => deletePortfolio(id),
+    onSuccess: () => {
+      if (user) {
+        queryClient.setQueryData<any[]>(queryKeys.portfolios(user.id), (current = []) =>
+          current.filter((portfolioItem) => portfolioItem.id !== id),
+        )
+        void queryClient.invalidateQueries({ queryKey: queryKeys.portfolioAllocation(user.id) })
       }
-    }
+      router.push("/portfolios")
+    },
+  })
 
-    fetchData()
-  }, [user, id])
+  const addAssetMutation = useMutation({
+    mutationFn: () =>
+      addAssetToPortfolio(id, {
+        assetId: newAsset.assetId,
+        quantity: newAsset.quantity,
+        averageBuyPrice: newAsset.averageBuyPrice,
+      }),
+    onSuccess: () => {
+      invalidatePortfolioData()
+    },
+  })
+
+  const removeAssetMutation = useMutation({
+    mutationFn: (assetId: string) => removeAssetFromPortfolio(id, assetId),
+    onSuccess: (_result, assetId) => {
+      if (user) {
+        queryClient.setQueryData<Portfolio | null>(queryKeys.portfolio(user.id, id), (current) =>
+          current ? { ...current, assets: current.assets?.filter((asset) => asset.assetId !== assetId) || [] } : current,
+        )
+      }
+      invalidatePortfolioData()
+    },
+  })
 
   const handleUpdatePortfolio = async () => {
     if (!portfolio) return
 
-    setIsSaving(true)
     setMessage(null)
 
     try {
-      const updatedPortfolio = await updatePortfolio(portfolio.id, {
-        name,
-        description,
-      })
+      const updatedPortfolio = await updatePortfolioMutation.mutateAsync()
       if (!updatedPortfolio) {
         setMessage({ type: "error", text: t("errors.unavailable") })
         return
       }
 
-      setPortfolio({
-        ...portfolio,
-        name: updatedPortfolio.name,
-        description: updatedPortfolio.description,
-      })
       setMessage({ type: "success", text: t("actions.saveChanges") })
     } catch (error) {
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
-    } finally {
-      setIsSaving(false)
     }
   }
 
@@ -139,8 +169,7 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
     }
 
     try {
-      await deletePortfolio(portfolio.id)
-      router.push("/portfolios")
+      await deletePortfolioMutation.mutateAsync()
     } catch (error) {
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     }
@@ -151,20 +180,10 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
       return
     }
 
-    setIsSaving(true)
     setMessage(null)
 
     try {
-      await addAssetToPortfolio(portfolio.id, {
-        assetId: newAsset.assetId,
-        quantity: newAsset.quantity,
-        averageBuyPrice: newAsset.averageBuyPrice,
-      })
-
-      const updatedPortfolio = await fetchPortfolioWithAssets(portfolio.id)
-      if (updatedPortfolio) {
-        setPortfolio(updatedPortfolio as unknown as Portfolio)
-      }
+      await addAssetMutation.mutateAsync()
 
       setNewAsset({
         assetId: "",
@@ -176,8 +195,6 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
       setMessage({ type: "success", text: t("actions.addAsset") })
     } catch (error) {
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
-    } finally {
-      setIsSaving(false)
     }
   }
 
@@ -189,18 +206,21 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
     }
 
     try {
-      await removeAssetFromPortfolio(portfolio.id, assetId)
-
-      setPortfolio({
-        ...portfolio,
-        assets: portfolio.assets?.filter((a) => a.assetId !== assetId) || [],
-      })
+      await removeAssetMutation.mutateAsync(assetId)
 
       setMessage({ type: "success", text: t("actions.remove") })
     } catch (error) {
       setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
     }
   }
+
+  const isLoading =
+    (portfolioResult.isLoading && !portfolioResult.data) || (assetsResult.isLoading && !assetsResult.data)
+  const isSaving =
+    updatePortfolioMutation.isPending ||
+    deletePortfolioMutation.isPending ||
+    addAssetMutation.isPending ||
+    removeAssetMutation.isPending
 
   if (isLoading) {
     return (
@@ -218,10 +238,10 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
           {t("portfolios.notFoundDescription")}
         </p>
         <Button asChild variant="outline">
-          <a href="/portfolios">
+          <Link href="/portfolios">
             <ArrowLeft className="mr-2 h-4 w-4" />
             {t("actions.backToPortfolios")}
-          </a>
+          </Link>
         </Button>
       </div>
     )
@@ -263,10 +283,10 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
     <div className="space-y-6">
       <DashboardHeader heading={portfolio.name} text={portfolio.description || t("portfolios.managePortfolio")}>
         <Button variant="outline" asChild>
-          <a href="/portfolios">
+          <Link href="/portfolios">
             <ArrowLeft className="mr-2 h-4 w-4" />
             {t("common.back")}
-          </a>
+          </Link>
         </Button>
       </DashboardHeader>
 

@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getCryptoPrices, cryptoIdMap } from "@/shared/api/market-data"
+import { getCryptoPricesResult, cryptoIdMap } from "@/shared/api/market-data"
 import { useI18n } from "@/contexts/i18n-context"
 
 interface CryptoPrice {
@@ -21,56 +22,43 @@ const popularCryptos = [
   { symbol: "XRP", name: "Ripple" },
 ]
 
+const defaultPrices = popularCryptos.map((crypto) => ({
+  ...crypto,
+  price: 0,
+  change24h: 0,
+}))
+
 export function CryptoTicker() {
   const { t } = useI18n()
-  const [prices, setPrices] = useState<CryptoPrice[]>(
-    popularCryptos.map((crypto) => ({
-      ...crypto,
-      price: 0,
-      change24h: 0,
-    })),
-  )
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const geckoIds = useMemo(() => popularCryptos.map((p) => cryptoIdMap[p.symbol]).filter(Boolean), [])
 
-  useEffect(() => {
-    const fetchPrices = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
+  const pricesResult = useQuery({
+    queryKey: ["crypto-ticker", geckoIds],
+    queryFn: () => getCryptoPricesResult(geckoIds),
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: false,
+  })
 
-        const geckoIds = popularCryptos.map((p) => cryptoIdMap[p.symbol]).filter(Boolean)
-        const data = await getCryptoPrices(geckoIds)
+  const prices: CryptoPrice[] = useMemo(() => {
+    const data = pricesResult.data?.data ?? {}
+    if (!pricesResult.data) return defaultPrices
 
-        if (!data || Object.keys(data).length === 0) {
-          throw new Error("failed_to_fetch_crypto_prices")
-        }
+    return popularCryptos.map((coin) => {
+      const geckoId = cryptoIdMap[coin.symbol]
+      const coinData = data[geckoId]
 
-        const updatedPrices = popularCryptos.map((coin) => {
-          const geckoId = cryptoIdMap[coin.symbol]
-          const coinData = data[geckoId]
-
-          return {
-            ...coin,
-            price: coinData?.usd || 0,
-            change24h: coinData?.usd_24h_change || 0,
-          }
-        })
-
-        setPrices(updatedPrices)
-      } catch (err) {
-        console.error("Error fetching crypto prices:", err)
-        setError(t("errors.unavailable"))
-      } finally {
-        setIsLoading(false)
+      return {
+        ...coin,
+        price: coinData?.usd || 0,
+        change24h: coinData?.usd_24h_change || 0,
       }
-    }
+    })
+  }, [pricesResult.data])
 
-    fetchPrices()
-    const interval = setInterval(fetchPrices, 60000) // Update every minute
-
-    return () => clearInterval(interval)
-  }, [t])
+  const isLoading = pricesResult.isLoading && !pricesResult.data
+  const warning = pricesResult.data?.source === "fallback" || pricesResult.isError ? t("errors.unavailable") : null
 
   return (
     <Card>
@@ -97,36 +85,36 @@ export function CryptoTicker() {
                   </div>
                 </div>
               ))
-          ) : error ? (
-            <div className="py-4 text-center text-muted-foreground">{error}</div>
           ) : (
-            prices.map((coin) => (
-              <div key={coin.symbol} className="py-3 hover:bg-accent/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                      {coin.symbol.charAt(0)}
+            <>
+              {warning ? <div className="pb-2 text-xs text-muted-foreground">{warning}</div> : null}
+              {prices.map((coin) => (
+                <div key={coin.symbol} className="py-3 hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                        {coin.symbol.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="font-medium">{coin.symbol}</div>
+                        <div className="text-sm text-muted-foreground">{coin.name}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium">{coin.symbol}</div>
-                      <div className="text-sm text-muted-foreground">{coin.name}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-medium">
-                      ${coin.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                    <div className={`text-sm ${coin.change24h >= 0 ? "text-green-500" : "text-red-500"}`}>
-                      {coin.change24h >= 0 ? "↑" : "↓"} {Math.abs(coin.change24h).toFixed(2)}%
+                    <div className="text-right">
+                      <div className="font-medium">
+                        ${coin.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className={`text-sm ${coin.change24h >= 0 ? "text-green-500" : "text-red-500"}`}>
+                        {coin.change24h >= 0 ? "up" : "down"} {Math.abs(coin.change24h).toFixed(2)}%
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </>
           )}
         </div>
       </CardContent>
     </Card>
   )
 }
-

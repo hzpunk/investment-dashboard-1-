@@ -96,6 +96,7 @@ model Account {
   transactions Transaction[]
 
   @@index([userId])
+  @@index([userId, createdAt])
 }
 
 model Asset {
@@ -133,6 +134,9 @@ model Transaction {
   @@index([accountId])
   @@index([assetId])
   @@index([date])
+  @@index([userId, date])
+  @@index([userId, accountId, date])
+  @@index([userId, assetId, date])
 }
 
 model Portfolio {
@@ -146,6 +150,7 @@ model Portfolio {
   assets PortfolioAsset[]
 
   @@index([userId])
+  @@index([userId, createdAt])
 }
 
 model PortfolioAsset {
@@ -173,6 +178,7 @@ model Goal {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, createdAt])
 }
 
 model AdminSetting {
@@ -219,6 +225,7 @@ model MarketDataCache {
   expiresAt   DateTime
 
   @@index([symbol, dataType])
+  @@index([symbol, dataType, expiresAt, lastUpdated])
   @@index([expiresAt])
 }
 
@@ -247,6 +254,7 @@ model Notification {
 
   @@index([userId])
   @@index([userId, read])
+  @@index([userId, createdAt])
   @@index([createdAt])
 }
 

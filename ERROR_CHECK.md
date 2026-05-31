@@ -46,7 +46,7 @@ Route (app)                                 Size  First Load JS
 ├ ƒ /api/auth/me                           226 B         101 kB
 ├ ƒ /api/auth/password                     226 B         101 kB
 ├ ƒ /api/auth/register                     226 B         101 kB
-├ ƒ /api/cron/update-prices                226 B         101 kB
+├ ƒ /api/admin/update-prices               226 B         101 kB
 ├ ƒ /api/data/accounts                     226 B         101 kB
 ├ ƒ /api/data/assets                       226 B         101 kB
 ├ ƒ /api/data/bootstrap                    226 B         101 kB

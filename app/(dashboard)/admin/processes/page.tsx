@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, Pause, RefreshCw } from "lucide-react"
-import { updateAssetPrices } from "@/entities/asset/api"
+import { triggerAssetPricesUpdate } from "@/entities/asset/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getStatusLabel } from "@/lib/i18n-display"
 
@@ -154,7 +154,7 @@ export default function AdminProcessesPage() {
 
       // Run the actual process based on the name
       if (process.name === "Asset Price Update") {
-        await updateAssetPrices()
+        await triggerAssetPricesUpdate()
       } else {
         // Simulate other processes
         await new Promise((resolve) => setTimeout(resolve, 3000))

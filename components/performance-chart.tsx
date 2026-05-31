@@ -6,21 +6,24 @@ import { cn } from "@/lib/utils"
 import { useI18n } from "@/contexts/i18n-context"
 import { formatLocaleDate } from "@/lib/i18n-display"
 
+type PerformancePeriod = "1M" | "3M" | "6M" | "1Y" | "ALL"
+
 interface PerformanceChartProps {
   className?: string
-  data: { date: string; value: number }[]
-  period: "1M" | "3M" | "6M" | "1Y" | "ALL"
+  data: { date: string; value: number }[] | Partial<Record<PerformancePeriod, { date: string; value: number }[]>>
+  period?: PerformancePeriod
 }
 
-export function PerformanceChart({ className, data, period }: PerformanceChartProps) {
-  const { t } = useI18n()
+export function PerformanceChart({ className, data, period = "1M" }: PerformanceChartProps) {
+  const { locale, t } = useI18n()
   // Ensure setActiveTab handles the correct union type
-  const [activeTab, setActiveTab] = useState<PerformanceChartProps['period']>(period)
+  const [activeTab, setActiveTab] = useState<PerformancePeriod>(period)
+  const chartData = Array.isArray(data) ? data : data[activeTab] ?? []
 
-  if (!data || data.length < 2) {
+  if (!chartData || chartData.length < 2) {
     return (
       <div className={cn("flex h-[300px] items-center justify-center text-muted-foreground", className)}>
-        {t("performance.noData")}
+        {t("analytics.noPerformanceData")}
       </div>
     )
   }
@@ -39,7 +42,7 @@ export function PerformanceChart({ className, data, period }: PerformanceChartPr
     }
   }
 
-  const metrics = calculateMetrics(data)
+  const metrics = calculateMetrics(chartData)
 
   return (
     <Card className={cn("", className)}>
@@ -48,7 +51,7 @@ export function PerformanceChart({ className, data, period }: PerformanceChartPr
         <CardDescription>{t("performance.description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue={activeTab} onValueChange={(value) => setActiveTab(value as PerformanceChartProps['period'])} className="space-y-4">
+        <Tabs defaultValue={activeTab} onValueChange={(value) => setActiveTab(value as PerformancePeriod)} className="space-y-4">
           <TabsList>
             <TabsTrigger value="1M">1M</TabsTrigger>
             <TabsTrigger value="3M">3M</TabsTrigger>
@@ -64,22 +67,22 @@ export function PerformanceChart({ className, data, period }: PerformanceChartPr
                   <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
                 </linearGradient>
                 <path
-                  d={`M0,${100 - data[0].value} ${data.map((point, i) => `L${(i / (data.length - 1)) * 100},${100 - point.value}`).join(" ")}`}
+                  d={`M0,${100 - chartData[0].value} ${chartData.map((point, i) => `L${(i / (chartData.length - 1)) * 100},${100 - point.value}`).join(" ")}`}
                   fill="none"
                   stroke="hsl(var(--primary))"
                   strokeWidth="1.5"
                 />
                 <path
-                  d={`M0,${100 - data[0].value} ${data.map((point, i) => `L${(i / (data.length - 1)) * 100},${100 - point.value}`).join(" ")} L100,100 L0,100 Z`}
+                  d={`M0,${100 - chartData[0].value} ${chartData.map((point, i) => `L${(i / (chartData.length - 1)) * 100},${100 - point.value}`).join(" ")} L100,100 L0,100 Z`}
                   fill={`url(#gradient-${activeTab})`}
                 />
               </svg>
             </div>
             <div className="flex justify-between text-xs text-muted-foreground">
               {/* Convert date strings to Date objects */}
-              <span>{formatLocaleDate(new Date(data[0].date), t("date_locale"))}</span>
-              <span>{formatLocaleDate(new Date(data[Math.floor(data.length / 2)].date), t("date_locale"))}</span>
-              <span>{formatLocaleDate(new Date(data[data.length - 1].date), t("date_locale"))}</span>
+              <span>{formatLocaleDate(new Date(chartData[0].date), locale)}</span>
+              <span>{formatLocaleDate(new Date(chartData[Math.floor(chartData.length / 2)].date), locale)}</span>
+              <span>{formatLocaleDate(new Date(chartData[chartData.length - 1].date), locale)}</span>
             </div>
             <div className="flex items-center justify-between">
               <div>

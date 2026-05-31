@@ -9,7 +9,7 @@ export interface AuthenticatedUser {
 
 // API Route context type
 export type RouteContext = {
-  params: Record<string, string | string[]>
+  params: Promise<Record<string, string | string[]>>
 }
 
 // Error response type
@@ -19,7 +19,7 @@ export type ErrorResponse = { error: string; code?: string }
 export type ApiHandler<T = unknown> = (
   req: NextRequest,
   user: AuthenticatedUser,
-  ctx?: RouteContext
+  ctx: RouteContext
 ) => Promise<NextResponse<T> | NextResponse<ErrorResponse>>
 
 // Custom API error class
@@ -41,7 +41,7 @@ export class ApiError extends Error {
 export function withAuth<T>(handler: ApiHandler<T>) {
   return async (
     req: NextRequest,
-    ctx?: RouteContext
+    ctx: RouteContext
   ): Promise<NextResponse> => {
     try {
       const user = await requireRequestUser()

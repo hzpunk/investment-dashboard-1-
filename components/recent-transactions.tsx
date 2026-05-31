@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,14 +18,11 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, ArrowUpRight, ArrowDownRight } from "lucide-react"
-import type { Database } from "@/types/supabase"
+import { fetchAccounts, type Account } from "@/entities/account/api"
+import { fetchAssets, type Asset } from "@/entities/asset/api"
+import { createTransaction, type Transaction } from "@/entities/transaction/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getTransactionTypeLabel } from "@/lib/i18n-display"
-
-type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
-  accounts?: { name: string } | null
-  assets?: { symbol: string; name: string } | null
-}
 
 interface RecentTransactionsProps {
   className?: string
@@ -38,8 +34,8 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
   const { t } = useI18n()
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [accounts, setAccounts] = useState<any[]>([])
-  const [assets, setAssets] = useState<any[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [assets, setAssets] = useState<Asset[]>([])
   const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
     type: "buy",
     date: new Date().toISOString(),
@@ -52,25 +48,14 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
     if (!user) return
 
     try {
-      // Fetch accounts
-      const { data: accountsData, error: accountsError } = await supabase
-        .from("accounts")
-        .select("id, name")
-        .eq("user_id", user.id)
-
-      if (accountsError) throw accountsError
-
-      // Fetch assets
-      const { data: assetsData, error: assetsError } = await supabase.from("assets").select("id, symbol, name")
-
-      if (assetsError) throw assetsError
+      const [accountsData, assetsData] = await Promise.all([fetchAccounts(user.id), fetchAssets()])
 
       setAccounts(accountsData || [])
       setAssets(assetsData || [])
 
       // Set default account if available
       if (accountsData && accountsData.length > 0) {
-        setNewTransaction((prev) => ({ ...prev, account_id: accountsData[0].id }))
+        setNewTransaction((prev) => ({ ...prev, accountId: accountsData[0].id }))
       }
     } catch (error) {
       console.error("Error fetching data:", error)
@@ -80,28 +65,28 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
   }
 
   const handleAddTransaction = async () => {
-    if (!user || !newTransaction.account_id || !newTransaction.type || !newTransaction.date) {
+    if (!user || !newTransaction.accountId || !newTransaction.type || !newTransaction.date) {
       return
     }
 
     setIsLoading(true)
 
     try {
-      const { error } = await supabase.from("transactions").insert({
-        user_id: user.id,
-        account_id: newTransaction.account_id,
-        asset_id: newTransaction.asset_id,
-        type: newTransaction.type as any,
-        quantity: newTransaction.quantity,
-        price_per_unit: newTransaction.price_per_unit,
-        total_amount: newTransaction.total_amount || 0,
+      const created = await createTransaction({
+        userId: user.id,
+        accountId: newTransaction.accountId,
+        assetId: newTransaction.assetId || null,
+        type: newTransaction.type,
+        quantity: newTransaction.quantity ?? null,
+        pricePerUnit: newTransaction.pricePerUnit ?? null,
+        totalAmount: newTransaction.totalAmount || 0,
         fee: newTransaction.fee || 0,
         currency: newTransaction.currency || "USD",
         date: newTransaction.date,
-        notes: newTransaction.notes,
+        notes: newTransaction.notes || null,
       })
 
-      if (error) throw error
+      if (!created) throw new Error("Failed to create transaction")
 
       // Refresh the page to show the new transaction
       window.location.reload()
@@ -158,8 +143,8 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                       ...newTransaction,
                       type: value as any,
                       quantity: value === "dividend" || value === "interest" ? undefined : newTransaction.quantity,
-                      price_per_unit:
-                        value === "dividend" || value === "interest" ? undefined : newTransaction.price_per_unit,
+                      pricePerUnit:
+                        value === "dividend" || value === "interest" ? undefined : newTransaction.pricePerUnit,
                     })
                   }
                 >
@@ -181,8 +166,8 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                   {t("transactions.account")}
                 </Label>
                 <Select
-                  value={newTransaction.account_id}
-                  onValueChange={(value) => setNewTransaction({ ...newTransaction, account_id: value })}
+                  value={newTransaction.accountId}
+                  onValueChange={(value) => setNewTransaction({ ...newTransaction, accountId: value })}
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder={t("transactions.selectAccount")} />
@@ -204,8 +189,8 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                     {t("transactions.asset")}
                   </Label>
                   <Select
-                    value={newTransaction.asset_id}
-                    onValueChange={(value) => setNewTransaction({ ...newTransaction, asset_id: value })}
+                    value={newTransaction.assetId || undefined}
+                    onValueChange={(value) => setNewTransaction({ ...newTransaction, assetId: value })}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder={t("transactions.selectAsset")} />
@@ -234,7 +219,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                         setNewTransaction({
                           ...newTransaction,
                           quantity: Number.parseFloat(e.target.value),
-                          total_amount: Number.parseFloat(e.target.value) * (newTransaction.price_per_unit || 0),
+                          totalAmount: Number.parseFloat(e.target.value) * (newTransaction.pricePerUnit || 0),
                         })
                       }
                       className="col-span-3"
@@ -247,12 +232,12 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                     <Input
                       id="transaction-price"
                       type="number"
-                      value={newTransaction.price_per_unit || ""}
+                      value={newTransaction.pricePerUnit || ""}
                       onChange={(e) =>
                         setNewTransaction({
                           ...newTransaction,
-                          price_per_unit: Number.parseFloat(e.target.value),
-                          total_amount: (newTransaction.quantity || 0) * Number.parseFloat(e.target.value),
+                          pricePerUnit: Number.parseFloat(e.target.value),
+                          totalAmount: (newTransaction.quantity || 0) * Number.parseFloat(e.target.value),
                         })
                       }
                       className="col-span-3"
@@ -267,9 +252,9 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                 <Input
                   id="transaction-total"
                   type="number"
-                  value={newTransaction.total_amount || ""}
+                  value={newTransaction.totalAmount || ""}
                   onChange={(e) =>
-                    setNewTransaction({ ...newTransaction, total_amount: Number.parseFloat(e.target.value) })
+                    setNewTransaction({ ...newTransaction, totalAmount: Number.parseFloat(e.target.value) })
                   }
                   className="col-span-3"
                 />
@@ -375,7 +360,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {transaction.currency} {(transaction.total_amount || 0).toFixed(2)}
+                      {transaction.currency} {(transaction.totalAmount || 0).toFixed(2)}
                     </TableCell>
                   </TableRow>
                 ))

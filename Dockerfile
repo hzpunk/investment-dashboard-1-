@@ -27,6 +27,7 @@ COPY . .
 RUN pnpm dlx prisma generate
 
 # Build the application
+ENV NEXT_STANDALONE=true
 RUN pnpm run build
 
 # Production image, copy all the files and run next

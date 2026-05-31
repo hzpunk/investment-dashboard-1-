@@ -189,7 +189,10 @@ export function AssetsList() {
                 <Label htmlFor="type" className="text-right">
                   {t("common.type")}
                 </Label>
-                <Select value={newAsset.type} onValueChange={(value) => setNewAsset({ ...newAsset, type: value })}>
+                <Select
+                  value={newAsset.type}
+                  onValueChange={(value) => setNewAsset({ ...newAsset, type: value as AssetTypeValue })}
+                >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder={t("assets.selectAssetType")} />
                   </SelectTrigger>

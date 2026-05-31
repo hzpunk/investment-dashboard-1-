@@ -20,12 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Plus, Pencil, Trash2, Search, RefreshCw, ArrowUpDown } from "lucide-react"
-import { fetchAssets, createAsset, deleteAsset, updateAssetPrices, updateAsset } from "@/entities/asset/api"
-import type { Database } from "@/types/supabase"
+import { fetchAssets, createAsset, deleteAsset, triggerAssetPricesUpdate, updateAsset, type Asset } from "@/entities/asset/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAssetTypeLabel } from "@/lib/i18n-display"
-
-type Asset = Database["public"]["Tables"]["assets"]["Row"]
 
 export default function AdminAssetsPage() {
   const { user, userRole } = useAuth()
@@ -102,7 +99,7 @@ export default function AdminAssetsPage() {
   )
 
   const handleAddAsset = async () => {
-    if (!newAsset.symbol || !newAsset.name || !newAsset.type || !newAsset.current_price) {
+    if (!newAsset.symbol || !newAsset.name || !newAsset.type || !newAsset.currentPrice) {
       setMessage({ type: "error", text: t("admin.requiredFields") })
       return
     }
@@ -115,7 +112,7 @@ export default function AdminAssetsPage() {
         symbol: newAsset.symbol,
         name: newAsset.name,
         type: newAsset.type as any,
-        current_price: newAsset.current_price,
+        currentPrice: newAsset.currentPrice,
         currency: newAsset.currency || "USD",
       })
 
@@ -134,7 +131,7 @@ export default function AdminAssetsPage() {
   }
 
   const handleEditAsset = async () => {
-    if (!editAsset || !editAsset.symbol || !editAsset.name || !editAsset.type || !editAsset.current_price) {
+    if (!editAsset || !editAsset.symbol || !editAsset.name || !editAsset.type || !editAsset.currentPrice) {
       setMessage({ type: "error", text: t("admin.requiredFields") })
       return
     }
@@ -147,7 +144,7 @@ export default function AdminAssetsPage() {
         symbol: editAsset.symbol,
         name: editAsset.name,
         type: editAsset.type as any,
-        current_price: editAsset.current_price,
+        currentPrice: editAsset.currentPrice,
         currency: editAsset.currency,
       })
 
@@ -180,7 +177,7 @@ export default function AdminAssetsPage() {
     setIsRefreshing(true)
     setMessage(null)
     try {
-      await updateAssetPrices()
+      await triggerAssetPricesUpdate()
       // Reload assets with updated prices
       const updatedAssets = await fetchAssets()
       setAssets(updatedAssets)
@@ -263,8 +260,8 @@ export default function AdminAssetsPage() {
                   <Input
                     id="price"
                     type="number"
-                    value={newAsset.current_price || ""}
-                    onChange={(e) => setNewAsset({ ...newAsset, current_price: Number.parseFloat(e.target.value) })}
+                    value={newAsset.currentPrice || ""}
+                    onChange={(e) => setNewAsset({ ...newAsset, currentPrice: Number.parseFloat(e.target.value) })}
                     className="col-span-3"
                   />
                 </div>
@@ -350,7 +347,7 @@ export default function AdminAssetsPage() {
                       </Button>
                     </TableHead>
                     <TableHead className="text-right">
-                      <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("current_price")}>
+                      <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("currentPrice")}>
                         Price
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
@@ -362,7 +359,7 @@ export default function AdminAssetsPage() {
                       </Button>
                     </TableHead>
                     <TableHead className="text-right">
-                      <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("updated_at")}>
+                      <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("updatedAt")}>
                         Last Updated
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
@@ -386,13 +383,13 @@ export default function AdminAssetsPage() {
                         <TableCell>{asset.name}</TableCell>
                         <TableCell>{getAssetTypeLabel(asset.type, t)}</TableCell>
                         <TableCell className="text-right">
-                          {asset.current_price.toLocaleString(undefined, {
+                          {asset.currentPrice.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
                           })}
                         </TableCell>
                         <TableCell>{asset.currency}</TableCell>
-                        <TableCell className="text-right">{new Date(asset.updated_at).toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{new Date(asset.updatedAt).toLocaleString()}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end space-x-2">
                             <Button
@@ -481,8 +478,8 @@ export default function AdminAssetsPage() {
                 <Input
                   id="edit-price"
                   type="number"
-                  value={editAsset.current_price}
-                  onChange={(e) => setEditAsset({ ...editAsset, current_price: Number.parseFloat(e.target.value) })}
+                  value={editAsset.currentPrice}
+                  onChange={(e) => setEditAsset({ ...editAsset, currentPrice: Number.parseFloat(e.target.value) })}
                   className="col-span-3"
                 />
               </div>

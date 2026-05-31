@@ -1,6 +1,5 @@
-[ ] Проанализировать структуру проекта (стек технологий, архитектура бэкенда).
-[ ] Найти и проанализировать конфигурацию CORS на бэкенде.
-[ ] Найти и проанализировать эндпоинт `/api/cron/update-prices`.
-[ ] Внести необходимые изменения для разрешения CORS.
-[ ] Внести необходимые изменения для корректной работы эндпоинта `/api/cron/update-prices`.
-[ ] Проверить работоспособность API после изменений.
+[x] Inspect project structure and backend architecture.
+[x] Remove unnecessary same-origin CORS configuration.
+[x] Route price updates through `/api/admin/update-prices`.
+[x] Move price update behavior into a server-only Prisma service.
+[ ] Verify API behavior after changes.

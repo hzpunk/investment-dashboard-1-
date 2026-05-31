@@ -1,51 +1,58 @@
-import { supabase } from "@/shared/api/supabase"
-import type { Database } from "@/types/supabase"
+export type Profile = {
+  id: string
+  username: string
+  avatarUrl: string | null
+  role: string | null
+  createdAt: string
+}
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+type CurrentUserResponse = {
+  user: { id: string; role: string; username?: string | null } | null
+}
 
-// Fetch user profile
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    credentials: "include",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers ?? {}),
+    },
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data?.error || "Request failed")
+  }
+
+  return data as T
+}
+
+async function assertCurrentUser(userId: string) {
+  const { user } = await apiFetch<CurrentUserResponse>("/api/auth/me")
+  if (!user || user.id !== userId) {
+    throw new Error("Profile access is limited to the current user")
+  }
+  return user
+}
+
 export async function fetchUserProfile(userId: string) {
-  const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
-
-  if (error) throw error
-  return data
+  await assertCurrentUser(userId)
+  return apiFetch<Profile>("/api/data/profiles")
 }
 
-// Update user profile
 export async function updateUserProfile(userId: string, updates: Partial<Profile>) {
-  const { data, error } = await supabase.from("profiles").update(updates).eq("id", userId).select().single()
-
-  if (error) throw error
-  return data
+  await assertCurrentUser(userId)
+  return apiFetch<Profile>("/api/data/profiles", {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  })
 }
 
-// Add a function to ensure the user profile exists
-export async function ensureUserProfile(userId: string, username: string) {
+export async function ensureUserProfile(userId: string) {
   try {
-    // Check if profile exists
-    const { data: existingProfile, error: checkError } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", userId)
-      .single()
-
-    if (checkError && checkError.code !== "PGRST116") {
-      // PGRST116 is "row not found"
-      throw checkError
-    }
-
-    // If profile doesn't exist, create it
-    if (!existingProfile) {
-      const { error: createError } = await supabase.from("profiles").insert({
-        id: userId,
-        username: username || "User",
-        role: "user", // Default role
-        created_at: new Date().toISOString(),
-      })
-
-      if (createError) throw createError
-    }
-
+    await fetchUserProfile(userId)
     return true
   } catch (error) {
     console.error("Error ensuring user profile:", error)
@@ -53,40 +60,29 @@ export async function ensureUserProfile(userId: string, username: string) {
   }
 }
 
-// Get user role
 export async function getUserRole(userId: string): Promise<string> {
   try {
-    const { data, error } = await supabase.from("profiles").select("role").eq("id", userId).single()
-
-    if (error) throw error
-    return data?.role || "user"
+    const user = await assertCurrentUser(userId)
+    return user.role || "user"
   } catch (error) {
     console.error("Error getting user role:", error)
     return "user"
   }
 }
 
-// Check if user is admin
 export async function isUserAdmin(userId: string): Promise<boolean> {
-  try {
-    const role = await getUserRole(userId)
-    return role === "admin"
-  } catch (error) {
-    console.error("Error checking if user is admin:", error)
-    return false
-  }
+  return (await getUserRole(userId)) === "admin"
 }
 
-// Set user role
 export async function setUserRole(userId: string, role: string) {
   try {
-    const { error } = await supabase.from("profiles").update({ role }).eq("id", userId)
-
-    if (error) throw error
+    await apiFetch(`/api/admin/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    })
     return true
   } catch (error) {
     console.error("Error setting user role:", error)
     return false
   }
 }
-

@@ -18,12 +18,9 @@ import {
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Pencil, Trash2 } from "lucide-react"
-import { createAccount, deleteAccount } from "@/entities/account/api"
-import type { Database } from "@/types/supabase"
+import { createAccount, deleteAccount, type Account } from "@/entities/account/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAccountTypeLabel } from "@/lib/i18n-display"
-
-type Account = Database["public"]["Tables"]["accounts"]["Row"]
 
 interface AccountsListProps {
   className?: string
@@ -49,7 +46,7 @@ export function AccountsList({ className, accounts = [] }: AccountsListProps) {
 
     try {
       await createAccount({
-        user_id: user.id,
+        userId: user.id,
         name: newAccount.name,
         type: newAccount.type as any,
         balance: newAccount.balance || 0,

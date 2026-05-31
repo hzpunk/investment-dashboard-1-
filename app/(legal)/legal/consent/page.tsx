@@ -31,7 +31,6 @@ export default function ConsentPage() {
           if (block.kind === "h3") return <h3 key={idx}>{block.text}</h3>
           if (block.kind === "h4") return <h4 key={idx}>{block.text}</h4>
           if (block.kind === "ul") {
-            // Confirmation is rendered as disabled checkboxes below.
             if (block.items.length === 4 && confirmationList.length === 4) return null
             return (
               <ul key={idx}>
@@ -101,7 +100,7 @@ export default function ConsentPage() {
 
         {confirmationList.length ? (
           <>
-            <h3>{content.blocks.find((b) => b.kind === "h3" && b.text.toLowerCase().includes("подтверж"))?.text ?? "Confirmation"}</h3>
+            <h3>Confirmation</h3>
             <div className="space-y-3 not-prose">
               {confirmationList.map((label, i) => {
                 const id = `confirm-${i + 1}`

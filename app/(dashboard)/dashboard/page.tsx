@@ -16,7 +16,7 @@ import { fetchAccounts } from "@/entities/account/api"
 import { fetchRecentTransactions } from "@/entities/transaction/api"
 import { fetchGoals } from "@/entities/goal/api"
 import { fetchPortfolios, calculatePortfolioStats } from "@/entities/portfolio/api"
-import { updateAssetPrices, Asset } from "@/entities/asset/api"
+import { triggerAssetPricesUpdate, Asset } from "@/entities/asset/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getHistoricalPrices } from "@/shared/api/market-data"
 
@@ -64,7 +64,7 @@ export default function DashboardPage() {
       }
 
       try {
-        await safeFetch(updateAssetPrices, undefined)
+        await safeFetch(triggerAssetPricesUpdate, undefined)
         const accounts = await safeFetch(() => fetchAccounts(user.id), [])
         const transactions = await safeFetch(() => fetchRecentTransactions(user.id, 5), [])
         const goals = await safeFetch(() => fetchGoals(user.id), [])
@@ -77,7 +77,7 @@ export default function DashboardPage() {
         let allTimeReturn = 0
 
         try {
-          const portfolios = await fetchPortfolios(user.id)
+          const portfolios = await fetchPortfolios()
           if (portfolios && portfolios.length > 0) {
             const stats = await calculatePortfolioStats(portfolios[0].id)
             portfolioAllocation = stats?.allocation || []

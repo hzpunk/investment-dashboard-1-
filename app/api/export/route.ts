@@ -92,7 +92,7 @@ async function exportTransactions(userId: string, format: string) {
         t.currency,
         t.account.name,
         t.notes || "",
-      ].map((v: string) => `"${v}"`).join(",")
+      ].map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")
     )
 
     return {

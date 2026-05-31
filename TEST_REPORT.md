@@ -110,7 +110,7 @@ docker-compose config
 - [x] POST /api/ai/chat ✅
 - [x] GET /api/health ✅
 - [x] GET /api/market-data ✅
-- [x] GET /api/cron/update-prices ✅
+- [x] POST /api/admin/update-prices ✅
 
 **Итого: 24 API endpoints ✅**
 

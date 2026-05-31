@@ -25,10 +25,10 @@ import { useI18n } from "@/contexts/i18n-context"
 
 type AdminSetting = {
   id: string
-  setting_key: string
-  setting_value: string
+  settingKey: string
+  settingValue: string
   description: string | null
-  updated_at: string
+  updatedAt: string
 }
 
 export default function AdminSettingsPage() {
@@ -116,8 +116,8 @@ export default function AdminSettingsPage() {
 
     try {
       const createdSetting = await createAdminSetting({
-        setting_key: newSetting.key,
-        setting_value: newSetting.value,
+        settingKey: newSetting.key,
+        settingValue: newSetting.value,
         description: newSetting.description || null,
       })
 
@@ -243,11 +243,11 @@ export default function AdminSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {settings
-                .filter((setting) => setting.setting_key.startsWith("general."))
+                .filter((setting) => setting.settingKey.startsWith("general."))
                 .map((setting) => (
                   <div key={setting.id} className="grid gap-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor={`setting-${setting.id}`}>{setting.setting_key.replace("general.", "")}</Label>
+                      <Label htmlFor={`setting-${setting.id}`}>{setting.settingKey.replace("general.", "")}</Label>
                       <Button
                         variant="outline"
                         size="sm"
@@ -262,7 +262,7 @@ export default function AdminSettingsPage() {
                     <Input
                       id={`setting-${setting.id}`}
                       value={
-                        editedSettings[setting.id] !== undefined ? editedSettings[setting.id] : setting.setting_value
+                        editedSettings[setting.id] !== undefined ? editedSettings[setting.id] : setting.settingValue
                       }
                       onChange={(e) => handleSettingChange(setting.id, e.target.value)}
                     />
@@ -280,11 +280,11 @@ export default function AdminSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {settings
-                .filter((setting) => setting.setting_key.startsWith("api."))
+                .filter((setting) => setting.settingKey.startsWith("api."))
                 .map((setting) => (
                   <div key={setting.id} className="grid gap-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor={`setting-${setting.id}`}>{setting.setting_key.replace("api.", "")}</Label>
+                      <Label htmlFor={`setting-${setting.id}`}>{setting.settingKey.replace("api.", "")}</Label>
                       <Button
                         variant="outline"
                         size="sm"
@@ -299,7 +299,7 @@ export default function AdminSettingsPage() {
                     <Input
                       id={`setting-${setting.id}`}
                       value={
-                        editedSettings[setting.id] !== undefined ? editedSettings[setting.id] : setting.setting_value
+                        editedSettings[setting.id] !== undefined ? editedSettings[setting.id] : setting.settingValue
                       }
                       onChange={(e) => handleSettingChange(setting.id, e.target.value)}
                     />
@@ -317,11 +317,11 @@ export default function AdminSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {settings
-                .filter((setting) => setting.setting_key.startsWith("security."))
+                .filter((setting) => setting.settingKey.startsWith("security."))
                 .map((setting) => (
                   <div key={setting.id} className="grid gap-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor={`setting-${setting.id}`}>{setting.setting_key.replace("security.", "")}</Label>
+                      <Label htmlFor={`setting-${setting.id}`}>{setting.settingKey.replace("security.", "")}</Label>
                       <Button
                         variant="outline"
                         size="sm"
@@ -336,7 +336,7 @@ export default function AdminSettingsPage() {
                     <Input
                       id={`setting-${setting.id}`}
                       value={
-                        editedSettings[setting.id] !== undefined ? editedSettings[setting.id] : setting.setting_value
+                        editedSettings[setting.id] !== undefined ? editedSettings[setting.id] : setting.settingValue
                       }
                       onChange={(e) => handleSettingChange(setting.id, e.target.value)}
                     />

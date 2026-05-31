@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
+import { invalidateAllUsersDerivedFinancialCache, invalidateMarketCache } from "@/lib/cache-invalidation"
 import { createLogger } from "@/lib/logger"
-import { cryptoIdMap, getCryptoPrices, getStockPrice } from "@/shared/api/market-data"
+import { cryptoIdMap, getCryptoPricesServer, getStockPriceServer } from "@/lib/services/market-data"
 
 const logger = createLogger("UpdateAssetPricesService")
 
@@ -56,6 +57,7 @@ export async function updateAssetPricesService(): Promise<UpdateAssetPricesResul
     skipped: 0,
     errors: [],
   }
+  const updatedSymbols = new Set<string>()
 
   if (assets.length === 0) {
     return result
@@ -73,7 +75,7 @@ export async function updateAssetPricesService(): Promise<UpdateAssetPricesResul
   let cryptoPrices: any = {}
   const cryptoIds = Array.from(new Set(cryptoIdsByAssetId.values()))
   if (cryptoIds.length > 0) {
-    cryptoPrices = await getCryptoPrices(cryptoIds)
+    cryptoPrices = (await getCryptoPricesServer(cryptoIds)).data
   }
 
   for (const asset of assets) {
@@ -92,7 +94,7 @@ export async function updateAssetPricesService(): Promise<UpdateAssetPricesResul
           result.skipped += 1
           continue
         }
-        nextPrice = parseStockPrice(await getStockPrice(asset.symbol))
+        nextPrice = parseStockPrice((await getStockPriceServer(asset.symbol)).data)
       } else {
         result.skipped += 1
         continue
@@ -106,6 +108,7 @@ export async function updateAssetPricesService(): Promise<UpdateAssetPricesResul
       const wasUpdated = await updateAssetPrice(asset.id, asset.currentPrice, nextPrice)
       if (wasUpdated) {
         result.updated += 1
+        updatedSymbols.add(asset.symbol)
       } else {
         result.skipped += 1
       }
@@ -119,6 +122,13 @@ export async function updateAssetPricesService(): Promise<UpdateAssetPricesResul
 
   if (result.updated > 0 || result.errors.length > 0) {
     logger.info("Asset price update completed", result)
+  }
+
+  if (updatedSymbols.size > 0) {
+    await Promise.all([
+      ...Array.from(updatedSymbols).map((symbol) => invalidateMarketCache(symbol)),
+      invalidateAllUsersDerivedFinancialCache(),
+    ])
   }
 
   return result

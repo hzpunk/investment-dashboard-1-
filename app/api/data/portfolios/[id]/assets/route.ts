@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { invalidateUserPortfolioCache } from "@/lib/cache-invalidation"
 import { prisma } from "@/lib/prisma"
 import { withAuth, successResponse, errorResponse } from "@/lib/api-handler"
 
@@ -79,6 +80,7 @@ export const POST = withAuth(async (
     },
   })
 
+  await invalidateUserPortfolioCache(user.id, portfolioId)
   return successResponse({ portfolioAsset }, 201)
 })
 
@@ -113,5 +115,6 @@ export const DELETE = withAuth(async (
     },
   })
 
+  await invalidateUserPortfolioCache(user.id, portfolioId)
   return successResponse({ success: true })
 })

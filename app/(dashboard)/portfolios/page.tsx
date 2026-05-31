@@ -1,6 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useMemo, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
@@ -18,9 +20,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Plus, Pencil, Trash2, BarChart3 } from "lucide-react"
+import { Plus, Pencil, Trash2, BarChart3, RefreshCw } from "lucide-react"
 import { useI18n } from "@/contexts/i18n-context"
-import { fetchPortfolios, createPortfolio, deletePortfolio, Portfolio } from "@/entities/portfolio/api"
+import { createPortfolio, deletePortfolio, Portfolio } from "@/entities/portfolio/api"
+import { portfoliosQuery, queryKeys } from "@/lib/query-options"
 
 type PortfolioWithDetails = Portfolio & {
   _count?: { assets: number }
@@ -30,43 +33,50 @@ type PortfolioWithDetails = Portfolio & {
 export default function PortfoliosPage() {
   const { user } = useAuth()
   const { t } = useI18n()
-  const [portfolios, setPortfolios] = useState<PortfolioWithDetails[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [isAddPortfolioOpen, setIsAddPortfolioOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [newPortfolio, setNewPortfolio] = useState<Partial<Portfolio>>({})
 
-  useEffect(() => {
-    const loadPortfolios = async () => {
-      if (!user) return
+  const userId = user?.id ?? ""
+  const portfoliosResult = useQuery({ ...portfoliosQuery(userId), enabled: Boolean(user) })
+  const portfolios = useMemo<PortfolioWithDetails[]>(() => {
+    return (portfoliosResult.data || []).map((portfolio: Portfolio & { assets?: any[] }) => {
+      const assets = portfolio.assets || []
+      const assetCount = assets.length
+      const totalValue = assets.reduce((sum: number, item: any) => {
+        return sum + (item.quantity || 0) * (item.asset?.currentPrice || 0)
+      }, 0)
 
-      setIsLoading(true)
-      try {
-        const data = await fetchPortfolios()
-        // Calculate asset counts and values from portfolio data
-        const portfoliosWithDetails = (data || []).map((portfolio: Portfolio & { assets?: any[] }) => {
-          const assets = portfolio.assets || []
-          const assetCount = assets.length
-          const totalValue = assets.reduce((sum: number, item: any) => {
-            return sum + (item.quantity || 0) * (item.asset?.currentPrice || 0)
-          }, 0)
-
-          return {
-            ...portfolio,
-            _count: { assets: assetCount },
-            _value: totalValue,
-          }
-        })
-        setPortfolios(portfoliosWithDetails)
-      } catch (error) {
-        console.error("Error fetching portfolios:", error)
-      } finally {
-        setIsLoading(false)
+      return {
+        ...portfolio,
+        _count: { assets: assetCount },
+        _value: totalValue,
       }
-    }
+    })
+  }, [portfoliosResult.data])
 
-    loadPortfolios()
-  }, [user])
+  const createPortfolioMutation = useMutation({
+    mutationFn: createPortfolio,
+    onSuccess: (createdPortfolio) => {
+      if (!createdPortfolio || !user) return
+      queryClient.setQueryData<Portfolio[]>(queryKeys.portfolios(user.id), (current = []) => [
+        createdPortfolio,
+        ...current,
+      ])
+    },
+  })
+
+  const deletePortfolioMutation = useMutation({
+    mutationFn: deletePortfolio,
+    onSuccess: (_result, id) => {
+      if (!user) return
+      queryClient.setQueryData<Portfolio[]>(queryKeys.portfolios(user.id), (current = []) =>
+        current.filter((portfolio) => portfolio.id !== id),
+      )
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portfolioAllocation(user.id) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.analytics(user.id) })
+    },
+  })
 
   // Handle add portfolio using API
   const handleAddPortfolio = async () => {
@@ -74,10 +84,8 @@ export default function PortfoliosPage() {
       return
     }
 
-    setIsSubmitting(true)
-
     try {
-      const createdPortfolio = await createPortfolio({
+      const createdPortfolio = await createPortfolioMutation.mutateAsync({
         name: newPortfolio.name,
         description: newPortfolio.description || null,
       })
@@ -87,12 +95,10 @@ export default function PortfoliosPage() {
         return
       }
 
-      setPortfolios([...portfolios, createdPortfolio as PortfolioWithDetails])
       setNewPortfolio({})
     } catch (error) {
       console.error("Error creating portfolio:", error)
     } finally {
-      setIsSubmitting(false)
       setIsAddPortfolioOpen(false)
     }
   }
@@ -103,16 +109,22 @@ export default function PortfoliosPage() {
     }
 
     try {
-      await deletePortfolio(id)
-      setPortfolios(portfolios.filter((p) => p.id !== id))
+      await deletePortfolioMutation.mutateAsync(id)
     } catch (error) {
       console.error("Error deleting portfolio:", error)
     }
   }
 
+  const isLoading = portfoliosResult.isLoading && !portfoliosResult.data
+  const isRefreshing = portfoliosResult.isFetching && !isLoading
+  const isSubmitting = createPortfolioMutation.isPending
+
   return (
     <div className="space-y-6">
       <DashboardHeader heading={t("portfolios.title")} text={t("portfolios.description")}>
+        {isRefreshing ? (
+          <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+        ) : null}
         <Dialog open={isAddPortfolioOpen} onOpenChange={setIsAddPortfolioOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -233,14 +245,15 @@ export default function PortfoliosPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col sm:flex-row gap-2 justify-between mt-auto">
                   <Button variant="outline" asChild className="w-full sm:w-auto">
-                    <a href={`/portfolios/${portfolio.id}`}>
+                    <Link href={`/portfolios/${portfolio.id}`}>
                       <Pencil className="mr-2 h-4 w-4" />
                       {t("actions.manage")}
-                    </a>
+                    </Link>
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => handleDeletePortfolio(portfolio.id)}
+                    disabled={deletePortfolioMutation.isPending}
                     className="w-full sm:w-auto"
                   >
                     <Trash2 className="mr-2 h-4 w-4" />

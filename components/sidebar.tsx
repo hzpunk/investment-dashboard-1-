@@ -23,6 +23,17 @@ import { useAuth } from "@/contexts/auth-context"
 import { useI18n } from "@/contexts/i18n-context"
 import { Button } from "@/components/ui/button"
 import { useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import {
+  accountsQuery,
+  analyticsQuery,
+  assetsQuery,
+  goalsQuery,
+  portfolioAllocationQuery,
+  portfoliosQuery,
+  recentTransactionsQuery,
+  transactionsQuery,
+} from "@/lib/query-options"
 
 interface SidebarProps {
   open?: boolean
@@ -31,8 +42,9 @@ interface SidebarProps {
 
 export function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname()
-  const { userRole } = useAuth()
+  const { user, userRole } = useAuth()
   const { t } = useI18n()
+  const queryClient = useQueryClient()
 
   // Close sidebar when route changes on mobile
   useEffect(() => {
@@ -43,6 +55,49 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
 
   // Check if user is admin
   const isAdmin = userRole === "admin"
+
+  const prefetchRouteData = (href: string) => {
+    if (!user) return
+
+    if (href === "/dashboard") {
+      void queryClient.prefetchQuery(accountsQuery(user.id))
+      void queryClient.prefetchQuery(recentTransactionsQuery(user.id, 5))
+      void queryClient.prefetchQuery(goalsQuery(user.id))
+      void queryClient.prefetchQuery(portfolioAllocationQuery(user.id))
+      return
+    }
+
+    if (href === "/accounts") {
+      void queryClient.prefetchQuery(accountsQuery(user.id))
+      return
+    }
+
+    if (href === "/assets") {
+      void queryClient.prefetchQuery(assetsQuery())
+      return
+    }
+
+    if (href === "/transactions") {
+      void queryClient.prefetchQuery(transactionsQuery(user.id))
+      void queryClient.prefetchQuery(accountsQuery(user.id))
+      void queryClient.prefetchQuery(assetsQuery())
+      return
+    }
+
+    if (href === "/portfolios") {
+      void queryClient.prefetchQuery(portfoliosQuery(user.id))
+      return
+    }
+
+    if (href === "/goals") {
+      void queryClient.prefetchQuery(goalsQuery(user.id))
+      return
+    }
+
+    if (href === "/analytics") {
+      void queryClient.prefetchQuery(analyticsQuery(user.id))
+    }
+  }
 
   const sidebarItems = [
     {
@@ -158,6 +213,8 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    onMouseEnter={() => prefetchRouteData(item.href)}
+                    onFocus={() => prefetchRouteData(item.href)}
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent",
                       pathname === item.href ? "bg-accent text-accent-foreground" : "text-muted-foreground",

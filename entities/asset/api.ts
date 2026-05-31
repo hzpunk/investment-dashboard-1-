@@ -21,20 +21,17 @@ export type AssetInsert = {
 }
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
-  try {
-    const res = await fetch(url, options)
-    const data = await res.json().catch(() => null)
+  const res = await fetch(url, options)
+  const data = await res.json().catch(() => null)
 
-    if (!res.ok) {
-      logger.warn(`API request failed: ${url}`, data?.error)
-      return null
-    }
-
-    return data as T
-  } catch (error) {
-    logger.error(`API request error: ${url}`, error)
-    return null
+  if (!res.ok) {
+    logger.warn(`API request failed: ${url}`, data?.error)
+    const error = new Error(data?.error || "Asset request failed") as Error & { code?: string }
+    error.code = data?.code
+    throw error
   }
+
+  return data as T
 }
 
 export async function fetchAssets() {
@@ -71,7 +68,8 @@ export async function deleteAsset(id: string) {
   const data = await apiFetch<{ success: boolean }>(`/api/data/assets/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
-  return data?.success || false
+  if (!data?.success) throw new Error('Failed to delete asset')
+  return data.success
 }
 
 export async function triggerAssetPricesUpdate() {

@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
@@ -19,27 +20,23 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/components/ui/use-toast"
-import { Plus, ArrowUpRight, ArrowDownRight, Search } from "lucide-react"
-import { fetchTransactions, createTransaction, Transaction } from "@/entities/transaction/api"
-import { fetchAccounts } from "@/entities/account/api"
-import { fetchAssets } from "@/entities/asset/api"
+import { Plus, ArrowUpRight, ArrowDownRight, Search, RefreshCw } from "lucide-react"
+import { createTransaction, Transaction } from "@/entities/transaction/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getTransactionTypeLabel } from "@/lib/i18n-display"
+import { accountsQuery, assetsQuery, queryKeys, transactionsQuery } from "@/lib/query-options"
 
 export default function TransactionsPage() {
   const { user } = useAuth()
   const { t } = useI18n()
   const { toast } = useToast()
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [accounts, setAccounts] = useState<any[]>([])
-  const [assets, setAssets] = useState<any[]>([])
+  const [formError, setFormError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState({
-    type: "",
-    account: "",
+    type: "all",
+    account: "all",
     dateFrom: "",
     dateTo: "",
   })
@@ -50,53 +47,54 @@ export default function TransactionsPage() {
     fee: 0,
   })
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!user) return
+  const userId = user?.id ?? ""
+  const enabled = Boolean(user)
+  const transactionsResult = useQuery({ ...transactionsQuery(userId), enabled })
+  const accountsResult = useQuery({ ...accountsQuery(userId), enabled })
+  const assetsResult = useQuery({ ...assetsQuery(), enabled })
+  const transactions = transactionsResult.data ?? []
+  const accounts = accountsResult.data ?? []
+  const assets = assetsResult.data ?? []
 
-      setIsLoading(true)
-      try {
-        // Fetch transactions
-        const transactionsData = await fetchTransactions(user.id)
-        setTransactions(transactionsData)
-
-        // Fetch accounts for filter
-        const accountsData = await fetchAccounts(user.id)
-        setAccounts(accountsData)
-
-        // Fetch assets for reference
-        const assetsData = await fetchAssets()
-        setAssets(assetsData)
-      } catch (error) {
-        console.error("Error fetching data:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadData()
-  }, [user])
+  const createTransactionMutation = useMutation({
+    mutationFn: createTransaction,
+    onSuccess: (newTx) => {
+      if (!newTx || !user) return
+      queryClient.setQueryData<Transaction[]>(queryKeys.transactions(user.id), (current = []) => [newTx, ...current])
+      queryClient.setQueryData<Transaction[]>(queryKeys.recentTransactions(user.id, 5), (current = []) =>
+        [newTx, ...current].slice(0, 5),
+      )
+      void queryClient.invalidateQueries({ queryKey: queryKeys.accounts(user.id) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portfolioAllocation(user.id) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.analytics(user.id) })
+    },
+  })
 
   // Fetch accounts and assets when dialog opens
   const handleOpenDialog = async () => {
     if (!user) return
+    setFormError(null)
+    setNewTransaction((previous) => ({
+      ...previous,
+      accountId: previous.accountId ?? accounts[0]?.id,
+    }))
     setIsAddTransactionOpen(true)
   }
 
   const handleAddTransaction = async () => {
     if (!user || !newTransaction.accountId || !newTransaction.type || !newTransaction.date) {
+      setFormError(t("transactions.toast.addErrorDescription"))
       return
     }
 
-    setIsSubmitting(true)
-    console.log("Attempting to create transaction with data:", newTransaction)
+    setFormError(null)
 
     try {
-      const newTx = await createTransaction({
+      const newTx = await createTransactionMutation.mutateAsync({
         userId: user.id,
         accountId: newTransaction.accountId,
         assetId: newTransaction.assetId || null,
-        type: newTransaction.type as any,
+        type: newTransaction.type,
         quantity: newTransaction.quantity ?? null,
         pricePerUnit: newTransaction.pricePerUnit ?? null,
         totalAmount: newTransaction.totalAmount ?? 0,
@@ -112,8 +110,16 @@ export default function TransactionsPage() {
           description: t("transactions.toast.addSuccessDescription"),
           variant: "default",
         })
-        window.location.reload()
+        setNewTransaction({
+          type: "buy",
+          date: new Date().toISOString(),
+          currency: "USD",
+          fee: 0,
+          accountId: accounts[0]?.id,
+        })
+        setIsAddTransactionOpen(false)
       } else {
+        setFormError(t("transactions.toast.addErrorDescription"))
         toast({
           title: t("transactions.toast.addErrorTitle"),
           description: t("transactions.toast.addErrorDescription"),
@@ -121,17 +127,24 @@ export default function TransactionsPage() {
         })
       }
     } catch (error) {
-      console.error("Error adding transaction:", error)
+      const message = error instanceof Error ? error.message : t("transactions.toast.addErrorDescriptionGeneric")
+      setFormError(message)
       toast({
         title: t("transactions.toast.addErrorTitle"),
-        description: t("transactions.toast.addErrorDescriptionGeneric"),
+        description: message,
         variant: "destructive",
       })
     } finally {
-      setIsSubmitting(false)
-      setIsAddTransactionOpen(false)
     }
   }
+
+  const isLoading =
+    (transactionsResult.isLoading && !transactionsResult.data) ||
+    (accountsResult.isLoading && !accountsResult.data) ||
+    (assetsResult.isLoading && !assetsResult.data)
+  const isRefreshing =
+    !isLoading && (transactionsResult.isFetching || accountsResult.isFetching || assetsResult.isFetching)
+  const isSubmitting = createTransactionMutation.isPending
 
   const filteredTransactions = transactions.filter((transaction) => {
     // Search query filter
@@ -143,10 +156,10 @@ export default function TransactionsPage() {
       transaction.notes?.toLowerCase().includes(searchQuery.toLowerCase())
 
     // Type filter
-    const typeMatch = !filters.type || transaction.type === filters.type
+    const typeMatch = filters.type === "all" || transaction.type === filters.type
 
     // Account filter
-    const accountMatch = !filters.account || transaction.accountId === filters.account
+    const accountMatch = filters.account === "all" || transaction.accountId === filters.account
 
     // Date range filter
     const dateFrom = filters.dateFrom ? new Date(filters.dateFrom) : null
@@ -161,6 +174,9 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6">
       <DashboardHeader heading={t("transactions.title")} text={t("transactions.description")}>
+        {isRefreshing ? (
+          <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+        ) : null}
         <Dialog open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleOpenDialog}>
@@ -174,6 +190,11 @@ export default function TransactionsPage() {
               <DialogDescription>{t("transactions.addDialogDescription")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              {formError ? (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {formError}
+                </div>
+              ) : null}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="transaction-date" className="text-right">
                   {t("common.date")}
@@ -197,10 +218,19 @@ export default function TransactionsPage() {
                   onValueChange={(value) =>
                     setNewTransaction({
                       ...newTransaction,
-                      type: value as any,
-                      quantity: value === "dividend" || value === "interest" ? undefined : newTransaction.quantity,
+                      type: value as Transaction["type"],
+                      assetId:
+                        value === "deposit" || value === "withdrawal" || value === "interest"
+                          ? null
+                          : newTransaction.assetId,
+                      quantity:
+                        value === "dividend" || value === "interest" || value === "deposit" || value === "withdrawal"
+                          ? undefined
+                          : newTransaction.quantity,
                       pricePerUnit:
-                        value === "dividend" || value === "interest" ? undefined : newTransaction.pricePerUnit,
+                        value === "dividend" || value === "interest" || value === "deposit" || value === "withdrawal"
+                          ? undefined
+                          : newTransaction.pricePerUnit,
                     })
                   }
                 >
@@ -363,7 +393,7 @@ export default function TransactionsPage() {
               <Button variant="outline" onClick={() => setIsAddTransactionOpen(false)}>
                 {t("common.cancel")}
               </Button>
-              <Button onClick={handleAddTransaction} disabled={isSubmitting}>
+              <Button onClick={handleAddTransaction} disabled={isSubmitting || accounts.length === 0}>
                 {isSubmitting ? t("common.loading") : t("actions.addTransaction")}
               </Button>
             </DialogFooter>
@@ -426,7 +456,7 @@ export default function TransactionsPage() {
                 value={filters.dateTo}
                 onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
               />
-              <Button variant="outline" onClick={() => setFilters({ type: "", account: "", dateFrom: "", dateTo: "" })}>
+              <Button variant="outline" onClick={() => setFilters({ type: "all", account: "all", dateFrom: "", dateTo: "" })}>
                 {t("actions.reset")}
               </Button>
             </div>
@@ -455,7 +485,7 @@ export default function TransactionsPage() {
                   {filteredTransactions.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
-                        {searchQuery || filters.type || filters.account || filters.dateFrom || filters.dateTo
+                        {searchQuery || filters.type !== "all" || filters.account !== "all" || filters.dateFrom || filters.dateTo
                           ? t("transactions.noTransactionsByFilters")
                           : t("transactions.noTransactions")}
                       </TableCell>

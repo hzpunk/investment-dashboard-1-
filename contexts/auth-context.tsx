@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
  
 type AuthUser = {
   id: string
@@ -24,6 +25,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [session, setSession] = useState<null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -63,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: { message: data?.error || "Login failed" } }
       }
 
+      queryClient.clear()
       setUser(data?.user ?? null)
       setUserRole(data?.user?.role ?? null)
       return { error: null }
@@ -84,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: { message: data?.error || "Registration failed" } }
       }
 
+      queryClient.clear()
       setUser(data?.user ?? null)
       setUserRole(data?.user?.role ?? null)
       return { error: null }
@@ -94,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => null)
+    queryClient.clear()
     setUser(null)
     setUserRole(null)
   }

@@ -24,6 +24,17 @@ export type PortfolioAsset = {
 
 export type PortfolioAssetInsert = Omit<PortfolioAsset, "portfolioId" | "asset">
 
+export type PortfolioAllocationItem = {
+  type: "stock" | "bond" | "etf" | "crypto" | "commodity" | "other"
+  value: number
+}
+
+export type PortfolioAllocationSummary = {
+  totalValue: number
+  allocation: PortfolioAllocationItem[]
+  source: "portfolio_assets" | "transactions" | "mixed" | "empty"
+}
+
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
   try {
     const res = await fetch(url, options)
@@ -110,5 +121,10 @@ export async function calculatePortfolioStats(portfolioId: string) {
     assetCount: data?.assetCount ?? 0,
     allocation: data?.allocation ?? [],
   }
+}
+
+export async function fetchPortfolioAllocation() {
+  const data = await apiFetch<PortfolioAllocationSummary>("/api/portfolio/allocation")
+  return data ?? { totalValue: 0, allocation: [], source: "empty" as const }
 }
 

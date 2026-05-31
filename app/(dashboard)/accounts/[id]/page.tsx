@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState, use } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
@@ -16,12 +18,14 @@ import { fetchTransactions, Transaction } from "@/entities/transaction/api"
 import { ArrowLeft, Save, Trash2 } from "lucide-react"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAccountTypeLabel, getTransactionTypeLabel } from "@/lib/i18n-display"
+import { queryKeys } from "@/lib/query-options"
 
 export default function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { user } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [account, setAccount] = useState<Account | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -83,6 +87,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       })
 
       setAccount(updatedAccount)
+      if (updatedAccount && user) {
+        queryClient.setQueryData<Account[]>(queryKeys.accounts(user.id), (current = []) =>
+          current.map((item) => (item.id === updatedAccount.id ? updatedAccount : item)),
+        )
+        void queryClient.invalidateQueries({ queryKey: queryKeys.portfolioAllocation(user.id) })
+      }
       setMessage({ type: "success", text: t("actions.saveChanges") })
     } catch (error) {
       console.error("Error updating account:", error)
@@ -101,6 +111,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
     try {
       await deleteAccount(account.id)
+      if (user) {
+        queryClient.setQueryData<Account[]>(queryKeys.accounts(user.id), (current = []) =>
+          current.filter((item) => item.id !== account.id),
+        )
+        void queryClient.invalidateQueries({ queryKey: queryKeys.transactions(user.id) })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.recentTransactions(user.id, 5) })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.portfolioAllocation(user.id) })
+      }
       router.push("/accounts")
     } catch (error) {
       console.error("Error deleting account:", error)
@@ -124,10 +142,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           {t("accounts.notFoundDescription")}
         </p>
         <Button asChild variant="outline">
-          <a href="/accounts">
+          <Link href="/accounts">
             <ArrowLeft className="mr-2 h-4 w-4" />
             {t("actions.backToAccounts")}
-          </a>
+          </Link>
         </Button>
       </div>
     )
@@ -137,10 +155,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     <div className="space-y-6">
       <DashboardHeader heading={account.name} text={t("accounts.manageAccountText")}>
         <Button variant="outline" asChild>
-          <a href="/accounts">
+          <Link href="/accounts">
             <ArrowLeft className="mr-2 h-4 w-4" />
             {t("common.back")}
-          </a>
+          </Link>
         </Button>
       </DashboardHeader>
 
@@ -257,7 +275,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             </CardContent>
             <CardFooter>
               <Button asChild variant="outline" className="ml-auto">
-                <a href={`/transactions?account=${account.id}`}>{t("accounts.viewAllTransactions")}</a>
+                <Link href={`/transactions?account=${account.id}`}>{t("accounts.viewAllTransactions")}</Link>
               </Button>
             </CardFooter>
           </Card>

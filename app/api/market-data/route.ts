@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getCryptoPrices, getStockPrice, cryptoIdMap } from "@/shared/api/market-data"
+import { cryptoIdMap, getCryptoPricesServer, getStockPriceServer } from "@/lib/services/market-data"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -11,18 +11,18 @@ export async function GET(request: Request) {
       if (!symbol) {
         // Get all popular cryptos
         const popularCryptos = ["bitcoin", "ethereum", "binancecoin", "solana", "ripple"]
-        const data = await getCryptoPrices(popularCryptos)
-        return NextResponse.json({ data })
+        const result = await getCryptoPricesServer(popularCryptos)
+        return NextResponse.json(result)
       } else {
         // Get specific crypto
-        const geckoId = cryptoIdMap[symbol] || symbol.toLowerCase()
-        const data = await getCryptoPrices([geckoId])
-        return NextResponse.json({ data })
+        const geckoId = cryptoIdMap[symbol.toUpperCase()] || symbol.toLowerCase()
+        const result = await getCryptoPricesServer([geckoId])
+        return NextResponse.json(result)
       }
     } else if (type === "stock" && symbol) {
       // Get stock price
-      const data = await getStockPrice(symbol)
-      return NextResponse.json({ data })
+      const result = await getStockPriceServer(symbol)
+      return NextResponse.json(result)
     } else {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 })
     }

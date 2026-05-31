@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { invalidateUserAccountsCache } from '@/lib/cache-invalidation'
 import { prisma } from '@/lib/prisma'
 import { withAuth, successResponse, errorResponse } from '@/lib/api-handler'
 
@@ -47,6 +48,7 @@ export const PUT = withAuth(async (request: NextRequest, user) => {
     },
   })
 
+  await invalidateUserAccountsCache(user.id)
   return successResponse({ account: updatedAccount })
 })
 
@@ -66,5 +68,6 @@ export const DELETE = withAuth(async (request: NextRequest, user) => {
   }
 
   await prisma.account.delete({ where: { id } })
+  await invalidateUserAccountsCache(user.id)
   return successResponse({ success: true })
 })

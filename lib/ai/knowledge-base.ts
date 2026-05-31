@@ -1,5 +1,5 @@
-// AI Knowledge Base for Investment Education
-// This provides factual information to minimize hallucinations
+// Optional educational context for general investment questions.
+// User portfolio/account/market data must always take priority over this static material.
 
 export interface KnowledgeArticle {
   topic: string
@@ -160,8 +160,7 @@ export const KNOWLEDGE_BASE: KnowledgeArticle[] = [
   },
 ]
 
-// Find relevant knowledge for a query
-export function findRelevantKnowledge(query: string): string | null {
+export function findEducationalContext(query: string): string | null {
   const normalizedQuery = query.toLowerCase()
   
   for (const article of KNOWLEDGE_BASE) {
@@ -173,33 +172,4 @@ export function findRelevantKnowledge(query: string): string | null {
   }
   
   return null
-}
-
-// Check if topic is finance-related
-export function isFinanceRelated(query: string): boolean {
-  const financeKeywords = [
-    // Russian
-    "инвест", "финанс", "акци", "облигаци", "портфел", "дивиденд", "бирж",
-    "торговл", "крипто", "биткоин", "etf", "фонд", "налог", "доход",
-    "расход", "бюджет", "эконом", "рынок", "валют", "доллар", "евро",
-    "ипотек", "кредит", "вклад", "депозит", "страхован", "пенс",
-    // English
-    "invest", "stock", "bond", "portfolio", "dividend", "trade", "market",
-    "crypto", "bitcoin", "finance", "money", "asset", "fund", "etf",
-    "tax", "income", "budget", "economic", "currency", "mortgage",
-    "loan", "credit", "deposit", "insurance", "retirement"
-  ]
-  
-  const normalized = query.toLowerCase()
-  return financeKeywords.some(kw => normalized.includes(kw))
-}
-
-// Get refusal message for non-finance topics
-export function getNonFinanceRefusal(): string {
-  const refusals = [
-    "Извините, я специализируюсь только на финансовых и инвестиционных темах. Могу помочь с вопросами об акциях, облигациях, ETF, налогах на инвестиции или планировании портфеля.",
-    "Моя область знаний ограничена инвестициями и финансами. Давайте обсудим диверсификацию портфеля или налоговые льготы для инвесторов?",
-    "Я могу ответить только на вопросы, связанные с инвестициями, финансами и экономикой. Что интересует: акции, облигации или стратегии инвестирования?"
-  ]
-  return refusals[Math.floor(Math.random() * refusals.length)]
 }

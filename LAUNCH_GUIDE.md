@@ -9,15 +9,15 @@
 
 ### Минимальные:
 - **macOS:** 12+ (Monterey) или Windows 10+/Linux
-- **RAM:** 8 GB (16 GB рекомендуется для AI)
+- **RAM:** 8 GB
 - **Disk:** 10 GB свободного места
 - **Docker Desktop:** Latest version
 - **Node.js:** 20+ (если запуск без Docker)
 
 ### Рекомендуемые:
-- **RAM:** 16 GB (AI требует 4GB)
+- **RAM:** 16 GB
 - **SSD:** Для быстрой работы БД
-- **Интернет:** Для загрузки AI модели (~4GB)
+- **Tailscale:** сервер должен видеть Windows-машину с LM Studio
 
 ---
 
@@ -48,7 +48,7 @@ cd "/Users/hzpunk/Downloads/Desktop/investment-dashboard (1)"
 # Остановить старые контейнеры (если есть)
 docker-compose -f docker-compose.dev.yml down
 
-# Запустить PostgreSQL и Ollama AI
+# Запустить PostgreSQL и Redis
 docker-compose -f docker-compose.dev.yml up -d
 ```
 
@@ -61,7 +61,7 @@ docker-compose -f docker-compose.dev.yml ps
 ```
 NAME                STATUS          PORTS
 investment-db-dev   Up (healthy)    0.0.0.0:5432->5432/tcp
-investment-ai-dev   Up              0.0.0.0:11434->11434/tcp
+investment-redis-dev Up (healthy)   0.0.0.0:6379->6379/tcp
 ```
 
 ---
@@ -78,11 +78,11 @@ DATABASE_URL="postgresql://investuser:investpass@localhost:5432/investment_dashb
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 # AI Service
-OLLAMA_URL="http://localhost:11434"
-AI_MODEL="mistral"
+OLLAMA_URL="http://100.91.135.114:11434/v1"
+AI_MODEL="Mistral 7B Instruct v0.3"
 
 # Security
-SESSION_SECRET="dev-secret-key-change-in-production"
+AUTH_SECRET="dev-secret-key-change-in-production"
 EOF
 ```
 
@@ -118,28 +118,27 @@ npx prisma studio
 
 ---
 
-## 🤖 Шаг 5: Загрузка AI модели (Опционально)
+## 🤖 Шаг 5: Проверка LM Studio (Опционально)
 
-**Важно:** AI требует 4GB RAM и ~5-15 минут на загрузку.
+**Важно:** LM Studio запускается на отдельной Windows-машине, подключенной через Tailscale. Модель должна быть загружена в LM Studio заранее.
 
-### 5.1. Запусти загрузку модели:
+### 5.1. Проверь endpoint:
 ```bash
 ./scripts/init-ai.sh
 ```
 
 Или вручную:
 ```bash
-curl -X POST http://localhost:11434/api/pull \
+curl -s http://100.91.135.114:11434/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"name":"mistral"}'
+  -d '{
+    "model": "Mistral 7B Instruct v0.3",
+    "messages": [{ "role": "user", "content": "Say hello" }],
+    "stream": false
+  }'
 ```
 
-### 5.2. Проверь статус:
-```bash
-curl http://localhost:11434/api/tags
-```
-
-**Готово когда:** Возвращает `{"models":[{"name":"mistral"...}]}``
+**Готово когда:** ответ содержит `choices[0].message.content`.
 
 ---
 
@@ -268,11 +267,11 @@ npx prisma db push --accept-data-loss
 ### Проблема: AI не отвечает
 **Решение:**
 ```bash
-# Проверить Ollama
-curl http://localhost:11434/api/tags
+# Проверить LM Studio OpenAI-compatible endpoint с сервера
+./scripts/init-ai.sh
 
-# Если пусто — загрузить модель
-curl -X POST http://localhost:11434/api/pull -d '{"name":"mistral"}'
+# Проверить переменные окружения backend
+grep -E "OLLAMA_URL|AI_MODEL" .env.local
 ```
 
 ### Проблема: Docker не запускается

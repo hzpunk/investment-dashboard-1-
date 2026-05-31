@@ -9,13 +9,14 @@
 
 ### Docker Services
 - [ ] PostgreSQL запущен (порт 5432)
-- [ ] Ollama AI запущен (порт 11434)
+- [ ] LM Studio доступен через Tailscale OpenAI-compatible endpoint
 - [ ] Next.js приложение (порт 3000)
 - [ ] Health checks работают
 
 ### Переменные окружения
 - [ ] DATABASE_URL настроен
-- [ ] OLLAMA_URL настроен
+- [ ] OLLAMA_URL настроен как base URL `/v1`
+- [ ] AI_MODEL настроен
 - [ ] SESSION_SECRET установлен
 
 ---

@@ -12,7 +12,7 @@
 docker-compose up --build
 ```
 
-### Режим разработки (только БД и AI)
+### Режим разработки (БД и Redis)
 
 ```bash
 # Запуск инфраструктуры
@@ -26,7 +26,7 @@ npm run dev
 
 - Docker 20.10+
 - Docker Compose 2.0+
-- 6GB RAM минимум (4GB для AI + 2GB для приложения)
+- 2GB RAM минимум для приложения, БД и Redis. LM Studio запускается отдельно на Windows-машине в Tailscale.
 
 ## 🔧 Сервисы
 
@@ -34,7 +34,7 @@ npm run dev
 |--------|------|----------|
 | App | 3000 | Next.js приложение |
 | PostgreSQL | 5432 | База данных |
-| Ollama AI | 11434 | AI модель Mistral 7B |
+| Redis | 6379 | Кеш |
 
 ## 🛠️ Команды
 
@@ -60,14 +60,11 @@ docker exec -it investment-app sh
 
 ## 🤖 AI Помощник
 
-При первом запуске модель скачивается автоматически (около 4GB):
+AI не запускается как Docker-сервис в этом проекте. Backend вызывает LM Studio через OpenAI-compatible endpoint из `OLLAMA_URL`; frontend обращается только к `/api/ai/chat`.
 
 ```bash
-# Проверить статус AI
-docker exec investment-ai ollama list
-
-# Скачать модель вручную
-docker exec investment-ai ollama pull mistral:7b
+OLLAMA_URL=http://100.91.135.114:11434/v1
+AI_MODEL="Mistral 7B Instruct v0.3"
 ```
 
 ## 🔐 Переменные окружения
@@ -77,8 +74,8 @@ docker exec investment-ai ollama pull mistral:7b
 | DATABASE_URL | postgresql://... | Подключение к БД |
 | NODE_ENV | production | Режим работы |
 | NEXT_PUBLIC_APP_URL | http://localhost:3000 | URL приложения |
-| OLLAMA_URL | http://ai:11434 | URL AI сервиса |
-| AI_MODEL | mistral:7b | Модель AI |
+| OLLAMA_URL | http://100.91.135.114:11434/v1 | Base URL OpenAI-compatible API LM Studio |
+| AI_MODEL | Mistral 7B Instruct v0.3 | Модель AI |
 
 ## 🐛 Отладка
 
@@ -89,9 +86,13 @@ docker ps
 # Проверить логи конкретного сервиса
 docker-compose logs app
 docker-compose logs db
-docker-compose logs ai
 
 # Health check
 curl http://localhost:3000/api/health
-curl http://localhost:11434/api/tags
+
+# Проверить backend AI route после входа в приложение
+curl -X POST http://localhost:3000/api/ai/chat \
+  -H "Content-Type: application/json" \
+  -b "session_token=..." \
+  -d '{"message":"Сколько сейчас на моём счету?"}'
 ```

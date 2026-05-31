@@ -371,10 +371,10 @@
   },
   "ai": {
     "title": "AI assistant",
-    "hello": "Hello! I am your AI investment assistant. Ask about markets, strategies, and terms.",
-    "placeholder": "Ask about investments...",
-    "disclaimer": "AI does not provide financial advice. Consult professionals.",
-    "error": "Sorry, something went wrong. Please try again later.",
+    "hello": "Hello! I am your AI investment assistant. I can help with portfolio, risk, return, and assets.",
+    "placeholder": "Ask about your portfolio or assets...",
+    "disclaimer": "AI does not provide financial guarantees. Verify data before decisions.",
+    "error": "AI assistant is temporarily unavailable. Check the local model connection.",
     "open": "Open AI assistant",
     "close": "Close AI assistant"
   },

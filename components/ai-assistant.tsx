@@ -1,52 +1,91 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Bot, Send, Sparkles, User } from "lucide-react"
+import { AlertCircle, Bot, Database, Loader2, Send, Sparkles, User, X } from "lucide-react"
 import { useI18n } from "@/contexts/i18n-context"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
+
+type ContextStatusValue = "available" | "partial" | "empty" | "unavailable"
+
+type ContextStatus = {
+  portfolio?: ContextStatusValue
+  accounts?: ContextStatusValue
+  marketData?: ContextStatusValue
+}
 
 interface Message {
-  role: "user" | "assistant" | "system"
+  role: "user" | "assistant"
   content: string
   timestamp: Date
+  type?: "normal" | "error"
+  contextStatus?: ContextStatus
+}
+
+const quickPrompts = [
+  "Проанализируй мой портфель",
+  "Какие активы самые рискованные?",
+  "Дай краткую сводку по доходности",
+  "Что можно улучшить в диверсификации?",
+  "Сколько сейчас на моём счету?",
+  "Какой сейчас курс биткоина?",
+]
+
+const friendlyError = "AI-ассистент временно недоступен. Проверьте подключение к локальной модели."
+
+function getContextLabels(status?: ContextStatus) {
+  if (!status) return []
+
+  const labels: string[] = []
+
+  if (status.portfolio === "available") {
+    labels.push("Учтены данные портфеля")
+  } else if (status.portfolio === "empty") {
+    labels.push("Данных портфеля пока нет")
+  }
+
+  if (status.accounts === "available") {
+    labels.push("Учтены счета")
+  } else if (status.accounts === "empty") {
+    labels.push("Счета не найдены")
+  }
+
+  if (status.marketData === "partial") {
+    labels.push("Часть рыночных данных недоступна")
+  } else if (status.marketData === "unavailable") {
+    labels.push("Актуальные цены недоступны")
+  }
+
+  return labels
 }
 
 export function AIAssistant() {
   const { t } = useI18n()
-  const [messages, setMessages] = useState<Message[]>([{ role: "assistant", content: t("ai.hello"), timestamp: new Date() }])
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+  }, [messages, isLoading])
+
+  const sendMessage = async (textOverride?: string) => {
+    const text = (textOverride ?? input).trim()
+    if (!text || isLoading) return
+
+    const userMessage: Message = {
+      role: "user",
+      content: text,
+      timestamp: new Date(),
     }
-  }, [messages])
 
-  useEffect(() => {
-    setMessages((prev) => {
-      if (prev.length === 0) {
-        return [{ role: "assistant", content: t("ai.hello"), timestamp: new Date() }]
-      }
-
-      if (prev.length === 1 && prev[0].role === "assistant") {
-        return [{ ...prev[0], content: t("ai.hello") }]
-      }
-
-      return prev
-    })
-  }, [t])
-
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return
-
-    const userMessage: Message = { role: "user", content: input, timestamp: new Date() }
-    setMessages((prev) => [...prev, userMessage])
+    const nextMessages = [...messages, userMessage]
+    setMessages(nextMessages)
     setInput("")
     setIsLoading(true)
 
@@ -54,28 +93,44 @@ export function AIAssistant() {
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input, history: messages.map((m) => ({ role: m.role, content: m.content })) }),
+        body: JSON.stringify({
+          message: text,
+          messages: nextMessages
+            .filter((message) => message.type !== "error")
+            .map((message) => ({ role: message.role, content: message.content })),
+        }),
       })
 
+      const data = await response.json().catch(() => ({}))
+
       if (!response.ok) {
-        throw new Error("failed_to_get_response")
+        throw new Error(typeof data?.message === "string" ? data.message : friendlyError)
       }
 
-      const data = await response.json()
-      const assistantMessage: Message = { role: "assistant", content: data.response, timestamp: new Date() }
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: typeof data?.message === "string" ? data.message : friendlyError,
+        timestamp: new Date(),
+        contextStatus: data?.contextStatus,
+      }
       setMessages((prev) => [...prev, assistantMessage])
     } catch (error) {
-      const errorMessage: Message = { role: "assistant", content: t("ai.error"), timestamp: new Date() }
+      const errorMessage: Message = {
+        role: "assistant",
+        content: error instanceof Error && error.message ? error.message : t("ai.error"),
+        timestamp: new Date(),
+        type: "error",
+      }
       setMessages((prev) => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault()
+      void sendMessage()
     }
   }
 
@@ -84,70 +139,171 @@ export function AIAssistant() {
       <Button
         onClick={() => setIsOpen(true)}
         aria-label={t("ai.open")}
-        className="fixed bottom-4 right-4 h-14 w-14 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 shadow-lg hover:from-purple-700 hover:to-blue-700"
+        className="fixed bottom-4 right-4 z-50 h-14 w-14 rounded-full bg-primary shadow-lg hover:bg-primary/90"
       >
-        <Sparkles className="h-6 w-6 text-white" />
+        <Sparkles className="h-6 w-6 text-primary-foreground" />
       </Button>
     )
   }
 
   return (
-    <Card className="fixed bottom-4 right-4 h-[500px] w-96 border-0 bg-white/95 shadow-2xl backdrop-blur">
-      <CardHeader className="rounded-t-lg bg-gradient-to-r from-purple-600 to-blue-600 py-3 text-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            <CardTitle className="text-sm font-semibold">{t("ai.title")}</CardTitle>
+    <Card className="fixed bottom-4 right-4 z-50 flex h-[min(680px,calc(100vh-2rem))] w-[min(430px,calc(100vw-2rem))] flex-col overflow-hidden border bg-card shadow-2xl">
+      <CardHeader className="border-b px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Bot className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <CardTitle className="truncate text-sm font-semibold">{t("ai.title")}</CardTitle>
+              <p className="truncate text-xs text-muted-foreground">Портфель, риски, доходность</p>
+            </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)} aria-label={t("ai.close")} className="h-8 w-8 p-0 text-white hover:bg-white/20">
-            ×
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsOpen(false)}
+            aria-label={t("ai.close")}
+            className="h-8 w-8 shrink-0"
+          >
+            <X className="h-4 w-4" />
           </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="flex h-[calc(100%-60px)] flex-col p-0">
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div key={index} className={`flex gap-2 ${message.role === "user" ? "flex-row-reverse" : ""}`}>
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${message.role === "user" ? "bg-gradient-to-r from-blue-500 to-blue-600" : "bg-gradient-to-r from-purple-500 to-purple-600"}`}>
-                  {message.role === "user" ? <User className="h-4 w-4 text-white" /> : <Bot className="h-4 w-4 text-white" />}
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          {messages.length === 0 ? (
+            <div className="flex min-h-full flex-col justify-center gap-4 py-6">
+              <div className="space-y-2 text-center">
+                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Sparkles className="h-5 w-5" />
                 </div>
-                <div className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${message.role === "user" ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-800"}`}>{message.content}</div>
+                <div>
+                  <h3 className="text-base font-semibold">AI-ассистент по инвестициям</h3>
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                    Помогу проанализировать активы, риски, доходность и структуру портфеля.
+                  </p>
+                </div>
               </div>
-            ))}
-            {isLoading ? (
-              <div className="flex gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-purple-600">
-                  <Bot className="h-4 w-4 text-white" />
-                </div>
-                <div className="rounded-lg bg-gray-100 px-3 py-2">
-                  <div className="flex gap-1">
-                    <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" />
-                    <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:0.1s]" />
-                    <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:0.2s]" />
+              <div className="grid gap-2">
+                {quickPrompts.map((prompt) => (
+                  <Button
+                    key={prompt}
+                    type="button"
+                    variant="outline"
+                    disabled={isLoading}
+                    onClick={() => void sendMessage(prompt)}
+                    className="h-auto justify-start whitespace-normal rounded-md px-3 py-2 text-left text-xs font-normal"
+                  >
+                    {prompt}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {messages.map((message, index) => {
+                const isUser = message.role === "user"
+                const contextLabels = getContextLabels(message.contextStatus)
+
+                return (
+                  <div key={`${message.timestamp.toISOString()}-${index}`} className={cn("flex gap-2", isUser && "justify-end")}>
+                    {!isUser ? (
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                        {message.type === "error" ? <AlertCircle className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                      </div>
+                    ) : null}
+                    <div className={cn("max-w-[82%] space-y-2", isUser && "items-end")}>
+                      <div
+                        className={cn(
+                          "rounded-lg px-3 py-2 text-sm leading-5 shadow-sm",
+                          isUser
+                            ? "bg-primary text-primary-foreground"
+                            : message.type === "error"
+                              ? "border border-destructive/30 bg-destructive/10 text-foreground"
+                              : "border bg-muted/60 text-foreground",
+                        )}
+                      >
+                        <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                      </div>
+                      {contextLabels.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {contextLabels.map((label) => (
+                            <Badge key={label} variant="outline" className="gap-1 rounded-md text-[10px] font-medium text-muted-foreground">
+                              <Database className="h-3 w-3" />
+                              {label}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    {isUser ? (
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <User className="h-4 w-4" />
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })}
+              {isLoading ? (
+                <div className="flex gap-2">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <Bot className="h-4 w-4" />
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg border bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    AI думает...
                   </div>
                 </div>
-              </div>
-            ) : null}
-          </div>
-        </ScrollArea>
+              ) : null}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
 
-        <div className="border-t bg-white p-3">
-          <div className="flex gap-2">
-            <Input
+        {messages.length > 0 ? (
+          <div className="border-t px-3 py-2">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {quickPrompts.slice(0, 4).map((prompt) => (
+                <Button
+                  key={prompt}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isLoading}
+                  onClick={() => void sendMessage(prompt)}
+                  className="h-8 shrink-0 rounded-md px-2 text-xs font-normal"
+                >
+                  {prompt}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="border-t bg-background p-3">
+          <div className="flex items-end gap-2">
+            <Textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder={t("ai.placeholder")}
               disabled={isLoading}
-              className="flex-1"
+              rows={1}
+              className="max-h-28 min-h-11 resize-none text-sm"
             />
-            <Button onClick={sendMessage} disabled={isLoading || !input.trim()} size="icon" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-              <Send className="h-4 w-4" />
+            <Button
+              onClick={() => void sendMessage()}
+              disabled={isLoading || !input.trim()}
+              size="icon"
+              className="h-11 w-11 shrink-0"
+              aria-label="Отправить сообщение"
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
-          <p className="mt-2 text-center text-[10px] text-gray-400">{t("ai.disclaimer")}</p>
+          <p className="mt-2 text-center text-[10px] leading-4 text-muted-foreground">{t("ai.disclaimer")}</p>
         </div>
       </CardContent>
     </Card>

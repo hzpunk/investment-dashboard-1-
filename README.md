@@ -27,8 +27,8 @@
 - React Hook Form + Zod (валидация)
 
 **AI & ML:**
-- Ollama (локальный LLM сервер)
-- Mistral 7B (AI консультант)
+- LM Studio OpenAI-compatible API (локальная модель через Tailscale, только server-side)
+- Mistral 7B Instruct v0.3 (AI консультант)
 - Docker deployment
 
 **DevOps & Quality:**
@@ -36,7 +36,7 @@
 - Jest + Testing Library
 - ESLint + Husky (pre-commit hooks)
 - Sentry (мониторинг ошибок)
-- Health checks (API + DB + AI)
+- Health checks (API + DB + Redis)
 
 ### Архитектура проекта
 
@@ -133,13 +133,14 @@ docker-compose up --build
 
 # Приложение доступно на http://localhost:3000
 # PostgreSQL на порту 5432
-# AI сервис на порту 11434
 ```
 
 **Сервисы Docker:**
 - `app` — Next.js приложение (порт 3000)
 - `db` — PostgreSQL 16 (порт 5432)
-- `ai` — Ollama с Mistral 7B (порт 11434)
+- `redis` — кеш рыночных данных и расчетов (порт 6379)
+
+AI работает через backend route `/api/ai/chat`, который обращается к LM Studio по `OLLAMA_URL` на сервере. Браузер не вызывает адрес локальной модели напрямую.
 
 #### Вариант 2: Локальная разработка
 
@@ -216,7 +217,7 @@ pnpm lint
 - `GET /api/notifications` - Уведомления пользователя
 - `GET /api/portfolio/rebalance` - Стратегии ребалансировки
 - `POST /api/portfolio/rebalance` - Расчет ребалансировки с рекомендациями
-- `POST /api/ai/chat` - AI консультант (Mistral 7B)
+- `POST /api/ai/chat` - AI консультант (LM Studio OpenAI-compatible, portfolio-aware)
 - `GET /api/health` - Health check (проверка состояния сервисов)
 
 ### Безопасность
@@ -240,7 +241,7 @@ pnpm lint
 4. **Error Boundaries** - обработка ошибок без падения приложения
 5. **Loading States** - скелетоны при загрузке данных
 6. **Responsive Design** - адаптивная верстка для мобильных
-7. **AI Assistant** - интегрированный AI консультант (Mistral 7B)
+7. **AI Assistant** - интегрированный AI консультант с контекстом портфеля
 8. **Legal Compliance** - полное соответствие законодательству РФ (152-ФЗ)
 
 ### Демонстрационные данные

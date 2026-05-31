@@ -6,25 +6,25 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat openssl curl
 WORKDIR /app
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install the pnpm major version used by this repo. pnpm@latest requires newer Node versions.
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 # Install dependencies
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod && pnpm store prune
+RUN pnpm install --frozen-lockfile && pnpm store prune
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install the pnpm major version used by this repo. pnpm@latest requires newer Node versions.
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Generate Prisma client
-RUN pnpm dlx prisma generate
+RUN pnpm prisma generate
 
 # Build the application
 ENV NEXT_STANDALONE=true
@@ -47,10 +47,8 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 
-# Copy Prisma client and engine
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Copy node_modules so Prisma CLI/client are available for migrations with pnpm layout.
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy package.json for scripts
 COPY --from=builder /app/package.json ./package.json

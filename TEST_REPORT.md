@@ -72,10 +72,10 @@ docker-compose config
 - [ ] Ошибки
 
 ### Детали:
-- ✅ 3 сервиса: app, db, ai
+- ✅ 3 сервиса: app, db, redis
 - ✅ Health checks настроены
 - ✅ Volumes для persistency
-- ✅ Resource limits для AI (4GB memory)
+- ✅ AI вынесен в LM Studio и вызывается server-side через OpenAI-compatible API
 - ⚠️ Версия compose obsolete (предупреждение, не ошибка)
 
 ---
@@ -173,10 +173,10 @@ docker-compose config
 ## 8. AI Сервис ✅
 
 ### Конфигурация:
-- [x] Docker образ ollama/ollama:latest ✅
-- [x] Модель: Mistral 7B (4GB) ✅
-- [x] Health check настроен ✅
-- [x] Resource limits: 4GB memory ✅
+- [x] Backend использует `OLLAMA_URL` как base URL `/v1` ✅
+- [x] Модель: Mistral 7B Instruct v0.3 ✅
+- [x] Запросы идут на `/chat/completions` ✅
+- [x] Frontend вызывает только `/api/ai/chat` ✅
 
 ### API Endpoint:
 - [x] POST /api/ai/chat ✅

@@ -2,8 +2,7 @@ param(
     [ValidateSet("dev", "prod")]
     [string]$Mode = "prod",
 
-    [switch]$NoBuild,
-    [switch]$NoAiModel
+    [switch]$NoBuild
 )
 
 $ErrorActionPreference = "Continue"
@@ -60,14 +59,12 @@ if ($Mode -eq "dev") {
     Write-Host "Development mode"
     $ComposeFile = "docker-compose.dev.yml"
     $DbContainer = "investment-db-dev"
-    $AiContainer = "investment-ai-dev"
     $AppContainer = $null
 }
 else {
     Write-Host "Production mode"
     $ComposeFile = "docker-compose.yml"
     $DbContainer = "investment-db"
-    $AiContainer = "investment-ai"
     $AppContainer = "investment-app"
 }
 
@@ -92,35 +89,14 @@ Write-Host "Waiting for services..."
 Start-Sleep -Seconds 8
 
 $DbHealth = Get-ContainerHealth $DbContainer
-$AiHealth = Get-ContainerHealth $AiContainer
 
 Write-Host ""
 Write-Host "Service status:"
 Write-Host "  Database: $DbHealth"
-Write-Host "  AI:       $AiHealth"
 
 if ($AppContainer) {
     $AppHealth = Get-ContainerHealth $AppContainer
     Write-Host "  App:      $AppHealth"
-}
-
-if (-not $NoAiModel) {
-    Write-Host ""
-    Write-Host "Checking AI model..."
-
-    $ollamaList = docker exec $AiContainer ollama list 2>$null
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "WARNING: Could not check Ollama. The container may still be starting." -ForegroundColor Yellow
-    }
-    elseif ($ollamaList -notmatch "mistral") {
-        Write-Host "Downloading Mistral 7B model. This may take a while..."
-        docker exec $AiContainer ollama pull mistral:7b
-        Write-Host "AI model ready!"
-    }
-    else {
-        Write-Host "AI model already exists"
-    }
 }
 
 Write-Host ""
@@ -129,11 +105,10 @@ Write-Host ""
 Write-Host "URLs:"
 Write-Host "  App:      http://localhost:3000"
 Write-Host "  Database: localhost:5432"
-Write-Host "  AI:       http://localhost:11434"
 Write-Host ""
 
 if ($Mode -eq "dev") {
-    Write-Host "In dev mode Docker starts only DB and AI."
+    Write-Host "In dev mode Docker starts DB and Redis. LM Studio runs on the Tailscale-connected Windows machine."
     Write-Host "Run the app separately:"
     Write-Host "  pnpm install"
     Write-Host "  pnpm prisma generate"

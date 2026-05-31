@@ -214,6 +214,49 @@ Calculate rebalancing recommendations.
 }
 ```
 
+### AI Assistant
+
+#### POST /api/ai/chat
+Send a user message to the portfolio-aware assistant. The browser must call only this internal route; the backend calls LM Studio server-side through `OLLAMA_URL`.
+
+**Request:**
+```json
+{
+  "message": "Что у меня с портфелем?"
+}
+```
+
+Optional conversation history:
+```json
+{
+  "messages": [
+    { "role": "user", "content": "Какие активы у меня есть?" },
+    { "role": "assistant", "content": "..." }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Ответ ассистента",
+  "contextStatus": {
+    "portfolio": "available",
+    "accounts": "available",
+    "marketData": "partial"
+  },
+  "timestamp": "2026-06-01T00:00:00.000Z"
+}
+```
+
+**Error response:**
+```json
+{
+  "error": "AI assistant is temporarily unavailable",
+  "message": "AI-ассистент временно недоступен. Проверьте подключение к локальной модели."
+}
+```
+
 ### Data Endpoints
 
 #### GET /api/data/accounts

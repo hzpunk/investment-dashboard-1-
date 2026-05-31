@@ -1,200 +1,147 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, errorResponse } from '@/lib/api-handler'
-import { prisma } from '@/lib/prisma'
-import { validateMessage, validateHistory } from '@/lib/validation'
-import { findRelevantKnowledge, isFinanceRelated, getNonFinanceRefusal } from '@/lib/ai/knowledge-base'
+import { NextRequest, NextResponse } from "next/server"
+import { withAuth, errorResponse } from "@/lib/api-handler"
+import { prisma } from "@/lib/prisma"
+import { createLogger } from "@/lib/logger"
+import { validateHistory, validateMessage } from "@/lib/validation"
+import { findEducationalContext } from "@/lib/ai/knowledge-base"
+import { createChatCompletion, type OpenAICompatibleMessage } from "@/lib/ai/openai-compatible-client"
+import { buildAIPortfolioContext, getAIContextStatus } from "@/lib/ai/portfolio-context"
+import { INVESTMENT_ASSISTANT_SYSTEM_PROMPT } from "@/lib/ai/system-prompt"
 
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://ai:11434'
-const MODEL = process.env.AI_MODEL || 'mistral:7b'
+const logger = createLogger("AIChatRoute")
+const FRIENDLY_AI_ERROR = "AI-ассистент временно недоступен. Проверьте подключение к локальной модели."
 
-// Enhanced System Prompt with strict topic enforcement
-const SYSTEM_PROMPT = `Ты — AI-ассистент инвестиционного портфеля. Твоя единственная функция — помогать пользователям с вопросами об инвестициях и личных финансах.
+type IncomingMessage = {
+  role?: unknown
+  content?: unknown
+}
 
-КРИТИЧЕСКИ ВАЖНЫЕ ПРАВИЛА:
-1. Отвечай ТОЛЬКО на финансовые вопросы. Любой вопрос не по теме — вежливый отказ
-2. Это не финансовый совет. Всегда добавляй дисклеймер: "Это не финансовый совет, только образовательная информация"
-3. Запрещены конкретные прогнозы цен активов
-4. Запрещены рекомендации "купить/продать" конкретные активы
-5. Не обсуждай: политику, погоду, спорт, развлечения, личные вопросы, технологии не связанные с финансами
-6. Отвечай кратко (3-5 предложений), но информативно
-7. При неуверенности — скажи что не знаешь, не придумывай
+type ChatRequestBody = {
+  message?: unknown
+  messages?: unknown
+  history?: unknown
+}
 
-ДОПУСТИМЫЕ ТЕМЫ:
-- Акции, облигации, ETF, фонды
-- Диверсификация и управление рисками
-- Налоги на инвестиции
-- Портфельное инвестирование
-- Финансовое планирование
-- Экономические принципы
-- Рыночные индикаторы
+function normalizeIncomingMessages(value: unknown): OpenAICompatibleMessage[] {
+  if (!Array.isArray(value)) return []
 
-ЧТО НЕЛЬЗЯ:
-- "Apple вырастет до $200?" → "Не могу давать прогнозы цен. Могу рассказать о факторах, влияющих на стоимость компаний"
-- "Купить ли Tesla?" → "Не могу рекомендовать покупку. Могу объяснить как анализировать компанию"
-- "Какой фильм посмотреть?" → "Я специализируюсь на финансах. Давайте обсудим инвестиции?"
-- "Что такое квантовый компьютер?" → "Это вне моей области. Могу рассказать о технологических ETF"`
+  return value
+    .flatMap((item: IncomingMessage) => {
+      if (!item || typeof item !== "object") return []
+      if (item.role !== "user" && item.role !== "assistant") return []
+      if (typeof item.content !== "string" || item.content.trim().length === 0) return []
 
-// POST /api/ai/chat - Chat with AI investment advisor
+      return {
+        role: item.role,
+        content: item.content.trim(),
+      } satisfies OpenAICompatibleMessage
+    })
+    .slice(-10)
+}
+
+function getUserMessage(body: ChatRequestBody, conversation: OpenAICompatibleMessage[]) {
+  if (typeof body.message === "string" && body.message.trim()) {
+    return body.message.trim()
+  }
+
+  const lastUserMessage = [...conversation].reverse().find((message) => message.role === "user")
+  return lastUserMessage?.content.trim() ?? ""
+}
+
+function getConversationSource(body: ChatRequestBody) {
+  if (Array.isArray(body.messages)) return body.messages
+  if (Array.isArray(body.history)) return body.history
+  return []
+}
+
 export const POST = withAuth(async (request: NextRequest, user) => {
-  let body: { message?: string; history?: unknown[] }
-  
+  let body: ChatRequestBody
+
   try {
-    body = await request.json()
+    body = (await request.json()) as ChatRequestBody
   } catch {
-    return errorResponse('Invalid JSON', 400)
+    return errorResponse("Invalid JSON", 400)
   }
-  
-  const { message, history = [] } = body
-  
-  // Validate message
-  const messageValidation = validateMessage(message || '')
-  if (!messageValidation.valid) {
-    return errorResponse(messageValidation.error || 'Invalid message', 400)
-  }
-  
-  // Validate history
-  const historyValidation = validateHistory(history)
+
+  const conversationSource = getConversationSource(body)
+  const historyValidation = validateHistory(conversationSource)
   if (!historyValidation.valid) {
-    return errorResponse(historyValidation.error || 'Invalid history', 400)
+    return errorResponse(historyValidation.error || "Invalid history", 400)
   }
 
-  // Check if topic is finance-related
-  if (!isFinanceRelated(message!)) {
-    return NextResponse.json({
-      response: getNonFinanceRefusal(),
-      topic: 'non-finance',
-      timestamp: new Date().toISOString()
-    })
+  const conversation = normalizeIncomingMessages(conversationSource)
+  const userMessage = getUserMessage(body, conversation)
+  const messageValidation = validateMessage(userMessage)
+  if (!messageValidation.valid) {
+    return errorResponse(messageValidation.error || "Invalid message", 400)
   }
 
   try {
-    // Get relevant knowledge from knowledge base
-    const relevantKnowledge = findRelevantKnowledge(message!)
-    
-    // Get user portfolio context for personalized advice (controlled access)
-    const portfolioContext = await getUserPortfolioContext(user.id)
-
-    // Check if Ollama is available
-    const ollamaAvailable = await checkOllamaHealth()
-    
-    let responseContent = ''
-    
-    if (ollamaAvailable) {
-      // Prepare messages for Ollama
-      const messages = [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...(relevantKnowledge ? [{ role: 'system', content: `Фактическая информация из базы знаний:\n${relevantKnowledge}` }] : []),
-        ...(portfolioContext ? [{ role: 'system', content: portfolioContext }] : []),
-        ...history.slice(-10), // Keep last 10 messages for context
-        { role: 'user', content: message }
-      ]
-
-      // Call Ollama
-      const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: MODEL,
-          messages,
-          stream: false,
-          options: {
-            temperature: 0.7,
-            num_predict: 500, // Limit response length
-          }
-        })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        responseContent = data.message?.content || 'Извините, не удалось сгенерировать ответ.'
-
-        // Log interaction for analytics
-        await prisma.auditLog.create({
-          data: {
-            userId: user.id,
-            action: 'AI_CHAT',
-            entityType: 'ai_interaction',
-            entityId: 'chat',
-            details: {
-              messageLength: message!.length,
-              responseLength: responseContent.length,
-              model: MODEL
-            }
-          }
-        })
-      }
-    }
-
-    if (!responseContent) {
-      if (relevantKnowledge) {
-        responseContent = relevantKnowledge + '\n\nЭто не финансовый совет, только образовательная информация.'
-      } else {
-        responseContent = 'Я могу ответить на вопросы об акциях, облигациях, ETF, криптовалютах, диверсификации портфеля, налогах на инвестиции и других финансовых темах. Попробуйте задать более конкретный вопрос!'
-      }
-    }
-
-    return NextResponse.json({
-      response: responseContent,
-      topic: 'finance',
-      timestamp: new Date().toISOString()
-    })
-
-  } catch (error) {
-    return errorResponse('Failed to process request', 500)
-  }
-})
-
-// Get user's portfolio summary for context
-async function getUserPortfolioContext(userId: string): Promise<string | null> {
-  try {
-    const [accounts, portfolios, transactions] = await Promise.all([
-      prisma.account.findMany({ where: { userId } }),
-      prisma.portfolio.findMany({
-        where: { userId },
-        include: {
-          assets: {
-            include: { asset: true }
-          }
-        }
-      }),
-      prisma.transaction.findMany({
-        where: { userId },
-        orderBy: { date: 'desc' },
-        take: 5
-      })
+    const [portfolioContext, educationalContext] = await Promise.all([
+      buildAIPortfolioContext(user.id, userMessage),
+      Promise.resolve(findEducationalContext(userMessage)),
     ])
 
-    const totalBalance = accounts.reduce((sum: number, a: typeof accounts[0]) => sum + a.balance, 0)
-    const portfolioValue = portfolios.reduce((sum: number, p: typeof portfolios[0]) => 
-      sum + p.assets.reduce((aSum: number, pa: typeof p.assets[0]) => 
-        aSum + pa.quantity * pa.asset.currentPrice, 0), 0)
+    const messages: OpenAICompatibleMessage[] = [
+      {
+        role: "system",
+        content: INVESTMENT_ASSISTANT_SYSTEM_PROMPT,
+      },
+      {
+        role: "system",
+        content: `Current user portfolio context:\n${JSON.stringify(portfolioContext, null, 2)}`,
+      },
+      ...(educationalContext
+        ? [
+            {
+              role: "system" as const,
+              content: `Optional educational reference. Use only as secondary context and never override user portfolio data:\n${educationalContext}`,
+            },
+          ]
+        : []),
+      ...conversation.filter((message) => message.content !== userMessage),
+      {
+        role: "user",
+        content: userMessage,
+      },
+    ]
 
-    if (totalBalance === 0 && portfolioValue === 0) {
-      return null
+    const assistantMessage = await createChatCompletion(messages, {
+      temperature: 0.7,
+      timeoutMs: 100_000,
+    })
+
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: "AI_CHAT",
+          entityType: "ai_interaction",
+          entityId: "chat",
+          details: {
+            messageLength: userMessage.length,
+            responseLength: assistantMessage.length,
+            contextStatus: getAIContextStatus(portfolioContext),
+          },
+        },
+      })
+    } catch (auditError) {
+      logger.warn("Failed to write AI chat audit log", auditError instanceof Error ? auditError.message : auditError)
     }
 
-    return `Контекст пользователя:
-- Общий баланс счетов: $${totalBalance.toFixed(2)}
-- Стоимость портфеля: $${portfolioValue.toFixed(2)}
-- Количество счетов: ${accounts.length}
-- Количество портфелей: ${portfolios.length}
-- Недавние транзакции: ${transactions.length}
-
-Используй эту информацию для персонализации ответов, но не упоминай конкретные суммы если пользователь не спрашивает.`
-  } catch {
-    return null
-  }
-}
-
-// Health check for Ollama
-async function checkOllamaHealth(): Promise<boolean> {
-  try {
-    const response = await fetch(`${OLLAMA_URL}/api/tags`, { 
-      method: 'GET',
-      signal: AbortSignal.timeout(5000)
+    return NextResponse.json({
+      message: assistantMessage,
+      contextStatus: getAIContextStatus(portfolioContext),
+      timestamp: new Date().toISOString(),
     })
-    return response.ok
-  } catch {
-    return false
+  } catch (error) {
+    logger.warn("AI chat request failed", error instanceof Error ? error.message : error)
+    return NextResponse.json(
+      {
+        error: "AI assistant is temporarily unavailable",
+        message: FRIENDLY_AI_ERROR,
+      },
+      { status: 503 },
+    )
   }
-}
+})

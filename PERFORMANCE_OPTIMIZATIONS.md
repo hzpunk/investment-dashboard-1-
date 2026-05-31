@@ -59,19 +59,17 @@ const [transactions, accounts, portfolios] = await Promise.all([
 ### 3. AI Service Optimization
 **Status:** ✅ IMPLEMENTED
 
-**Ollama Configuration:**
+**LM Studio Configuration:**
 ```yaml
-memory:
-  limits: 4G
-  reservations: 2G
-keep_alive: 24h
-model: mistral:7b  # 4GB, fast inference
+OLLAMA_URL: http://100.91.135.114:11434/v1
+AI_MODEL: "Mistral 7B Instruct v0.3"
+endpoint: /chat/completions
 ```
 
 **Features:**
-- Model persistence in volume
-- Connection pooling
-- Health checks
+- OpenAI-compatible request/response format
+- Server-side Tailscale access only
+- Portfolio-aware context assembly
 - Graceful degradation
 
 ---
@@ -172,7 +170,7 @@ const debouncedSearch = debounce((query) => {
 - Next.js Analytics (built-in)
 - Prisma Query Logging
 - Docker Stats
-- Ollama Metrics
+- LM Studio response time and error rate
 
 ---
 
@@ -201,8 +199,8 @@ const debouncedSearch = debounce((query) => {
                           │
                           ▼
                    ┌─────────────┐
-                   │   Ollama    │
-                   │   AI (7B)   │
+                   │ LM Studio   │
+                   │ AI via API  │
                    └─────────────┘
 ```
 

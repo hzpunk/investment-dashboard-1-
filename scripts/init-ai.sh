@@ -1,30 +1,27 @@
 #!/bin/bash
-# Script to initialize AI model in Ollama
+# Validate the LM Studio OpenAI-compatible chat endpoint used by the backend.
 
 set -e
 
-echo "🤖 Initializing AI Assistant..."
+echo "🤖 Checking AI Assistant endpoint..."
 
-OLLAMA_URL=${OLLAMA_URL:-"http://localhost:11434"}
-MODEL=${AI_MODEL:-"mistral:7b"}
+OLLAMA_URL=${OLLAMA_URL:-"http://100.91.135.114:11434/v1"}
+MODEL=${AI_MODEL:-"Mistral 7B Instruct v0.3"}
+CHAT_URL="${OLLAMA_URL%/}/chat/completions"
 
-echo "⏳ Waiting for Ollama to be ready..."
-until curl -s "$OLLAMA_URL/api/tags" > /dev/null 2>&1; do
-    echo "  Waiting..."
-    sleep 5
-done
-
-echo "✅ Ollama is ready!"
-
-echo "📥 Downloading model: $MODEL..."
-curl -X POST "$OLLAMA_URL/api/pull" \
+RESPONSE=$(curl -sS --max-time 120 "$CHAT_URL" \
     -H "Content-Type: application/json" \
-    -d "{\"name\": \"$MODEL\"}" \
-    -s | while read line; do
-        if echo "$line" | grep -q "completed"; then
-            echo "  Progress: $(echo "$line" | grep -o '"completed":[0-9.]*' | cut -d: -f2)"
-        fi
-    done
+    -d "{
+      \"model\": \"$MODEL\",
+      \"messages\": [
+        {\"role\": \"user\", \"content\": \"Say hello\"}
+      ],
+      \"stream\": false
+    }")
 
-echo "✅ Model $MODEL ready!"
-echo "🚀 AI Assistant is ready to help with investment questions!"
+if echo "$RESPONSE" | grep -q '"choices"'; then
+    echo "✅ LM Studio endpoint is reachable and returned a chat completion."
+else
+    echo "❌ LM Studio endpoint did not return an OpenAI-compatible response."
+    exit 1
+fi

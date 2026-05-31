@@ -41,7 +41,7 @@
 [x] Налоговые отчёты (налоги на прибыль) - /api/export?type=tax-report
 [x] Уведомления системы - /api/notifications + модель Notification
 [x] Ребалансировка портфеля - /api/portfolio/rebalance
-[x] **AI Консультант (Mistral 7B в Docker)** - /api/ai/chat
+[x] **AI Консультант (LM Studio OpenAI-compatible через backend)** - /api/ai/chat
 
 
 ---
@@ -92,7 +92,7 @@
 
 ### ✅ Реализовано (4/4):
 [x] Docker multi-stage build (Alpine, ~850MB образ)
-[x] Docker Compose с PostgreSQL + AI (Ollama)
+[x] Docker Compose с PostgreSQL + Redis, AI через LM Studio по Tailscale
 [x] Health checks для всех сервисов
 [x] Скрипт запуска (start.sh)
 

@@ -1,4 +1,4 @@
-# Docker Setup Guide
+﻿# Docker Setup Guide
 
 ## 🚀 Быстрый старт
 
@@ -64,7 +64,8 @@ AI не запускается как Docker-сервис в этом проек
 
 ```bash
 OLLAMA_URL=http://100.91.135.114:11434/v1
-AI_MODEL="Mistral 7B Instruct v0.3"
+AI_MODEL="mistralai/mistral-7b-instruct-v0.3"
+AI_FORCE_USER_ASSISTANT_ROLES="true"
 ```
 
 ## 🔐 Переменные окружения
@@ -75,7 +76,8 @@ AI_MODEL="Mistral 7B Instruct v0.3"
 | NODE_ENV | production | Режим работы |
 | NEXT_PUBLIC_APP_URL | http://localhost:3000 | URL приложения |
 | OLLAMA_URL | http://100.91.135.114:11434/v1 | Base URL OpenAI-compatible API LM Studio |
-| AI_MODEL | Mistral 7B Instruct v0.3 | Модель AI |
+| AI_MODEL | mistralai/mistral-7b-instruct-v0.3 | Модель AI |
+| AI_FORCE_USER_ASSISTANT_ROLES | true | Совместимость с LM Studio templates, которые принимают только роли user/assistant |
 
 ## 🐛 Отладка
 

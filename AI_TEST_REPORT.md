@@ -1,4 +1,4 @@
-# AI Тестовый отчёт - InvestTrack
+﻿# AI Тестовый отчёт - InvestTrack
 
 **Компонент:** AI-консультант через LM Studio OpenAI-compatible API
 
@@ -7,7 +7,8 @@
 - Backend вызывает `OLLAMA_URL + /chat/completions`.
 - Ожидаемые значения окружения:
   - `OLLAMA_URL=http://100.91.135.114:11434/v1`
-  - `AI_MODEL="Mistral 7B Instruct v0.3"`
+  - `AI_MODEL="mistralai/mistral-7b-instruct-v0.3"`
+  - `AI_FORCE_USER_ASSISTANT_ROLES="true"` for LM Studio templates that reject `system` messages
 - Frontend отправляет сообщения только во внутренний route `/api/ai/chat`.
 - Tailscale IP не используется в браузерном коде.
 

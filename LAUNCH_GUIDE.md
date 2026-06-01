@@ -1,4 +1,4 @@
-# 🚀 Инструкция по запуску InvestTrack
+﻿# 🚀 Инструкция по запуску InvestTrack
 
 **Версия:** Дипломная сборка  
 **Дата:** 24 апреля 2026
@@ -79,7 +79,8 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 # AI Service
 OLLAMA_URL="http://100.91.135.114:11434/v1"
-AI_MODEL="Mistral 7B Instruct v0.3"
+AI_MODEL="mistralai/mistral-7b-instruct-v0.3"
+AI_FORCE_USER_ASSISTANT_ROLES="true"
 
 # Security
 AUTH_SECRET="dev-secret-key-change-in-production"
@@ -132,7 +133,7 @@ npx prisma studio
 curl -s http://100.91.135.114:11434/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "Mistral 7B Instruct v0.3",
+    "model": "mistralai/mistral-7b-instruct-v0.3",
     "messages": [{ "role": "user", "content": "Say hello" }],
     "stream": false
   }'

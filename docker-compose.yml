@@ -28,7 +28,9 @@ services:
       NODE_ENV: production
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       OLLAMA_URL: http://100.91.135.114:11434/v1
-      AI_MODEL: "Mistral 7B Instruct v0.3"
+      AI_MODEL: "mistralai/mistral-7b-instruct-v0.3"
+      AI_DEBUG: "false"
+      AI_FORCE_USER_ASSISTANT_ROLES: "true"
       REDIS_URL: redis://redis:6379
       CACHE_ENABLED: "true"
     ports:

@@ -1,4 +1,4 @@
-# Тестовый отчёт - InvestTrack
+﻿# Тестовый отчёт - InvestTrack
 
 **Дата тестирования:** 22 апреля 2026  
 **Тестировщик:** Automated  
@@ -174,7 +174,8 @@ docker-compose config
 
 ### Конфигурация:
 - [x] Backend использует `OLLAMA_URL` как base URL `/v1` ✅
-- [x] Модель: Mistral 7B Instruct v0.3 ✅
+- [x] Модель: mistralai/mistral-7b-instruct-v0.3 ✅
+- [x] LM Studio role compatibility: `AI_FORCE_USER_ASSISTANT_ROLES=true` ✅
 - [x] Запросы идут на `/chat/completions` ✅
 - [x] Frontend вызывает только `/api/ai/chat` ✅
 

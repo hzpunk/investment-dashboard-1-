@@ -6,7 +6,7 @@ set -e
 echo "🤖 Checking AI Assistant endpoint..."
 
 OLLAMA_URL=${OLLAMA_URL:-"http://100.91.135.114:11434/v1"}
-MODEL=${AI_MODEL:-"Mistral 7B Instruct v0.3"}
+MODEL=${AI_MODEL:-"mistralai/mistral-7b-instruct-v0.3"}
 CHAT_URL="${OLLAMA_URL%/}/chat/completions"
 
 RESPONSE=$(curl -sS --max-time 120 "$CHAT_URL" \

@@ -23,6 +23,12 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Bell, Send } from "lucide-react"
 import { useI18n } from "@/contexts/i18n-context"
+import { apiFetch, getLocalizedApiError } from "@/lib/api-client"
+
+type AdminNotificationUser = {
+  id: string
+  username: string
+}
 
 export default function AdminNotificationsPage() {
   const { userRole } = useAuth()
@@ -48,7 +54,7 @@ export default function AdminNotificationsPage() {
     sendToAll: true,
     selectedUsers: [] as string[],
   })
-  const [users, setUsers] = useState<any[]>([])
+  const [users, setUsers] = useState<AdminNotificationUser[]>([])
   const [templates, setTemplates] = useState([
     {
       id: "1",
@@ -90,9 +96,7 @@ export default function AdminNotificationsPage() {
 
       setIsLoading(true)
       try {
-        const res = await fetch("/api/admin/users", { credentials: "include" })
-        const data = await res.json().catch(() => null)
-        if (!res.ok) throw new Error(data?.error || t("errors.unavailable"))
+        const data = await apiFetch<{ users: AdminNotificationUser[] }>("/api/admin/users", { credentials: "include" })
         setUsers(data?.users || [])
 
         // Fetch notification templates
@@ -100,7 +104,7 @@ export default function AdminNotificationsPage() {
         // For now, we'll use the hardcoded templates
       } catch (error) {
         console.error("Error fetching notification data:", error)
-        setMessage({ type: "error", text: t("errors.unavailable") })
+        setMessage({ type: "error", text: getLocalizedApiError(t, error) })
       } finally {
         setIsLoading(false)
       }
@@ -147,14 +151,12 @@ export default function AdminNotificationsPage() {
     setMessage(null)
 
     try {
-      const res = await fetch("/api/admin/notifications", {
+      await apiFetch<{ success: boolean; count: number }>("/api/admin/notifications", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newNotification),
       })
-      const data = await res.json().catch(() => null)
-      if (!res.ok) throw new Error(data?.error || t("admin.notificationSendFailed"))
 
       // Reset form
       setNewNotification({
@@ -168,7 +170,7 @@ export default function AdminNotificationsPage() {
       setMessage({ type: "success", text: t("admin.notificationSent") })
     } catch (error) {
       console.error("Error sending notification:", error)
-      setMessage({ type: "error", text: t("admin.notificationSendFailed") })
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     } finally {
       setIsSendingNotification(false)
     }
@@ -311,10 +313,10 @@ export default function AdminNotificationsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Subject</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="w-[100px]">Actions</TableHead>
+                        <TableHead>{t("common.name")}</TableHead>
+                        <TableHead>{t("admin.subject")}</TableHead>
+                        <TableHead>{t("common.type")}</TableHead>
+                        <TableHead className="w-[100px]">{t("common.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -327,7 +329,7 @@ export default function AdminNotificationsPage() {
                             <div className="flex items-center space-x-2">
                               <Button variant="ghost" size="icon" onClick={() => setEditingTemplate(template)}>
                                 <Bell className="h-4 w-4" />
-                                <span className="sr-only">Edit</span>
+                                <span className="sr-only">{t("common.edit")}</span>
                               </Button>
                             </div>
                           </TableCell>
@@ -343,12 +345,12 @@ export default function AdminNotificationsPage() {
           <TabsContent value="settings">
             <Card>
               <CardHeader>
-                <CardTitle>Notification Settings</CardTitle>
-                <CardDescription>Configure system-wide notification settings.</CardDescription>
+                <CardTitle>{t("admin.notificationSettings")}</CardTitle>
+                <CardDescription>{t("admin.notificationSettingsDescription")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="email-notifications">Email Notifications</Label>
+                  <Label htmlFor="email-notifications">{t("admin.emailNotifications")}</Label>
                   <Switch
                     id="email-notifications"
                     checked={notificationSettings.emailNotifications}
@@ -358,7 +360,7 @@ export default function AdminNotificationsPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="push-notifications">Push Notifications</Label>
+                  <Label htmlFor="push-notifications">{t("admin.pushNotifications")}</Label>
                   <Switch
                     id="push-notifications"
                     checked={notificationSettings.pushNotifications}
@@ -368,7 +370,7 @@ export default function AdminNotificationsPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="in-app-notifications">In-App Notifications</Label>
+                  <Label htmlFor="in-app-notifications">{t("admin.inAppNotifications")}</Label>
                   <Switch
                     id="in-app-notifications"
                     checked={notificationSettings.inAppNotifications}
@@ -378,10 +380,10 @@ export default function AdminNotificationsPage() {
                   />
                 </div>
                 <div className="pt-4 border-t">
-                  <h3 className="text-sm font-medium mb-3">Notification Types</h3>
+                  <h3 className="text-sm font-medium mb-3">{t("admin.notificationTypes")}</h3>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="price-alerts">Price Alerts</Label>
+                      <Label htmlFor="price-alerts">{t("admin.priceAlerts")}</Label>
                       <Switch
                         id="price-alerts"
                         checked={notificationSettings.priceAlerts}
@@ -391,7 +393,7 @@ export default function AdminNotificationsPage() {
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="transaction-notifications">Transaction Notifications</Label>
+                      <Label htmlFor="transaction-notifications">{t("admin.transactionNotifications")}</Label>
                       <Switch
                         id="transaction-notifications"
                         checked={notificationSettings.transactionNotifications}
@@ -404,7 +406,7 @@ export default function AdminNotificationsPage() {
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="goal-notifications">Goal Notifications</Label>
+                      <Label htmlFor="goal-notifications">{t("admin.goalNotifications")}</Label>
                       <Switch
                         id="goal-notifications"
                         checked={notificationSettings.goalNotifications}
@@ -414,7 +416,7 @@ export default function AdminNotificationsPage() {
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="system-notifications">System Notifications</Label>
+                      <Label htmlFor="system-notifications">{t("admin.systemNotifications")}</Label>
                       <Switch
                         id="system-notifications"
                         checked={notificationSettings.systemNotifications}
@@ -427,7 +429,7 @@ export default function AdminNotificationsPage() {
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="market-updates">Market Updates</Label>
+                      <Label htmlFor="market-updates">{t("admin.marketUpdates")}</Label>
                       <Switch
                         id="market-updates"
                         checked={notificationSettings.marketUpdates}
@@ -440,7 +442,7 @@ export default function AdminNotificationsPage() {
                 </div>
                 <div className="flex justify-end pt-4">
                   <Button onClick={handleSaveSettings} disabled={isSaving}>
-                    {isSaving ? "Saving..." : "Save Settings"}
+                    {isSaving ? t("common.loading") : t("admin.saveSettings")}
                   </Button>
                 </div>
               </CardContent>
@@ -460,7 +462,7 @@ export default function AdminNotificationsPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="template-name" className="text-right">
-                  Name
+                  {t("common.name")}
                 </Label>
                 <Input
                   id="template-name"
@@ -471,7 +473,7 @@ export default function AdminNotificationsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="template-subject" className="text-right">
-                  Subject
+                  {t("admin.subject")}
                 </Label>
                 <Input
                   id="template-subject"
@@ -482,7 +484,7 @@ export default function AdminNotificationsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="template-body" className="text-right">
-                  Body
+                  {t("admin.body")}
                 </Label>
                 <Textarea
                   id="template-body"
@@ -494,30 +496,30 @@ export default function AdminNotificationsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="template-type" className="text-right">
-                  Type
+                  {t("common.type")}
                 </Label>
                 <Select
                   value={editingTemplate.type}
                   onValueChange={(value) => setEditingTemplate({ ...editingTemplate, type: value })}
                 >
                   <SelectTrigger id="template-type" className="col-span-3">
-                    <SelectValue placeholder="Select template type" />
+                    <SelectValue placeholder={t("admin.selectTemplateType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="price_alert">Price Alert</SelectItem>
-                    <SelectItem value="transaction">Transaction</SelectItem>
-                    <SelectItem value="goal">Goal</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
+                    <SelectItem value="price_alert">{t("admin.priceAlertTemplate")}</SelectItem>
+                    <SelectItem value="transaction">{t("admin.transactionTemplate")}</SelectItem>
+                    <SelectItem value="goal">{t("admin.goalTemplate")}</SelectItem>
+                    <SelectItem value="system">{t("admin.systemTemplate")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditingTemplate(null)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleSaveTemplate} disabled={isSaving}>
-                {isSaving ? "Saving..." : "Save Template"}
+                {isSaving ? t("common.loading") : t("admin.saveTemplate")}
               </Button>
             </DialogFooter>
           </DialogContent>

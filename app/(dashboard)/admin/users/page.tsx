@@ -21,6 +21,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Search, UserPlus, UserX, ArrowUpDown } from "lucide-react"
 import { useI18n } from "@/contexts/i18n-context"
+import { apiFetch, getLocalizedApiError } from "@/lib/api-client"
 
 type AdminUser = {
   id: string
@@ -31,10 +32,6 @@ type AdminUser = {
   createdAt: string
   updatedAt: string
   lastSignInAt: string | null
-}
-
-async function readJson(res: Response) {
-  return res.json().catch(() => null)
 }
 
 export default function AdminUsersPage() {
@@ -67,15 +64,11 @@ export default function AdminUsersPage() {
     setMessage(null)
 
     try {
-      const res = await fetch("/api/admin/users", { credentials: "include" })
-      const data = await readJson(res)
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to load users")
-      }
+      const data = await apiFetch<{ users: AdminUser[] }>("/api/admin/users", { credentials: "include" })
 
       setUsers(Array.isArray(data?.users) ? data.users : [])
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.message || "Failed to load users" })
+    } catch (error) {
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
       setUsers([])
     } finally {
       setIsLoading(false)
@@ -134,23 +127,19 @@ export default function AdminUsersPage() {
     setMessage(null)
 
     try {
-      const res = await fetch("/api/admin/users", {
+      const data = await apiFetch<{ user: AdminUser }>("/api/admin/users", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newUser),
       })
-      const data = await readJson(res)
-      if (!res.ok) {
-        throw new Error(data?.error || t("admin.userCreateFailed"))
-      }
 
       setUsers((current) => [data.user, ...current])
       setNewUser({ email: "", password: "", username: "", role: "user" })
       setIsAddUserOpen(false)
       setMessage({ type: "success", text: t("admin.userCreated") })
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.message || t("admin.userCreateFailed") })
+    } catch (error) {
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     } finally {
       setIsSubmitting(false)
     }
@@ -161,21 +150,17 @@ export default function AdminUsersPage() {
     setMessage(null)
 
     try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      const data = await apiFetch<{ user: AdminUser }>(`/api/admin/users/${encodeURIComponent(userId)}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role }),
       })
-      const data = await readJson(res)
-      if (!res.ok) {
-        throw new Error(data?.error || t("admin.roleUpdateFailed"))
-      }
 
       setUsers((current) => current.map((row) => (row.id === userId ? data.user : row)))
       setMessage({ type: "success", text: t("admin.roleUpdated") })
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.message || t("admin.roleUpdateFailed") })
+    } catch (error) {
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
       fetchUsers()
     } finally {
       setUpdatingUserId(null)
@@ -184,7 +169,7 @@ export default function AdminUsersPage() {
 
   const handleDeleteUser = async (userId: string) => {
     if (userId === user?.id) {
-      setMessage({ type: "error", text: "You cannot delete your own admin account" })
+      setMessage({ type: "error", text: t("admin.cannotDeleteOwnAccount") })
       return
     }
 
@@ -196,19 +181,15 @@ export default function AdminUsersPage() {
     setMessage(null)
 
     try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      await apiFetch<{ success: boolean }>(`/api/admin/users/${encodeURIComponent(userId)}`, {
         method: "DELETE",
         credentials: "include",
       })
-      const data = await readJson(res)
-      if (!res.ok) {
-        throw new Error(data?.error || t("admin.userDeleteFailed"))
-      }
 
       setUsers((current) => current.filter((row) => row.id !== userId))
       setMessage({ type: "success", text: t("admin.userDeleted") })
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.message || t("admin.userDeleteFailed") })
+    } catch (error) {
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     } finally {
       setUpdatingUserId(null)
     }
@@ -278,7 +259,7 @@ export default function AdminUsersPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">{t("role.user")}</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
+                    <SelectItem value="premium">{t("role.premium")}</SelectItem>
                     <SelectItem value="admin">{t("role.admin")}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -333,7 +314,7 @@ export default function AdminUsersPage() {
                     </TableHead>
                     <TableHead>
                       <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("email")}>
-                        Email
+                        {t("common.email")}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
@@ -378,7 +359,7 @@ export default function AdminUsersPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="user">{t("role.user")}</SelectItem>
-                              <SelectItem value="premium">Premium</SelectItem>
+                              <SelectItem value="premium">{t("role.premium")}</SelectItem>
                               <SelectItem value="admin">{t("role.admin")}</SelectItem>
                             </SelectContent>
                           </Select>

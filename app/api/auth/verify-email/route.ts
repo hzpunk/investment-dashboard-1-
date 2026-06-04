@@ -1,10 +1,11 @@
 // POST /api/auth/verify-email - Verify email change
-import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createHash } from 'crypto'
 import { checkRateLimit } from '@/lib/rate-limit-simple'
 import { deleteSessionByToken, getSessionCookieName } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import { ApiErrorCode } from '@/lib/api-errors'
+import { apiError, apiSuccess } from '@/lib/api-response'
 
 function sha256Hex(input: string): string {
   return createHash('sha256').update(input).digest('hex')
@@ -14,23 +15,20 @@ export async function POST(request: Request) {
   // Rate limit by IP
   const ip = request.headers.get('x-forwarded-for') || 'unknown'
   if (!checkRateLimit(`verify-email:${ip}`, 10)) {
-    return NextResponse.json(
-      { error: 'Too many attempts. Please try again later.' },
-      { status: 429 }
-    )
+    return apiError(ApiErrorCode.RATE_LIMITED, 'Too many attempts. Please try again later.', { status: 429 })
   }
 
   let body: { token?: string }
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    return apiError(ApiErrorCode.BAD_REQUEST, 'Invalid JSON body', { status: 400 })
   }
 
   const token = typeof body?.token === 'string' ? body.token : ''
 
   if (!token) {
-    return NextResponse.json({ error: 'Verification token is required' }, { status: 400 })
+    return apiError(ApiErrorCode.VALIDATION_ERROR, 'Verification token is required', { status: 400 })
   }
 
   const tokenHash = sha256Hex(token)
@@ -44,10 +42,7 @@ export async function POST(request: Request) {
   })
 
   if (!verification) {
-    return NextResponse.json(
-      { error: 'Invalid or expired verification token' },
-      { status: 400 }
-    )
+    return apiError(ApiErrorCode.VALIDATION_ERROR, 'Invalid or expired verification token', { status: 400 })
   }
 
   // Update user email
@@ -70,8 +65,7 @@ export async function POST(request: Request) {
     cookieStore.delete(getSessionCookieName())
   }
 
-  return NextResponse.json({
+  return apiSuccess({
     success: true,
-    message: 'Email has been verified and updated successfully. Please sign in again.',
-  })
+  }, { message: 'Email has been verified and updated successfully. Please sign in again.' })
 }

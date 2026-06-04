@@ -1,4 +1,5 @@
 import { createLogger } from "@/lib/logger"
+import { apiFetch } from "@/lib/api-client"
 
 const logger = createLogger("AssetAPI")
 
@@ -18,20 +19,6 @@ export type AssetInsert = {
   type: Asset["type"]
   currentPrice: number
   currency: string
-}
-
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
-  const res = await fetch(url, options)
-  const data = await res.json().catch(() => null)
-
-  if (!res.ok) {
-    logger.warn(`API request failed: ${url}`, data?.error)
-    const error = new Error(data?.error || "Asset request failed") as Error & { code?: string }
-    error.code = data?.code
-    throw error
-  }
-
-  return data as T
 }
 
 export async function fetchAssets() {

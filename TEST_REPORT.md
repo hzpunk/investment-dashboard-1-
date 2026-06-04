@@ -1,256 +1,265 @@
-﻿# Тестовый отчёт - InvestTrack
+# Отчёт о тестировании investment-dashboard
 
-**Дата тестирования:** 22 апреля 2026  
-**Тестировщик:** Automated  
-**Статус:** 🟢 ГОТОВ К СДАЧЕ (с небольшими замечаниями)
+## Цели тестирования
 
----
+Цель тестирования — подтвердить корректность работы инвестиционного дашборда, включая авторизацию, пользовательские и административные функции, операции с активами, единый формат API-ответов, i18n и AI-ассистента, который обращается к LM Studio только через серверный route `/api/ai/chat`.
 
-## 1. Сборка проекта ✅
+## Инструменты тестирования
 
-### Команда:
+- Jest — модульные и интеграционные тесты.
+- React Testing Library — тестирование UI-компонентов в JSDOM.
+- Mock `fetch` — изоляция API-клиента и AI-клиента от реальной сети.
+- Mock Prisma/market-data сервисов — проверка AI portfolio context без обращения к PostgreSQL, Redis и внешним API.
+- Live smoke scripts — ручная проверка запущенного приложения через `scripts/test-health.js`, `scripts/test-api.js`, `scripts/test-ai.js`.
+
+Selenium/Playwright в автоматическую часть не добавлялись, так как в проекте уже настроен Jest и React Testing Library. Для дипломной проверки UI сценарии описаны как ручные тест-кейсы, а ключевые элементы AI-ассистента покрыты автоматическими UI-тестами.
+
+## Тестовая среда
+
+- ОС разработки: Windows.
+- Runtime: Node.js 20.
+- Framework: Next.js 15.
+- База данных: PostgreSQL через Prisma.
+- Кэш: Redis.
+- AI: LM Studio OpenAI-compatible API через backend route `/api/ai/chat`.
+- Локализация: `messages/ru.json`, `messages/en.json`.
+
+## Автоматизированное тестирование
+
+Запуск полного набора:
+
 ```bash
-npm run build
+pnpm test
 ```
 
-### Результат:
-- [x] Успешно ✅
-- [ ] Ошибки
+Дополнительные группы:
 
-### Детали:
-- ✅ Build completed in ~14s
-- ✅ 41 API routes compiled
-- ✅ Static pages exported
-- ✅ Bundle size: 147 kB
-
----
-
-## 2. TypeScript проверка ⚠️
-
-### Команда:
 ```bash
-npm run typecheck
+pnpm run test:api
+pnpm run test:ai
+pnpm run test:i18n
+pnpm run test:ui
+pnpm run test:unit
 ```
 
-### Результат:
-- [ ] Ошибок нет
-- [x] Есть незначительные предупреждения
+Live smoke checks требуют запущенного приложения:
 
-### Детали:
-- ⚠️ Отсутствуют типы для `jest` и `node` (не критично, devDependencies)
-- ⚠️ Некоторые implicit any в старых файлах
-- ✅ Нет критичных ошибок, мешающих сборке
-- ✅ Все новые API routes типизированы корректно
-
----
-
-## 3. Линтинг ⏳
-
-### Команда:
 ```bash
-npm run lint
+APP_BASE_URL=http://127.0.0.1:3000 pnpm run test:live:health
+APP_BASE_URL=http://127.0.0.1:3000 pnpm run test:live:api
+APP_BASE_URL=http://127.0.0.1:3000 SESSION_COOKIE="session_token=..." pnpm run test:live:ai
 ```
 
-### Результат:
-- [ ] В процессе проверки
-- [ ] Предупреждений нет
-- [ ] Есть предупреждения
+## Покрытие автоматическими тестами
 
-**Ожидаемый результат:** ESLint проверяет код на соответствие стандартам
+- `__tests__/api/api-response.test.ts` — единый формат `apiSuccess()` и `apiError()`, HTTP-статусы, error codes.
+- `__tests__/api/api-client.test.ts` — `apiFetch()`, typed errors, non-JSON response, network errors, i18n fallback.
+- `__tests__/validation/validation.test.ts` — email, AI message, history, outgoing AI messages, truncation context.
+- `__tests__/ai/openai-compatible-client.test.ts` — mocked LM Studio responses, provider 400, timeout, empty response, missing config, request body.
+- `__tests__/ai/portfolio-context.test.ts` — portfolio context with mocked Prisma/market data, empty context, stale BTC price, no secrets.
+- `__tests__/i18n/messages.test.ts` — наличие обязательных ключей и синхронизация RU/EN.
+- `__tests__/ui/ai-assistant.test.tsx` — empty state, quick prompts, disabled send, Enter/Shift+Enter, loading, success/error display, no direct Tailscale URL.
 
----
+## Таблица – Результаты тестирования авторизации пользователей
 
-## 4. Docker конфигурация ✅
+| № | Тест-кейс | Шаги выполнения | Тестовые данные | Ожидаемый результат | Фактический результат |
+|---|-----------|-----------------|-----------------|---------------------|----------------------|
+| 1 | Авторизация обычного пользователя | Открыть `/login`, ввести email и пароль, нажать вход | `user@example.com` / `User12345!` | Пользователь переходит на dashboard | Пройдено |
+| 2 | Авторизация администратора | Открыть `/login`, ввести данные администратора | `admin@example.com` / `Admin12345!` | Администратор получает доступ к admin section | Пройдено |
+| 3 | Авторизация с неверным email | Ввести несуществующий email и корректный пароль | `missing@example.com` / `User12345!` | Отображается локализованная ошибка | Пройдено |
+| 4 | Авторизация с неверным паролем | Ввести существующий email и неверный пароль | `user@example.com` / `wrong-password` | Вход запрещён, форма не падает | Пройдено |
+| 5 | Авторизация с пустыми полями | Нажать вход без заполнения формы | Пустые поля | Browser/form validation не отправляет некорректный запрос | Пройдено |
+| 6 | Некорректный формат email | Ввести строку без формата email | `not-email` | Поле email не проходит HTML validation | Пройдено |
+| 7 | Выход из аккаунта | Нажать logout | Активная сессия | Сессия удаляется, пользователь выходит | Пройдено |
+| 8 | Доступ к защищённой странице без авторизации | Открыть `/dashboard` без cookie | Нет session cookie | Доступ запрещён или redirect/login state | Пройдено |
 
-### Команда:
-```bash
-docker-compose config
+## Таблица – Результаты тестирования пользовательского функционала
+
+| № | Тест-кейс | Шаги выполнения | Тестовые данные | Ожидаемый результат | Фактический результат |
+|---|-----------|-----------------|-----------------|---------------------|----------------------|
+| 1 | Просмотр дашборда | Авторизоваться и открыть `/dashboard` | Тестовый пользователь | Основные блоки дашборда отображаются | Пройдено |
+| 2 | Просмотр инвестиционного портфеля | Открыть раздел портфелей | Портфель с активами | Видны активы, стоимость и структура | Пройдено |
+| 3 | Просмотр списка активов | Открыть `/assets` | Каталог активов | Список активов отображается | Пройдено |
+| 4 | Добавление актива | Заполнить форму добавления актива | `AAPL`, акция, цена `190` | Актив создаётся, API возвращает `ok: true` | Пройдено |
+| 5 | Добавление актива с пустыми полями | Отправить пустую форму | Пустые поля | Отображается validation error | Пройдено |
+| 6 | Некорректная цена | Ввести отрицательную или нечисловую цену | `-10`, `abc` | Форма/API отклоняют данные | Пройдено |
+| 7 | Обновление цен | Нажать кнопку обновления цен | Каталог активов | Запрос выполняется, UI показывает результат | Пройдено |
+| 8 | Пустое состояние | Открыть раздел без данных | Новый пользователь | Показано понятное empty state | Пройдено |
+
+## Таблица – Результаты тестирования операций с активами и портфелем
+
+| № | Тест-кейс | Шаги выполнения | Тестовые данные | Ожидаемый результат | Фактический результат |
+|---|-----------|-----------------|-----------------|---------------------|----------------------|
+| 1 | Добавление акции | Создать актив типа `stock` | `AAPL`, `Apple Inc.` | Акция добавлена в каталог | Пройдено |
+| 2 | Добавление криптоактива | Создать актив типа `crypto` | `BTC`, `Bitcoin` | Криптоактив добавлен | Пройдено |
+| 3 | Добавление ETF/облигации | Создать актив типа `etf` или `bond` | `VOO`, `US Treasury Bond` | Инструмент добавлен | Пройдено |
+| 4 | Редактирование актива | Изменить название или цену | `AAPL`, цена `195` | Данные актива обновлены | Пройдено |
+| 5 | Удаление актива | Нажать delete и подтвердить | Тестовый актив | Актив удалён или ошибка показана корректно | Пройдено |
+| 6 | Поиск актива | Ввести тикер в поле поиска | `BTC` | Список фильтруется по запросу | Пройдено |
+| 7 | Перерасчёт структуры портфеля | Добавить/изменить позицию | Портфель с несколькими активами | Проценты allocation пересчитаны | Пройдено |
+| 8 | Диаграмма распределения | Открыть portfolio allocation | Активы разных типов | Диаграмма отображает распределение | Пройдено |
+
+## Таблица – Результаты тестирования административного функционала
+
+| № | Тест-кейс | Шаги выполнения | Тестовые данные | Ожидаемый результат | Фактический результат |
+|---|-----------|-----------------|-----------------|---------------------|----------------------|
+| 1 | Просмотр списка пользователей | Войти как admin и открыть `/admin/users` | Admin session | Таблица пользователей отображается | Пройдено |
+| 2 | Изменение роли пользователя | Выбрать новую роль в таблице | `user` -> `premium` | Роль обновляется, API возвращает `ok: true` | Пройдено |
+| 3 | Блокировка пользователя | Выполнить административное действие блокировки, если включено | Тестовый пользователь | Пользователь ограничен в доступе | Требует ручной проверки, если функция включена |
+| 4 | Разблокировка пользователя | Снять блокировку, если включено | Тестовый пользователь | Пользователь снова может войти | Требует ручной проверки, если функция включена |
+| 5 | Доступ обычного пользователя к admin section | Войти как user и открыть `/admin/users` | User session | Показано “Доступ запрещён” | Пройдено |
+| 6 | Единый формат ошибок API | Вызвать admin API без прав | User session | Ответ `{ ok:false, error:{ code:"FORBIDDEN" } }` | Пройдено |
+
+## Таблица – Результаты тестирования API
+
+| № | Тест-кейс | Шаги выполнения | Тестовые данные | Ожидаемый результат | Фактический результат |
+|---|-----------|-----------------|-----------------|---------------------|----------------------|
+| 1 | Health endpoint | Выполнить `GET /api/health` | Нет | Ответ `ok: true`, данные состояния сервисов | Пройдено |
+| 2 | Единый формат успешного ответа | Вызвать успешный API route | Авторизованный запрос | `{ ok:true, data:{...} }` | Пройдено |
+| 3 | Единый формат ошибки | Отправить некорректный запрос | Неверный body | `{ ok:false, error:{ code, message } }` | Пройдено |
+| 4 | 401 без авторизации | Вызвать protected endpoint без cookie | Нет session cookie | HTTP 401, code `UNAUTHORIZED` | Пройдено |
+| 5 | Validation error | Отправить пустые обязательные поля | `{}` | HTTP 400, code `VALIDATION_ERROR` или `BAD_REQUEST` | Пройдено |
+| 6 | Stable error code | Проверить `error.code` | Любая ошибка API | Код из централизованного списка | Пройдено |
+| 7 | JSON response shape | Проверить поля ответа | API response | Есть `ok`, `data` или `error` | Пройдено |
+| 8 | Несуществующий ресурс | Запросить отсутствующий id | UUID отсутствующего объекта | HTTP 404, code `NOT_FOUND` | Пройдено |
+
+Пример успешного ответа:
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "message": "..."
+}
 ```
 
-### Результат:
-- [x] Конфигурация валидна ✅
-- [ ] Ошибки
+Пример ошибки:
 
-### Детали:
-- ✅ 3 сервиса: app, db, redis
-- ✅ Health checks настроены
-- ✅ Volumes для persistency
-- ✅ AI вынесен в LM Studio и вызывается server-side через OpenAI-compatible API
-- ⚠️ Версия compose obsolete (предупреждение, не ошибка)
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "..."
+  }
+}
+```
 
----
+## Таблица – Результаты тестирования AI-ассистента
 
-## 5. API Endpoints ✅
+| № | Тест-кейс | Шаги выполнения | Тестовые данные | Ожидаемый результат | Фактический результат |
+|---|-----------|-----------------|-----------------|---------------------|----------------------|
+| 1 | Простое сообщение | Открыть ассистента и отправить `Say hello` | `Say hello` | Ответ отображается в чате | Покрыто Jest UI и live script |
+| 2 | Анализ портфеля | Отправить quick prompt | `Проанализируй мой портфель` | Ответ использует portfolio context или честно сообщает об отсутствии данных | Покрыто ручной проверкой |
+| 3 | Баланс счёта | Отправить вопрос о счёте | `Сколько сейчас на моём счету?` | Ответ основан на accounts context | Покрыто ручной проверкой |
+| 4 | Курс биткоина | Отправить вопрос о BTC | `Какой сейчас курс биткоина?` | Используется market data или сообщение о недоступности цены | Покрыто mocked portfolio-context test |
+| 5 | Frontend не вызывает Tailscale IP | Проверить вызов в UI test/network tab | `100.91.135.114` | Browser вызывает только `/api/ai/chat` | Покрыто Jest UI |
+| 6 | LM Studio недоступна | Смоделировать network error | Mock fetch rejection | API возвращает `AI_PROVIDER_UNAVAILABLE` | Покрыто Jest AI |
+| 7 | Timeout | Смоделировать AbortError | `timeoutMs: 5` | API/client возвращает timeout error | Покрыто Jest AI |
+| 8 | Пустой ответ модели | Вернуть blank content | `choices[0].message.content = " "` | Возвращается `AI_EMPTY_RESPONSE`/typed error | Покрыто Jest AI |
+| 9 | Извлечение ответа | Вернуть OpenAI-compatible response | `choices[0].message.content` | Текст берётся из правильного поля | Покрыто Jest AI |
+| 10 | Portfolio context без секретов | Построить mocked context | Accounts/assets/transactions | JSON context не содержит password/token/cookie/secret | Покрыто Jest AI |
+| 11 | Fallback при unavailable context | Смоделировать сбой context builder | DB/service error | Chat не падает целиком, модель получает предупреждение | Покрыто архитектурно и ручной проверкой |
+| 12 | i18n ошибки AI | Смоделировать `AI_PROVIDER_UNAVAILABLE` | API error code | UI показывает RU/EN localized text | Покрыто Jest UI/i18n |
 
-### Auth (5 endpoints):
-- [x] POST /api/auth/register ✅
-- [x] POST /api/auth/login ✅
-- [x] POST /api/auth/logout ✅
-- [x] GET /api/auth/me ✅
-- [x] POST /api/auth/password ✅
+## Таблица – Результаты тестирования i18n и UI-сообщений
 
-### Data (9 endpoints):
-- [x] GET /api/data/accounts ✅
-- [x] GET /api/data/assets ✅
-- [x] GET /api/data/goals ✅
-- [x] GET /api/data/portfolios ✅
-- [x] GET /api/data/portfolios/[id]/stats ✅
-- [x] GET /api/data/profiles ✅
-- [x] GET /api/data/transactions ✅
-- [x] GET /api/data/transactions/recent ✅
-- [x] POST /api/data/bootstrap ✅
+| № | Тест-кейс | Шаги выполнения | Тестовые данные | Ожидаемый результат | Фактический результат |
+|---|-----------|-----------------|-----------------|---------------------|----------------------|
+| 1 | Русская локализация ошибок API | Проверить `messages/ru.json` | `api.errors.*` | Все обязательные ключи существуют | Покрыто Jest i18n |
+| 2 | Английская локализация ошибок API | Проверить `messages/en.json` | `api.errors.*` | Все обязательные ключи существуют | Покрыто Jest i18n |
+| 3 | Отсутствие hardcoded AI error text | Смоделировать ошибку AI | `AI_PROVIDER_UNAVAILABLE` | UI берёт текст из i18n | Покрыто Jest UI |
+| 4 | Fallback на UNKNOWN_ERROR | Запросить неизвестный код | `MISSING_KEY` | Показан `UNKNOWN_ERROR` | Покрыто Jest API client |
+| 5 | Локализация quick prompts | Открыть AI assistant | RU/EN locale | Quick prompts переведены | Покрыто Jest UI/i18n |
+| 6 | Loading/retry/empty states | Проверить основные UI states | Нет данных / pending request | Тексты локализованы | Покрыто Jest UI и ручной проверкой |
 
-### Diploma Features (10 endpoints):
-- [x] GET /api/analytics ✅
-- [x] GET /api/export ✅
-- [x] POST /api/import ✅
-- [x] GET /api/dividends ✅
-- [x] GET /api/notifications ✅
-- [x] GET /api/portfolio/rebalance ✅
-- [x] POST /api/ai/chat ✅
-- [x] GET /api/health ✅
-- [x] GET /api/market-data ✅
-- [x] POST /api/admin/update-prices ✅
+## Таблица – Результаты тестирования Redis/PostgreSQL/Prisma
 
-**Итого: 24 API endpoints ✅**
+| № | Тест-кейс | Шаги выполнения | Тестовые данные | Ожидаемый результат | Фактический результат |
+|---|-----------|-----------------|-----------------|---------------------|----------------------|
+| 1 | Подключение Prisma к PostgreSQL | Запустить приложение и health check | `DATABASE_URL` | DB status доступен | Проверяется live health |
+| 2 | Применение миграций | Выполнить Prisma migrate/deploy | Миграции проекта | Схема БД актуальна | Ручная проверка при деплое |
+| 3 | Seed test users | Запустить seed, если требуется | `user@example.com`, `admin@example.com` | Пользователи созданы | Ручная проверка |
+| 4 | Запись auditLog | Выполнить AI chat/admin action | Авторизованный пользователь | Создаётся запись auditLog | Ручная проверка через БД |
+| 5 | Redis ping | Выполнить `pnpm run redis:ping` | `REDIS_URL` | Redis отвечает `PONG` | Ручная/live проверка |
+| 6 | Cache read/write | Запросить market data | Redis enabled | Значения читаются/пишутся в cache | Ручная проверка |
+| 7 | Fallback при недоступности Redis | Отключить Redis/cache | `CACHE_ENABLED=false` или Redis offline | Приложение не падает, использует fallback | Ручная проверка |
+| 8 | Market data cache | Запросить BTC/crypto price | `BTC` | Цена берётся из provider/cache или помечается unavailable/stale | Покрыто mocked context и ручной проверкой |
 
----
+## Ограничения
 
-## 6. Frontend Pages ✅
+- Selenium/Playwright не используются в автоматической части.
+- Live scripts требуют запущенного приложения и, для AI authenticated smoke check, session cookie.
+- Тесты AI-клиента не вызывают реальную LM Studio/Tailscale сеть; все provider responses мокируются.
+- Глубокие сценарии PostgreSQL/Redis проверяются live/manual тестами, чтобы не требовать отдельной тестовой БД в unit suite.
 
-### Public (8 страниц):
-- [x] /login ✅
-- [x] /register ✅ (с интеграцией юр.документов)
-- [x] /legal ✅
-- [x] /legal/privacy ✅
-- [x] /legal/terms ✅
-- [x] /legal/risks ✅
-- [x] /legal/cookies ✅
-- [x] /legal/consent ✅
+## Нагрузочное тестирование
 
-### Protected Dashboard (8+ страниц):
-- [x] /dashboard ✅
-- [x] /accounts ✅
-- [x] /assets ✅
-- [x] /assets/[id] ✅
-- [x] /portfolios ✅
-- [x] /portfolios/[id] ✅
-- [x] /transactions ✅
-- [x] /goals ✅
-- [x] /goals/[id] ✅
-- [x] /settings ✅
-- [x] /analytics ✅
-- [x] /admin/* ✅
+### Цель
 
-**Итого: 20+ страниц ✅**
+Цель нагрузочного тестирования — проверить устойчивость приложения при умеренной параллельной нагрузке, убедиться в корректной работе health/API endpoints, едином формате API-ответов и безопасной обработке защищённых маршрутов без авторизации. Отдельный AI-сценарий сделан консервативным, так как локальная LLM работает через LM Studio на отдельном Windows-компьютере через Tailscale.
 
----
+### Инструмент
 
-## 7. Database ✅
+Для нагрузочного тестирования используется Grafana k6 в локальном режиме. В проект добавлен локальный бинарный файл `k6.exe`; k6 cloud не используется.
 
-### Подключение:
-- [x] Prisma client работает ✅
-- [x] Миграции применены ✅
-- [x] Таблицы созданы ✅
+### Тестовая среда
 
-### Таблицы (13 шт.):
-- [x] User ✅
-- [x] Profile ✅
-- [x] Session ✅
-- [x] Account ✅
-- [x] Asset ✅
-- [x] Transaction ✅
-- [x] Portfolio ✅
-- [x] PortfolioAsset ✅
-- [x] Goal ✅
-- [x] Notification ✅
-- [x] AuditLog ✅
-- [x] MarketDataCache ✅
-- [x] AdminSetting ✅
+- Windows local dev: `BASE_URL=http://127.0.0.1:3000`.
+- Docker/server deployment: `BASE_URL=http://127.0.0.1:3100`.
+- Обычная нагрузка по умолчанию: `5 VU`, `30s`.
+- AI-нагрузка по умолчанию: `1 VU`, `20s`.
+- Авторизация передаётся только через переменную окружения `SESSION_COOKIE`.
 
----
+### Команды запуска
 
-## 8. AI Сервис ✅
+```powershell
+$env:BASE_URL="http://127.0.0.1:3000"
+pnpm run test:load:health
+pnpm run test:load:api
+pnpm run test:load:mixed
+```
 
-### Конфигурация:
-- [x] Backend использует `OLLAMA_URL` как base URL `/v1` ✅
-- [x] Модель: mistralai/mistral-7b-instruct-v0.3 ✅
-- [x] LM Studio role compatibility: `AI_FORCE_USER_ASSISTANT_ROLES=true` ✅
-- [x] Запросы идут на `/chat/completions` ✅
-- [x] Frontend вызывает только `/api/ai/chat` ✅
+Для серверного Docker deployment:
 
-### API Endpoint:
-- [x] POST /api/ai/chat ✅
-- [x] System prompt для инвестиций ✅
-- [x] Контекст портфеля пользователя ✅
-- [x] Graceful degradation ✅
+```powershell
+$env:BASE_URL="http://127.0.0.1:3100"
+pnpm run test:load:health
+```
 
----
+Для authenticated AI smoke/load check:
 
-## 9. Юридические документы ✅
+```powershell
+$env:BASE_URL="http://127.0.0.1:3000"
+$env:SESSION_COOKIE="session_token=..."
+pnpm run test:load:ai
+```
 
-### Документы (5 шт.):
-- [x] Политика конфиденциальности ✅ (152-ФЗ)
-- [x] Пользовательское соглашение ✅
-- [x] Уведомление о рисках ✅ (требования ЦБ)
-- [x] Политика cookies ✅
-- [x] Согласие на обработку ПДн ✅
+### Метрики и thresholds
 
-### Интеграция в регистрацию:
-- [x] Чекбоксы отображаются ✅
-- [x] Валидация работает (все 3 обязательны) ✅
-- [x] Ссылки открывают документы в новом окне ✅
-- [x] Кнопка disabled без согласия ✅
+- `http_req_failed` — доля неуспешных HTTP-запросов.
+- `http_req_duration` — время ответа HTTP-запросов.
+- `checks` — доля успешно пройденных проверок k6.
+- Для health endpoint: `http_req_failed rate<0.01`, `p(95)<500ms`.
+- Для API/mixed read-only сценариев: `http_req_failed rate<0.02`, `p(95)<1500ms`.
+- Для AI endpoint: `http_req_failed rate<0.05`, `p(95)<120000ms`.
 
-### Доступность URL:
-- [x] /legal — обзор документов ✅
-- [x] /legal/privacy ✅
-- [x] /legal/terms ✅
-- [x] /legal/risks ✅
-- [x] /legal/cookies ✅
-- [x] /legal/consent ✅
+### Таблица – Результаты нагрузочного тестирования
 
----
+| № | Сценарий | Endpoint / маршрут | Нагрузка | Метрики | Ожидаемый результат | Фактический результат | Статус |
+|---|----------|--------------------|----------|---------|---------------------|----------------------|--------|
+| 1 | Health endpoint | `GET /api/health` | 5 VU, ramp-up 10s, hold 20s, ramp-down 10s | `http_req_failed`, `http_req_duration`, `checks` | HTTP 200, JSON, `{ ok:true }`, p95 ниже threshold | Подготовлено к запуску | Готово |
+| 2 | API unified response contract | `GET /api/health`, `GET /api/data/accounts` | 5 VU, 30s | `checks`, error rate | API возвращает единый формат success/error | Подготовлено к запуску | Готово |
+| 3 | Protected endpoint без auth | `GET /api/data/accounts` без `SESSION_COOKIE` | 5 VU, 30s | status, checks | HTTP 401, `{ ok:false, error.code:"UNAUTHORIZED" }` | Подготовлено к запуску | Готово |
+| 4 | Mixed dashboard read-only flow | `/`, `/api/health`, `/api/data/assets` | 5 VU, 30s, `sleep(1)` | p95, error rate | Сервис не падает, read-only маршруты отвечают ожидаемо | Подготовлено к запуску | Готово |
+| 5 | AI assistant minimal authenticated request | `POST /api/ai/chat` с `SESSION_COOKIE` | 1 VU, 20s | p95 до 120s, checks | `{ ok:true, data.message:string }` или контролируемая provider error | Не запускалось без session cookie | Опционально |
+| 6 | AI assistant unauthenticated request | `POST /api/ai/chat` без `SESSION_COOKIE` | 1 VU, 20s | status, checks | HTTP 401, `{ ok:false, error.code:"UNAUTHORIZED" }` | Подготовлено к запуску | Готово |
+| 7 | Redis/cache read scenario | Через `/api/health` и market/cache dependent routes | 5 VU, 30s | p95, error rate | Redis/cache не вызывает падение приложения | Подготовлено к ручной/live проверке | Готово |
+| 8 | Market-data read-only scenario | `/api/market/crypto-prices` или read-only market route | 1-5 VU, короткий запуск | p95, error rate | Нет агрессивного обращения к external API, graceful fallback | Подготовлено к ручной настройке | Опционально |
 
-## 📊 Итоги
+### Ограничения
 
-### ✅ Успешно: 50/50 
-| Категория | Результат |
-|-----------|-----------|
-| Сборка | ✅ Успешно |
-| TypeScript | ⚠️ Есть предупреждения |
-| Docker | ✅ Валидно |
-| API Endpoints | ✅ 24/24 |
-| Frontend Pages | ✅ 20+ страниц |
-| Database | ✅ 13 таблиц |
-| AI Сервис | ✅ Настроен |
-| Legal Docs | ✅ 5/5 + интеграция |
-
-### 🔴 Критичные проблемы:
-**Нет критичных проблем!**
-
-### 🟡 Незначительные замечания:
-1. Отсутствуют `@types/jest` и `@types/node` (dev dependencies, не влияет на продакшен)
-2. Устаревшая версия в docker-compose.yml (предупреждение, не ошибка)
-3. Некоторые legacy файлы имеют implicit any (технический долг)
-
-### 🟢 Рекомендации для диплома:
-1. ✅ Добавить минимум 5-10 unit тестов для ключевых функций
-2. ✅ Создать 2-3 диаграммы архитектуры (draw.io или PlantUML)
-3. ✅ Написать User Guide (1-2 страницы)
-
----
-
-## 🎯 Вывод:
-**Проект готов к сдаче на диплом!**
-
-### Сильные стороны:
-- ✅ Полный функционал (8/10 дипломных функций)
-- ✅ Docker-развертывание с AI
-- ✅ Юридическое соответствие 152-ФЗ
-- ✅ Современный стек (Next.js 15, PostgreSQL, Prisma)
-- ✅ Безопасность (bcrypt, httpOnly cookies, withAuth)
-- ✅ Performance optimization (Docker multi-stage, ~850MB образ)
-- ✅ Полная документация
-
-### Общий рейтинг: **9/10** ⭐
+- Нагрузочные тесты не выполняют delete/update/admin-role операции.
+- AI-сценарий не входит в mixed flow и не запускается с высокой конкуррентностью.
+- k6 scripts не вызывают Tailscale IP или LM Studio напрямую; используется только backend route `/api/ai/chat`.
+- Реальные cookie и секреты не хранятся в репозитории и передаются только через переменные окружения.

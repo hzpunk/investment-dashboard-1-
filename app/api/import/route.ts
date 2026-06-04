@@ -1,22 +1,19 @@
-import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireRequestUser } from "@/lib/api-auth"
 import { sanitizeSymbol, isValidUUID } from "@/lib/validation"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError, apiSuccess } from "@/lib/api-response"
 
 // POST /api/import/transactions - import transactions from CSV
 export async function POST(request: Request) {
-  const user = await requireRequestUser()
-  
   try {
+    const user = await requireRequestUser()
     const formData = await request.formData()
     const file = formData.get("file") as File
     const importType = formData.get("type") as string || "auto"
     
     if (!file) {
-      return NextResponse.json(
-        { error: "No file provided" },
-        { status: 400 }
-      )
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "No file provided", { status: 400 })
     }
 
     const content = await file.text()
@@ -32,10 +29,7 @@ export async function POST(request: Request) {
         result = await importJSON(content, user.id)
         break
       default:
-        return NextResponse.json(
-          { error: "Unsupported file format" },
-          { status: 400 }
-        )
+        return apiError(ApiErrorCode.VALIDATION_ERROR, "Unsupported file format", { status: 400 })
     }
 
     // Log import activity
@@ -54,12 +48,9 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json(result)
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to import data" },
-      { status: 500 }
-    )
+    return apiSuccess(result, { message: "Import completed" })
+  } catch (error: any) {
+    return apiError(error?.status === 401 ? ApiErrorCode.UNAUTHORIZED : ApiErrorCode.INTERNAL_ERROR, error?.status === 401 ? "Authentication required" : "Failed to import data", { status: error?.status === 401 ? 401 : 500 })
   }
 }
 

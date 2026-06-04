@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { apiFetch, getLocalizedApiError } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 
 type ContextStatusValue = "available" | "partial" | "empty" | "unavailable"
@@ -25,38 +26,36 @@ interface Message {
   contextStatus?: ContextStatus
 }
 
-const quickPrompts = [
-  "Проанализируй мой портфель",
-  "Какие активы самые рискованные?",
-  "Дай краткую сводку по доходности",
-  "Что можно улучшить в диверсификации?",
-  "Сколько сейчас на моём счету?",
-  "Какой сейчас курс биткоина?",
-]
+const quickPromptKeys = [
+  "analyzePortfolio",
+  "riskyAssets",
+  "profitSummary",
+  "diversification",
+  "accountBalance",
+  "btcPrice",
+] as const
 
-const friendlyError = "AI-ассистент временно недоступен. Проверьте подключение к локальной модели."
-
-function getContextLabels(status?: ContextStatus) {
+function getContextLabels(status: ContextStatus | undefined, t: (key: string) => string) {
   if (!status) return []
 
   const labels: string[] = []
 
   if (status.portfolio === "available") {
-    labels.push("Учтены данные портфеля")
+    labels.push(t("aiAssistant.context.portfolioAvailable"))
   } else if (status.portfolio === "empty") {
-    labels.push("Данных портфеля пока нет")
+    labels.push(t("aiAssistant.context.portfolioEmpty"))
   }
 
   if (status.accounts === "available") {
-    labels.push("Учтены счета")
+    labels.push(t("aiAssistant.context.accountsAvailable"))
   } else if (status.accounts === "empty") {
-    labels.push("Счета не найдены")
+    labels.push(t("aiAssistant.context.accountsEmpty"))
   }
 
   if (status.marketData === "partial") {
-    labels.push("Часть рыночных данных недоступна")
+    labels.push(t("aiAssistant.context.marketPartial"))
   } else if (status.marketData === "unavailable") {
-    labels.push("Актуальные цены недоступны")
+    labels.push(t("aiAssistant.context.marketUnavailable"))
   }
 
   return labels
@@ -90,7 +89,11 @@ export function AIAssistant() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/ai/chat", {
+      const data = await apiFetch<{
+        message: string
+        contextStatus?: ContextStatus
+        timestamp?: string
+      }>("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -101,27 +104,25 @@ export function AIAssistant() {
         }),
       })
 
-      const data = await response.json().catch(() => ({}))
-
-      if (!response.ok) {
-        throw new Error(typeof data?.message === "string" ? data.message : friendlyError)
-      }
-
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: typeof data?.message === "string" ? data.message : friendlyError,
-        timestamp: new Date(),
-        contextStatus: data?.contextStatus,
-      }
-      setMessages((prev) => [...prev, assistantMessage])
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: data.message,
+          timestamp: new Date(),
+          contextStatus: data.contextStatus,
+        },
+      ])
     } catch (error) {
-      const errorMessage: Message = {
-        role: "assistant",
-        content: error instanceof Error && error.message ? error.message : t("ai.error"),
-        timestamp: new Date(),
-        type: "error",
-      }
-      setMessages((prev) => [...prev, errorMessage])
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: getLocalizedApiError(t, error),
+          timestamp: new Date(),
+          type: "error",
+        },
+      ])
     } finally {
       setIsLoading(false)
     }
@@ -138,7 +139,7 @@ export function AIAssistant() {
     return (
       <Button
         onClick={() => setIsOpen(true)}
-        aria-label={t("ai.open")}
+        aria-label={t("aiAssistant.open")}
         className="fixed bottom-4 right-4 z-50 h-14 w-14 rounded-full bg-primary shadow-lg hover:bg-primary/90"
       >
         <Sparkles className="h-6 w-6 text-primary-foreground" />
@@ -155,15 +156,15 @@ export function AIAssistant() {
               <Bot className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <CardTitle className="truncate text-sm font-semibold">{t("ai.title")}</CardTitle>
-              <p className="truncate text-xs text-muted-foreground">Портфель, риски, доходность</p>
+              <CardTitle className="truncate text-sm font-semibold">{t("aiAssistant.title")}</CardTitle>
+              <p className="truncate text-xs text-muted-foreground">{t("aiAssistant.subtitle")}</p>
             </div>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsOpen(false)}
-            aria-label={t("ai.close")}
+            aria-label={t("aiAssistant.close")}
             className="h-8 w-8 shrink-0"
           >
             <X className="h-4 w-4" />
@@ -180,32 +181,35 @@ export function AIAssistant() {
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold">AI-ассистент по инвестициям</h3>
+                  <h3 className="text-base font-semibold">{t("aiAssistant.emptyStateTitle")}</h3>
                   <p className="mt-1 text-sm leading-5 text-muted-foreground">
-                    Помогу проанализировать активы, риски, доходность и структуру портфеля.
+                    {t("aiAssistant.emptyStateDescription")}
                   </p>
                 </div>
               </div>
               <div className="grid gap-2">
-                {quickPrompts.map((prompt) => (
-                  <Button
-                    key={prompt}
-                    type="button"
-                    variant="outline"
-                    disabled={isLoading}
-                    onClick={() => void sendMessage(prompt)}
-                    className="h-auto justify-start whitespace-normal rounded-md px-3 py-2 text-left text-xs font-normal"
-                  >
-                    {prompt}
-                  </Button>
-                ))}
+                {quickPromptKeys.map((promptKey) => {
+                  const prompt = t(`aiAssistant.quickPrompts.${promptKey}`)
+                  return (
+                    <Button
+                      key={promptKey}
+                      type="button"
+                      variant="outline"
+                      disabled={isLoading}
+                      onClick={() => void sendMessage(prompt)}
+                      className="h-auto justify-start whitespace-normal rounded-md px-3 py-2 text-left text-xs font-normal"
+                    >
+                      {prompt}
+                    </Button>
+                  )
+                })}
               </div>
             </div>
           ) : (
             <div className="space-y-4">
               {messages.map((message, index) => {
                 const isUser = message.role === "user"
-                const contextLabels = getContextLabels(message.contextStatus)
+                const contextLabels = getContextLabels(message.contextStatus, t)
 
                 return (
                   <div key={`${message.timestamp.toISOString()}-${index}`} className={cn("flex gap-2", isUser && "justify-end")}>
@@ -253,7 +257,7 @@ export function AIAssistant() {
                   </div>
                   <div className="flex items-center gap-2 rounded-lg border bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    AI думает...
+                    {t("aiAssistant.thinking")}
                   </div>
                 </div>
               ) : null}
@@ -265,19 +269,22 @@ export function AIAssistant() {
         {messages.length > 0 ? (
           <div className="border-t px-3 py-2">
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {quickPrompts.slice(0, 4).map((prompt) => (
-                <Button
-                  key={prompt}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isLoading}
-                  onClick={() => void sendMessage(prompt)}
-                  className="h-8 shrink-0 rounded-md px-2 text-xs font-normal"
-                >
-                  {prompt}
-                </Button>
-              ))}
+              {quickPromptKeys.slice(0, 4).map((promptKey) => {
+                const prompt = t(`aiAssistant.quickPrompts.${promptKey}`)
+                return (
+                  <Button
+                    key={promptKey}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isLoading}
+                    onClick={() => void sendMessage(prompt)}
+                    className="h-8 shrink-0 rounded-md px-2 text-xs font-normal"
+                  >
+                    {prompt}
+                  </Button>
+                )
+              })}
             </div>
           </div>
         ) : null}
@@ -288,7 +295,7 @@ export function AIAssistant() {
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={t("ai.placeholder")}
+              placeholder={t("aiAssistant.placeholder")}
               disabled={isLoading}
               rows={1}
               className="max-h-28 min-h-11 resize-none text-sm"
@@ -298,12 +305,12 @@ export function AIAssistant() {
               disabled={isLoading || !input.trim()}
               size="icon"
               className="h-11 w-11 shrink-0"
-              aria-label="Отправить сообщение"
+              aria-label={t("aiAssistant.send")}
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
-          <p className="mt-2 text-center text-[10px] leading-4 text-muted-foreground">{t("ai.disclaimer")}</p>
+          <p className="mt-2 text-center text-[10px] leading-4 text-muted-foreground">{t("aiAssistant.disclaimer")}</p>
         </div>
       </CardContent>
     </Card>

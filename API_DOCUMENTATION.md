@@ -9,6 +9,70 @@ All API endpoints require authentication via session cookie (HTTP-only).
 /api
 ```
 
+
+## Unified Response Contract
+
+JSON API routes return one of two envelopes.
+
+Success:
+```json
+{
+  "ok": true,
+  "data": {},
+  "message": "Optional server message",
+  "meta": {}
+}
+```
+
+Error:
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Safe public error message",
+    "details": {},
+    "requestId": "optional-request-id"
+  }
+}
+```
+
+Frontend code should map stable `error.code` values to i18n messages and must not show raw backend, provider, SQL, token, cookie, or secret details to users.
+
+Common error codes: `BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_ERROR`, `CONFLICT`, `RATE_LIMITED`, `INTERNAL_ERROR`, `DATABASE_ERROR`, `CACHE_ERROR`.
+
+AI error codes: `AI_PROVIDER_UNAVAILABLE`, `AI_PROVIDER_TIMEOUT`, `AI_PROVIDER_BAD_REQUEST`, `AI_CONTEXT_UNAVAILABLE`, `AI_EMPTY_RESPONSE`.
+
+AI chat success example:
+```json
+{
+  "ok": true,
+  "data": {
+    "message": "Assistant answer",
+    "contextStatus": {
+      "portfolio": "available",
+      "accounts": "available",
+      "marketData": "partial"
+    },
+    "timestamp": "2026-06-01T00:00:00.000Z"
+  },
+  "message": "AI response generated"
+}
+```
+
+AI provider error example:
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "AI_PROVIDER_UNAVAILABLE",
+    "message": "AI assistant is temporarily unavailable"
+  }
+}
+```
+
+HTTP status mapping: `200` success, `201` created, `400` invalid request or validation, `401` unauthenticated, `403` forbidden, `404` missing entity, `409` conflict, `429` rate limited, `500` internal error, `502` upstream rejected or invalid response, `503` upstream unavailable, `504` upstream timeout.
+
 ## Endpoints
 
 ### Analytics
@@ -299,6 +363,10 @@ Get current user.
 
 #### POST /api/auth/password
 Update password.
+
+## Legacy Error Handling Note
+
+Older examples below may show pre-standardization response shapes. New and refactored JSON routes use the unified `ok/data/error` contract above.
 
 ## Error Handling
 

@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireRequestUser } from "@/lib/api-auth"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError } from "@/lib/api-response"
 
 // GET /api/export/transactions - export transactions as CSV
 export async function GET(request: Request) {
-  const user = await requireRequestUser()
-  const { searchParams } = new URL(request.url)
-  const format = searchParams.get("format") || "csv"
-  const type = searchParams.get("type") || "transactions"
-
   try {
+    const user = await requireRequestUser()
+    const { searchParams } = new URL(request.url)
+    const format = searchParams.get("format") || "csv"
+    const type = searchParams.get("type") || "transactions"
     let data: string
     let filename: string
     let contentType: string
@@ -34,10 +35,7 @@ export async function GET(request: Request) {
         contentType = taxResult.contentType
         break
       default:
-        return NextResponse.json(
-          { error: "Invalid export type" },
-          { status: 400 }
-        )
+        return apiError(ApiErrorCode.VALIDATION_ERROR, "Invalid export type", { status: 400 })
     }
 
     return new NextResponse(data, {
@@ -46,11 +44,8 @@ export async function GET(request: Request) {
         "Content-Disposition": `attachment; filename="${filename}"`,
       },
     })
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to export data" },
-      { status: 500 }
-    )
+  } catch (error: any) {
+    return apiError(error?.status === 401 ? ApiErrorCode.UNAUTHORIZED : ApiErrorCode.INTERNAL_ERROR, error?.status === 401 ? "Authentication required" : "Failed to export data", { status: error?.status === 401 ? 401 : 500 })
   }
 }
 

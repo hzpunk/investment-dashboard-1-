@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { withAuth, errorResponse } from "@/lib/api-handler"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError, apiSuccess } from "@/lib/api-response"
 import { prisma } from "@/lib/prisma"
 import { createLogger } from "@/lib/logger"
 import { validateHistory, validateMessage } from "@/lib/validation"
@@ -17,10 +19,6 @@ import {
 import { INVESTMENT_ASSISTANT_SYSTEM_PROMPT } from "@/lib/ai/system-prompt"
 
 const logger = createLogger("AIChatRoute")
-const FRIENDLY_AI_ERROR = "AI-ассистент временно недоступен. Проверьте подключение к локальной модели."
-const PROVIDER_REJECTED_MESSAGE =
-  "AI-ассистент получил некорректный запрос. Попробуйте сократить сообщение или повторить позже."
-
 const PERSONAL_CONTEXT_PATTERN =
   /портфел|сч[её]т|баланс|актив|холдинг|позици|экспозици|диверсификац|доходност|прибыл|убыт|рискованн|btc|bitcoin|биткоин|курс|котиров|транзакц|сделк|portfolio|account|balance|holding|asset|allocation|diversif|return|performance|pnl|profit|loss|risk|price|quote/i
 
@@ -84,64 +82,34 @@ function aiErrorResponse(error: unknown) {
     })
 
     if (error.code === "invalid_request") {
-      return NextResponse.json(
-        {
-          error: "Invalid AI request",
-          message: "Сообщение не удалось подготовить для AI-ассистента.",
-        },
-        { status: 400 },
-      )
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "Invalid AI request", { status: 400 })
     }
 
     if (error.code === "non_2xx") {
-      return NextResponse.json(
-        {
-          error: "AI provider rejected the request",
-          message: PROVIDER_REJECTED_MESSAGE,
-        },
-        { status: 502 },
-      )
+      return apiError(ApiErrorCode.AI_PROVIDER_BAD_REQUEST, "AI provider rejected the request", { status: 502 })
     }
 
-    if (error.code === "timeout" || error.code === "network_error") {
-      return NextResponse.json(
-        {
-          error: "AI assistant is temporarily unavailable",
-          message: FRIENDLY_AI_ERROR,
-        },
-        { status: 503 },
-      )
+    if (error.code === "timeout") {
+      return apiError(ApiErrorCode.AI_PROVIDER_TIMEOUT, "AI provider request timed out", { status: 504 })
+    }
+
+    if (error.code === "network_error") {
+      return apiError(ApiErrorCode.AI_PROVIDER_UNAVAILABLE, "AI provider is unavailable", { status: 503 })
     }
 
     if (error.code === "invalid_response" || error.code === "empty_response") {
-      return NextResponse.json(
-        {
-          error: "AI provider returned an invalid response",
-          message: "AI-ассистент получил пустой или некорректный ответ от локальной модели.",
-        },
-        { status: 502 },
-      )
+      return apiError(ApiErrorCode.AI_EMPTY_RESPONSE, "AI provider returned an invalid or empty response", {
+        status: 502,
+      })
     }
 
     if (error.code === "missing_config") {
-      return NextResponse.json(
-        {
-          error: "AI assistant is not configured",
-          message: "AI-ассистент сейчас не настроен на сервере.",
-        },
-        { status: 500 },
-      )
+      return apiError(ApiErrorCode.INTERNAL_ERROR, "AI assistant is not configured", { status: 500 })
     }
   }
 
   logger.warn("[AI Chat] unexpected request failure", error instanceof Error ? error.message : error)
-  return NextResponse.json(
-    {
-      error: "Internal server error",
-      message: "AI-ассистент временно недоступен из-за внутренней ошибки.",
-    },
-    { status: 500 },
-  )
+  return apiError(ApiErrorCode.INTERNAL_ERROR, "Internal server error", { status: 500 })
 }
 
 export const POST = withAuth(async (request: NextRequest, user) => {
@@ -150,24 +118,24 @@ export const POST = withAuth(async (request: NextRequest, user) => {
   try {
     body = (await request.json()) as ChatRequestBody
   } catch {
-    return errorResponse("Invalid JSON", 400)
+    return errorResponse("Invalid JSON body", 400, ApiErrorCode.BAD_REQUEST)
   }
 
   const conversationSource = getConversationSource(body)
   if (!conversationSource.valid) {
-    return errorResponse(conversationSource.error, 400)
+    return errorResponse(conversationSource.error, 400, ApiErrorCode.VALIDATION_ERROR)
   }
 
   const historyValidation = validateHistory(conversationSource.value)
   if (!historyValidation.valid) {
-    return errorResponse(historyValidation.error || "Invalid history", 400)
+    return errorResponse(historyValidation.error || "Invalid history", 400, ApiErrorCode.VALIDATION_ERROR)
   }
 
   const conversation = sanitizeConversationMessages(conversationSource.value, 10)
   const userMessage = getUserMessage(body, conversation)
   const messageValidation = validateMessage(userMessage)
   if (!messageValidation.valid) {
-    return errorResponse(messageValidation.error || "Invalid message", 400)
+    return errorResponse(messageValidation.error || "Invalid message", 400, ApiErrorCode.VALIDATION_ERROR)
   }
 
   let portfolioContext: unknown = {
@@ -228,7 +196,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
   ])
 
   if (!outgoingMessages.valid) {
-    return errorResponse(outgoingMessages.error, 400)
+    return errorResponse(outgoingMessages.error, 400, ApiErrorCode.VALIDATION_ERROR)
   }
 
   try {
@@ -255,11 +223,14 @@ export const POST = withAuth(async (request: NextRequest, user) => {
       logger.warn("Failed to write AI chat audit log", auditError instanceof Error ? auditError.message : auditError)
     }
 
-    return NextResponse.json({
-      message: assistantMessage,
-      ...(contextStatus ? { contextStatus } : {}),
-      timestamp: new Date().toISOString(),
-    })
+    return apiSuccess(
+      {
+        message: assistantMessage,
+        ...(contextStatus ? { contextStatus } : {}),
+        timestamp: new Date().toISOString(),
+      },
+      { message: "AI response generated" },
+    )
   } catch (error) {
     return aiErrorResponse(error)
   }

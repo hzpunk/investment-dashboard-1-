@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/api-auth"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError, apiSuccess } from "@/lib/api-response"
 
 type RouteContext = {
   params: Promise<{ id: string }>
@@ -42,9 +43,9 @@ export async function PATCH(request: Request, context: RouteContext) {
       },
     })
 
-    return NextResponse.json({ setting: formatSetting(setting) })
+    return apiSuccess({ setting: formatSetting(setting) })
   } catch (error: any) {
     const status = error?.code === "P2025" ? 404 : error?.status ?? 500
-    return NextResponse.json({ error: status === 404 ? "Setting not found" : "Failed to update setting" }, { status })
+    return apiError(status === 404 ? ApiErrorCode.NOT_FOUND : ApiErrorCode.INTERNAL_ERROR, status === 404 ? "Setting not found" : "Failed to update setting", { status })
   }
 }

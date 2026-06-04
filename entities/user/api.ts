@@ -1,3 +1,5 @@
+import { apiFetch, ApiClientError } from "@/lib/api-client"
+
 export type Profile = {
   id: string
   username: string
@@ -10,42 +12,25 @@ type CurrentUserResponse = {
   user: { id: string; role: string; username?: string | null } | null
 }
 
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    credentials: "include",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers ?? {}),
-    },
-  })
-
-  const data = await response.json().catch(() => ({}))
-
-  if (!response.ok) {
-    throw new Error(data?.error || "Request failed")
-  }
-
-  return data as T
-}
-
 async function assertCurrentUser(userId: string) {
-  const { user } = await apiFetch<CurrentUserResponse>("/api/auth/me")
+  const { user } = await apiFetch<CurrentUserResponse>("/api/auth/me", { credentials: "include" })
   if (!user || user.id !== userId) {
-    throw new Error("Profile access is limited to the current user")
+    throw new ApiClientError("Forbidden", "FORBIDDEN", 403)
   }
   return user
 }
 
 export async function fetchUserProfile(userId: string) {
   await assertCurrentUser(userId)
-  return apiFetch<Profile>("/api/data/profiles")
+  return apiFetch<Profile>("/api/data/profiles", { credentials: "include" })
 }
 
 export async function updateUserProfile(userId: string, updates: Partial<Profile>) {
   await assertCurrentUser(userId)
   return apiFetch<Profile>("/api/data/profiles", {
     method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
   })
 }
@@ -78,6 +63,8 @@ export async function setUserRole(userId: string, role: string) {
   try {
     await apiFetch(`/api/admin/users/${userId}`, {
       method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role }),
     })
     return true

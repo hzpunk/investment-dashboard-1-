@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/api-auth"
 import { sanitizeString } from "@/lib/validation"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError, apiSuccess } from "@/lib/api-response"
 
 export async function POST(request: Request) {
   try {
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
     const selectedUsers = Array.isArray(body?.selectedUsers) ? body.selectedUsers.filter(Boolean) : []
 
     if (!title || !message) {
-      return NextResponse.json({ error: "Title and message are required" }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "Title and message are required", { status: 400 })
     }
 
     const users = await prisma.user.findMany({
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
     })
 
     if (users.length === 0) {
-      return NextResponse.json({ error: "No recipients found" }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "No recipients found", { status: 400 })
     }
 
     const result = await prisma.notification.createMany({
@@ -38,8 +39,8 @@ export async function POST(request: Request) {
       })),
     })
 
-    return NextResponse.json({ success: true, sent: result.count })
+    return apiSuccess({ success: true, sent: result.count }, { message: "Notification sent" })
   } catch (error: any) {
-    return NextResponse.json({ error: "Failed to send notification" }, { status: error?.status ?? 500 })
+    return apiError(ApiErrorCode.INTERNAL_ERROR, "Failed to send notification", { status: error?.status ?? 500 })
   }
 }

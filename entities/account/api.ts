@@ -1,6 +1,4 @@
-import { createLogger } from "@/lib/logger"
-
-const logger = createLogger("AccountAPI")
+import { apiFetch } from "@/lib/api-client"
 
 export type Account = {
   id: string
@@ -13,23 +11,6 @@ export type Account = {
 }
 
 export type AccountInsert = Omit<Account, "id" | "createdAt"> & { createdAt?: string }
-
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
-  try {
-    const res = await fetch(url, options)
-    const data = await res.json().catch(() => null)
-
-    if (!res.ok) {
-      logger.warn(`API request failed: ${url}`, data?.error)
-      return null
-    }
-
-    return data as T
-  } catch (error) {
-    logger.error(`API request error: ${url}`, error)
-    return null
-  }
-}
 
 export async function fetchAccounts(userId: string) {
   void userId

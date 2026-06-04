@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/api-auth"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError, apiSuccess } from "@/lib/api-response"
 
 const roles = ["admin", "user", "premium"] as const
 type Role = (typeof roles)[number]
@@ -51,10 +52,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const role = body?.role === undefined ? undefined : isRole(body.role) ? body.role : null
 
     if (username !== undefined && (username.length < 2 || username.length > 50)) {
-      return NextResponse.json({ error: "Username must be 2-50 characters" }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "Username must be 2-50 characters", { status: 400 })
     }
     if (role === null) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "Invalid role", { status: 400 })
     }
 
     await assertCanRemoveAdminRole(id, currentUser.id, role)
@@ -97,12 +98,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       })
     })
 
-    return NextResponse.json({ user: formatUser(user) })
+    return apiSuccess({ user: formatUser(user) })
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error?.message || "Failed to update user" },
-      { status: error?.status ?? 500 },
-    )
+    return apiError(error?.status === 404 ? ApiErrorCode.NOT_FOUND : error?.status === 400 ? ApiErrorCode.VALIDATION_ERROR : ApiErrorCode.INTERNAL_ERROR, error?.message || "Failed to update user", { status: error?.status ?? 500 })
   }
 }
 
@@ -112,7 +110,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     const { id } = await context.params
 
     if (id === currentUser.id) {
-      return NextResponse.json({ error: "You cannot delete your own admin account" }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "You cannot delete your own admin account", { status: 400 })
     }
 
     const targetIsAdmin = await prisma.userRoleAssignment.findFirst({
@@ -121,16 +119,13 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     if (targetIsAdmin) {
       const adminCount = await prisma.userRoleAssignment.count({ where: { role: "admin" } })
       if (adminCount <= 1) {
-        return NextResponse.json({ error: "Cannot delete the last admin account" }, { status: 400 })
+        return apiError(ApiErrorCode.VALIDATION_ERROR, "Cannot delete the last admin account", { status: 400 })
       }
     }
 
     await prisma.user.delete({ where: { id } })
-    return NextResponse.json({ success: true })
+    return apiSuccess({ success: true }, { message: "User deleted" })
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error?.code === "P2025" ? "User not found" : "Failed to delete user" },
-      { status: error?.code === "P2025" ? 404 : error?.status ?? 500 },
-    )
+    return apiError(error?.code === "P2025" ? ApiErrorCode.NOT_FOUND : ApiErrorCode.INTERNAL_ERROR, error?.code === "P2025" ? "User not found" : "Failed to delete user", { status: error?.code === "P2025" ? 404 : error?.status ?? 500 })
   }
 }

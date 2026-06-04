@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { withAuth, errorResponse } from "@/lib/api-handler"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError, apiSuccess } from "@/lib/api-response"
 import { prisma } from "@/lib/prisma"
 import { createLogger } from "@/lib/logger"
 import { AIClientError, createChatCompletion, type OpenAICompatibleMessage } from "@/lib/ai/openai-compatible-client"
@@ -7,11 +9,10 @@ import { compactSystemContext, safeJsonForPrompt, validateOutgoingMessages } fro
 import { PORTFOLIO_REPORT_SYSTEM_PROMPT } from "@/lib/ai/system-prompt"
 
 const logger = createLogger("AIReportRoute")
-const FRIENDLY_AI_ERROR = "AI-ассистент временно недоступен. Проверьте подключение к локальной модели."
 
 type ReportPeriod = "1m" | "3m" | "6m" | "1y" | "all"
 
-function aiErrorResponse(error: unknown, data: unknown) {
+function aiErrorResponse(error: unknown) {
   if (error instanceof AIClientError) {
     logger.warn("[AI Report] request failed", {
       code: error.code,
@@ -20,69 +21,30 @@ function aiErrorResponse(error: unknown, data: unknown) {
     })
 
     if (error.code === "invalid_request") {
-      return NextResponse.json(
-        {
-          report: null,
-          data,
-          error: "Invalid AI request",
-          message: "Отчет не удалось подготовить для AI-ассистента.",
-          timestamp: new Date().toISOString(),
-        },
-        { status: 400 },
-      )
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "Invalid AI request", { status: 400 })
     }
 
     if (error.code === "non_2xx") {
-      return NextResponse.json(
-        {
-          report: null,
-          data,
-          error: "AI provider rejected the request",
-          message: "AI-ассистент получил некорректный запрос. Попробуйте сократить период отчета или повторить позже.",
-          timestamp: new Date().toISOString(),
-        },
-        { status: 502 },
-      )
+      return apiError(ApiErrorCode.AI_PROVIDER_BAD_REQUEST, "AI provider rejected the request", { status: 502 })
     }
 
-    if (error.code === "timeout" || error.code === "network_error") {
-      return NextResponse.json(
-        {
-          report: null,
-          data,
-          error: "AI assistant is temporarily unavailable",
-          message: FRIENDLY_AI_ERROR,
-          timestamp: new Date().toISOString(),
-        },
-        { status: 503 },
-      )
+    if (error.code === "timeout") {
+      return apiError(ApiErrorCode.AI_PROVIDER_TIMEOUT, "AI provider request timed out", { status: 504 })
+    }
+
+    if (error.code === "network_error") {
+      return apiError(ApiErrorCode.AI_PROVIDER_UNAVAILABLE, "AI provider is unavailable", { status: 503 })
     }
 
     if (error.code === "invalid_response" || error.code === "empty_response") {
-      return NextResponse.json(
-        {
-          report: null,
-          data,
-          error: "AI provider returned an invalid response",
-          message: "AI-ассистент получил пустой или некорректный ответ от локальной модели.",
-          timestamp: new Date().toISOString(),
-        },
-        { status: 502 },
-      )
+      return apiError(ApiErrorCode.AI_EMPTY_RESPONSE, "AI provider returned an invalid or empty response", {
+        status: 502,
+      })
     }
   }
 
   logger.warn("[AI Report] unexpected request failure", error instanceof Error ? error.message : error)
-  return NextResponse.json(
-    {
-      report: null,
-      data,
-      error: "Internal server error",
-      message: "AI-ассистент временно недоступен из-за внутренней ошибки.",
-      timestamp: new Date().toISOString(),
-    },
-    { status: 500 },
-  )
+  return apiError(ApiErrorCode.INTERNAL_ERROR, "Internal server error", { status: 500 })
 }
 
 export const POST = withAuth(async (request: NextRequest, user) => {
@@ -91,7 +53,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
   try {
     body = await request.json()
   } catch {
-    return errorResponse("Invalid JSON", 400)
+    return errorResponse("Invalid JSON body", 400, ApiErrorCode.BAD_REQUEST)
   }
 
   const portfolioId = body?.portfolioId
@@ -113,7 +75,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     })
 
     if (!portfolio) {
-      return errorResponse("Portfolio not found", 404)
+      return errorResponse("Portfolio not found", 404, ApiErrorCode.NOT_FOUND)
     }
 
     const now = new Date()
@@ -159,7 +121,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     ] satisfies OpenAICompatibleMessage[])
 
     if (!outgoingMessages.valid) {
-      return errorResponse(outgoingMessages.error, 400)
+      return errorResponse(outgoingMessages.error, 400, ApiErrorCode.VALIDATION_ERROR)
     }
 
     let report: string
@@ -169,7 +131,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
         timeoutMs: 100_000,
       })
     } catch (aiError) {
-      return aiErrorResponse(aiError, portfolioData)
+      return aiErrorResponse(aiError)
     }
 
     try {
@@ -186,23 +148,18 @@ export const POST = withAuth(async (request: NextRequest, user) => {
       logger.warn("Failed to write AI report audit log", auditError instanceof Error ? auditError.message : auditError)
     }
 
-    return NextResponse.json({
-      report,
-      data: portfolioData,
-      period,
-      generatedAt: new Date().toISOString(),
-    })
+    return apiSuccess(
+      {
+        report,
+        data: portfolioData,
+        period,
+        generatedAt: new Date().toISOString(),
+      },
+      { message: "AI report generated" },
+    )
   } catch (error) {
     logger.warn("AI report generation failed", error instanceof Error ? error.message : error)
-    return NextResponse.json(
-      {
-        report: null,
-        error: "Internal server error",
-        message: "Не удалось подготовить AI-отчет по портфелю.",
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 },
-    )
+    return apiError(ApiErrorCode.INTERNAL_ERROR, "Failed to prepare AI portfolio report", { status: 500 })
   }
 })
 

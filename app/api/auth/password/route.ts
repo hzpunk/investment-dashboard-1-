@@ -1,19 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireRequestUser } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/password'
+import { ApiErrorCode } from '@/lib/api-errors'
+import { apiError, apiSuccess } from '@/lib/api-response'
 
 export async function POST(request: NextRequest) {
   try {
     const user = await requireRequestUser()
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return apiError(ApiErrorCode.UNAUTHORIZED, 'Authentication required', { status: 401 })
     }
 
     const { password } = await request.json()
     
     if (!password || password.length < 6) {
-      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, 'Password must be at least 6 characters', { status: 400 })
     }
 
     const passwordHash = await hashPassword(password)
@@ -23,8 +25,8 @@ export async function POST(request: NextRequest) {
       data: { passwordHash },
     })
 
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to update password' }, { status: 500 })
+    return apiSuccess({ success: true }, { message: 'Password updated' })
+  } catch (error: any) {
+    return apiError(error?.status === 401 ? ApiErrorCode.UNAUTHORIZED : ApiErrorCode.INTERNAL_ERROR, error?.status === 401 ? 'Authentication required' : 'Failed to update password', { status: error?.status === 401 ? 401 : 500 })
   }
 }

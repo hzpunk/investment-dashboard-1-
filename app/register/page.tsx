@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { getLocalizedApiErrorCode } from "@/lib/api-client"
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("")
@@ -41,7 +42,7 @@ export default function RegisterPage() {
 
     const { error: signUpError } = await signUp(email, password, username)
     if (signUpError) {
-      setError(signUpError.message)
+      setError(getLocalizedApiErrorCode(t, signUpError.code))
       setIsLoading(false)
       return
     }

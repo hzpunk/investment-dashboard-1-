@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/password'
 import { createSession, getSessionCookieName } from '@/lib/auth'
 import { LIMITS, validateLength, validateEmail, validateUsername, sanitizeString } from '@/lib/validation'
+import { ApiErrorCode } from '@/lib/api-errors'
+import { apiError, apiSuccess } from '@/lib/api-response'
 
 export async function POST(request: Request) {
   // Safe JSON parsing with size limit
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
   try {
     body = await request.json() as Record<string, unknown>
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    return apiError(ApiErrorCode.BAD_REQUEST, 'Invalid JSON body', { status: 400 })
   }
 
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
@@ -19,31 +20,27 @@ export async function POST(request: Request) {
 
   // Validate required fields
   if (!email || !password || !username) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    return apiError(ApiErrorCode.VALIDATION_ERROR, 'Invalid payload', { status: 400 })
   }
 
   // Validate email format and length
   if (!validateEmail(email)) {
-    return NextResponse.json({ error: 'Invalid email format or too long' }, { status: 400 })
+    return apiError(ApiErrorCode.VALIDATION_ERROR, 'Invalid email format or too long', { status: 400 })
   }
 
   // Validate username format (alphanumeric + safe chars)
   if (!validateUsername(username)) {
-    return NextResponse.json({ 
-      error: 'Username must be 2-50 chars, alphanumeric only' 
-    }, { status: 400 })
+    return apiError(ApiErrorCode.VALIDATION_ERROR, 'Username must be 2-50 chars, alphanumeric only', { status: 400 })
   }
 
   // Validate password length
   if (!validateLength(password, LIMITS.PASSWORD_MAX, LIMITS.PASSWORD_MIN)) {
-    return NextResponse.json({ 
-      error: `Password must be ${LIMITS.PASSWORD_MIN}-${LIMITS.PASSWORD_MAX} characters` 
-    }, { status: 400 })
+    return apiError(ApiErrorCode.VALIDATION_ERROR, `Password must be ${LIMITS.PASSWORD_MIN}-${LIMITS.PASSWORD_MAX} characters`, { status: 400 })
   }
 
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) {
-    return NextResponse.json({ error: 'Email already in use' }, { status: 409 })
+    return apiError(ApiErrorCode.CONFLICT, 'Email already in use', { status: 409 })
   }
 
   const passwordHash = await hashPassword(password)
@@ -68,14 +65,14 @@ export async function POST(request: Request) {
 
   const { token, expiresAt } = await createSession(user.id, 1000 * 60 * 60 * 24 * 30)
 
-  const res = NextResponse.json({
+  const res = apiSuccess({
     user: {
       id: user.id,
       email: user.email,
       username: user.profile?.username ?? username,
       role: user.roles[0]?.role ?? 'user',
     },
-  })
+  }, { message: 'Account created' })
 
   res.cookies.set(getSessionCookieName(), token, {
     httpOnly: true,

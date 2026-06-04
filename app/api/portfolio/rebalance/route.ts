@@ -1,20 +1,17 @@
-import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireRequestUser } from "@/lib/api-auth"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError, apiSuccess } from "@/lib/api-response"
 
 // POST /api/portfolio/rebalance - calculate rebalancing recommendations
 export async function POST(request: Request) {
-  const user = await requireRequestUser()
-  
   try {
+    const user = await requireRequestUser()
     const body = await request.json()
     const { portfolioId, targetAllocation, strategy = "threshold" } = body
 
     if (!portfolioId || !targetAllocation || !Array.isArray(targetAllocation)) {
-      return NextResponse.json(
-        { error: "Missing portfolioId or targetAllocation" },
-        { status: 400 }
-      )
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "Missing portfolioId or targetAllocation", { status: 400 })
     }
 
     // Get portfolio with current assets
@@ -30,10 +27,7 @@ export async function POST(request: Request) {
     })
 
     if (!portfolio) {
-      return NextResponse.json(
-        { error: "Portfolio not found" },
-        { status: 404 }
-      )
+      return apiError(ApiErrorCode.NOT_FOUND, "Portfolio not found", { status: 404 })
     }
 
     // Calculate current values
@@ -111,7 +105,7 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({
+    return apiSuccess({
       portfolioId,
       portfolioName: portfolio.name,
       totalValue,
@@ -126,11 +120,8 @@ export async function POST(request: Request) {
         estimatedFees: (totalBuyValue + totalSellValue) * 0.001, // 0.1% estimate
       },
     })
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to calculate rebalancing" },
-      { status: 500 }
-    )
+  } catch (error: any) {
+    return apiError(error?.status === 401 ? ApiErrorCode.UNAUTHORIZED : ApiErrorCode.INTERNAL_ERROR, error?.status === 401 ? "Authentication required" : "Failed to calculate rebalancing", { status: error?.status === 401 ? 401 : 500 })
   }
 }
 
@@ -199,5 +190,5 @@ export async function GET() {
     },
   ]
 
-  return NextResponse.json({ strategies })
+  return apiSuccess({ strategies })
 }

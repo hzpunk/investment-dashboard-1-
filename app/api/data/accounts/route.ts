@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { cacheKeys } from '@/lib/cache-keys'
 import { invalidateUserAccountsCache } from '@/lib/cache-invalidation'
 import { prisma } from '@/lib/prisma'
 import { withAuth, successResponse, errorResponse } from '@/lib/api-handler'
+import { ApiErrorCode } from '@/lib/api-errors'
 import { cached } from '@/lib/server-cache'
 
 export const GET = withAuth(async (_, user) => {
@@ -34,7 +35,7 @@ export const POST = withAuth(async (request: NextRequest, user): Promise<any> =>
     const { name, type, balance, currency } = body
 
     if (!name || typeof name !== 'string' || !type) {
-      return NextResponse.json({ error: 'Name and type are required' }, { status: 400 })
+      return errorResponse('Name and type are required', 400, ApiErrorCode.VALIDATION_ERROR)
     }
 
     const account = await prisma.account.create({

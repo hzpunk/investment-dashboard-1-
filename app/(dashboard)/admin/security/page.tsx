@@ -11,6 +11,12 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useI18n } from "@/contexts/i18n-context"
+import { apiFetch, getLocalizedApiError } from "@/lib/api-client"
+
+type AdminSetting = {
+  settingKey: string
+  settingValue: string
+}
 
 export default function AdminSecurityPage() {
   const { userRole } = useAuth()
@@ -38,13 +44,10 @@ export default function AdminSecurityPage() {
 
       setIsLoading(true)
       try {
-        const res = await fetch("/api/admin/settings", { credentials: "include" })
-        const data = await res.json().catch(() => null)
-
-        if (!res.ok) throw new Error(data?.error || t("admin.settingsSaveFailed"))
+        const data = await apiFetch<{ settings: AdminSetting[] }>("/api/admin/settings", { credentials: "include" })
 
         const settings = (data?.settings || []).reduce(
-          (acc: typeof securitySettings, setting: { settingKey: string; settingValue: string }) => {
+          (acc: typeof securitySettings, setting) => {
             switch (setting.settingKey) {
               case "security.password_min_length":
                 acc.passwordMinLength = setting.settingValue
@@ -78,7 +81,7 @@ export default function AdminSecurityPage() {
 
         setSecuritySettings(settings)
       } catch (error) {
-        setMessage({ type: "error", text: t("errors.unavailable") })
+        setMessage({ type: "error", text: getLocalizedApiError(t, error) })
       } finally {
         setIsLoading(false)
       }
@@ -115,18 +118,16 @@ export default function AdminSecurityPage() {
         ["security.two_factor_enabled", securitySettings.twoFactorEnabled],
       ].map(([key, value]) => ({ key, value }))
 
-      const res = await fetch("/api/admin/settings", {
+      await apiFetch<{ success: boolean }>("/api/admin/settings", {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ settings }),
       })
-      const data = await res.json().catch(() => null)
-      if (!res.ok) throw new Error(data?.error || t("admin.settingsSaveFailed"))
 
       setMessage({ type: "success", text: t("admin.settingsSaved") })
     } catch (error) {
-      setMessage({ type: "error", text: t("admin.settingsSaveFailed") })
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     } finally {
       setIsSaving(false)
     }
@@ -162,7 +163,7 @@ export default function AdminSecurityPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="password-min-length">Minimum Password Length</Label>
+                  <Label htmlFor="password-min-length">{t("admin.passwordMinLength")}</Label>
                   <Input
                     id="password-min-length"
                     type="number"
@@ -173,7 +174,7 @@ export default function AdminSecurityPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="require-special-chars">Require Special Characters</Label>
+                  <Label htmlFor="require-special-chars">{t("admin.requireSpecialChars")}</Label>
                   <Switch
                     id="require-special-chars"
                     checked={securitySettings.requireSpecialChars}
@@ -183,7 +184,7 @@ export default function AdminSecurityPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="require-numbers">Require Numbers</Label>
+                  <Label htmlFor="require-numbers">{t("admin.requireNumbers")}</Label>
                   <Switch
                     id="require-numbers"
                     checked={securitySettings.requireNumbers}
@@ -191,7 +192,7 @@ export default function AdminSecurityPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="require-uppercase">Require Uppercase Letters</Label>
+                  <Label htmlFor="require-uppercase">{t("admin.requireUppercase")}</Label>
                   <Switch
                     id="require-uppercase"
                     checked={securitySettings.requireUppercase}
@@ -212,7 +213,7 @@ export default function AdminSecurityPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="max-login-attempts">Maximum Login Attempts</Label>
+                  <Label htmlFor="max-login-attempts">{t("admin.maxLoginAttempts")}</Label>
                   <Input
                     id="max-login-attempts"
                     type="number"
@@ -222,11 +223,11 @@ export default function AdminSecurityPage() {
                     onChange={(e) => setSecuritySettings({ ...securitySettings, maxLoginAttempts: e.target.value })}
                   />
                   <p className="text-sm text-muted-foreground">
-                    Number of failed login attempts before account is temporarily locked.
+                    {t("admin.maxLoginAttemptsHint")}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lockout-duration">Account Lockout Duration (minutes)</Label>
+                  <Label htmlFor="lockout-duration">{t("admin.lockoutDuration")}</Label>
                   <Input
                     id="lockout-duration"
                     type="number"
@@ -238,8 +239,8 @@ export default function AdminSecurityPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="two-factor-enabled">Two-Factor Authentication</Label>
-                    <p className="text-sm text-muted-foreground">Require 2FA for all users.</p>
+                    <Label htmlFor="two-factor-enabled">{t("admin.twoFactorAuthentication")}</Label>
+                    <p className="text-sm text-muted-foreground">{t("admin.twoFactorAuthenticationHint")}</p>
                   </div>
                   <Switch
                     id="two-factor-enabled"
@@ -261,7 +262,7 @@ export default function AdminSecurityPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="session-timeout">Session Timeout (minutes)</Label>
+                  <Label htmlFor="session-timeout">{t("admin.sessionTimeout")}</Label>
                   <Input
                     id="session-timeout"
                     type="number"
@@ -271,7 +272,7 @@ export default function AdminSecurityPage() {
                     onChange={(e) => setSecuritySettings({ ...securitySettings, sessionTimeout: e.target.value })}
                   />
                   <p className="text-sm text-muted-foreground">
-                    Time of inactivity before a user is automatically logged out.
+                    {t("admin.sessionTimeoutHint")}
                   </p>
                 </div>
               </CardContent>

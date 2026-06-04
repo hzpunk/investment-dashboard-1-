@@ -1,21 +1,7 @@
 import { createLogger } from "@/lib/logger"
+import { apiFetch } from "@/lib/api-client"
 
 const logger = createLogger("AnalyticsAPI")
-
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
-  try {
-    const res = await fetch(url, options)
-    const data = await res.json().catch(() => null)
-    if (!res.ok) {
-      logger.warn(`API request failed: ${url}`, data?.error)
-      return null
-    }
-    return data as T
-  } catch (error) {
-    logger.error(`API request error: ${url}`, error)
-    return null
-  }
-}
 
 export async function getPortfolioPerformance(userId: string, period: string) {
   const now = new Date();

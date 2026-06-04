@@ -289,3 +289,20 @@ curl -X POST http://localhost:3000/api/auth/register \
 
 ### Лицензия
 Дипломный проект для образовательных целей.
+
+
+### API Response Contract
+
+All JSON API routes use a unified envelope.
+
+Success:
+```json
+{ "ok": true, "data": {}, "message": "Optional message", "meta": {} }
+```
+
+Error:
+```json
+{ "ok": false, "error": { "code": "VALIDATION_ERROR", "message": "Safe public message", "details": {}, "requestId": "optional" } }
+```
+
+Frontend code should use `lib/api-client.ts` and map `error.code` to localized strings from `messages/ru.json` and `messages/en.json`. Backend responses must not expose raw SQL, provider errors, tokens, cookies, secrets, or internal infrastructure details to the browser.

@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { deleteSessionByToken, getSessionCookieName } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import { apiSuccess } from '@/lib/api-response'
 
 export async function POST() {
   const cookieStore = await cookies()
@@ -10,7 +10,7 @@ export async function POST() {
     await deleteSessionByToken(token)
   }
 
-  const res = NextResponse.json({ ok: true })
+  const res = apiSuccess({ signedOut: true }, { message: 'Signed out' })
   res.cookies.set(getSessionCookieName(), '', {
     httpOnly: true,
     sameSite: 'lax',

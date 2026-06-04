@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useI18n } from "@/contexts/i18n-context"
+import { getLocalizedApiError } from "@/lib/api-client"
 
 type AdminSetting = {
   id: string
@@ -67,7 +68,7 @@ export default function AdminSettingsPage() {
           setSettings(settingsData)
         }
       } catch (error) {
-        setMessage({ type: "error", text: t("errors.unavailable") })
+        setMessage({ type: "error", text: getLocalizedApiError(t, error) })
       } finally {
         setIsLoading(false)
       }
@@ -102,7 +103,7 @@ export default function AdminSettingsPage() {
 
       setMessage({ type: "success", text: t("admin.settingsSaved") })
     } catch (error) {
-      setMessage({ type: "error", text: t("admin.settingsSaveFailed") })
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     } finally {
       setIsSaving(false)
     }
@@ -134,7 +135,7 @@ export default function AdminSettingsPage() {
       setIsAddSettingOpen(false)
       setMessage({ type: "success", text: t("admin.settingsSaved") })
     } catch (error) {
-      setMessage({ type: "error", text: t("admin.settingsSaveFailed") })
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     } finally {
       setIsSaving(false)
     }
@@ -178,7 +179,7 @@ export default function AdminSettingsPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="setting-key" className="text-right">
-                  Key
+                  {t("admin.settingKey")}
                 </Label>
                 <Input
                   id="setting-key"
@@ -189,7 +190,7 @@ export default function AdminSettingsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="setting-value" className="text-right">
-                  Value
+                  {t("admin.settingValue")}
                 </Label>
                 <Input
                   id="setting-value"
@@ -200,7 +201,7 @@ export default function AdminSettingsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="setting-description" className="text-right">
-                  Description
+                  {t("common.description")}
                 </Label>
                 <Textarea
                   id="setting-description"
@@ -224,9 +225,9 @@ export default function AdminSettingsPage() {
 
       <Tabs defaultValue="general" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="api">API Settings</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="general">{t("admin.generalSettings")}</TabsTrigger>
+          <TabsTrigger value="api">{t("admin.apiSettings")}</TabsTrigger>
+          <TabsTrigger value="security">{t("admin.securityTitle")}</TabsTrigger>
         </TabsList>
 
         {message && (
@@ -238,8 +239,8 @@ export default function AdminSettingsPage() {
         <TabsContent value="general">
           <Card>
             <CardHeader>
-              <CardTitle>General Settings</CardTitle>
-              <CardDescription>Configure general application settings.</CardDescription>
+              <CardTitle>{t("admin.generalSettings")}</CardTitle>
+              <CardDescription>{t("admin.generalSettingsDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {settings
@@ -255,7 +256,7 @@ export default function AdminSettingsPage() {
                         disabled={!editedSettings[setting.id]}
                       >
                         <Save className="h-4 w-4 mr-1" />
-                        Save
+                        {t("common.save")}
                       </Button>
                     </div>
                     {setting.description && <p className="text-sm text-muted-foreground">{setting.description}</p>}
@@ -275,8 +276,8 @@ export default function AdminSettingsPage() {
         <TabsContent value="api">
           <Card>
             <CardHeader>
-              <CardTitle>API Settings</CardTitle>
-              <CardDescription>Configure API keys and endpoints.</CardDescription>
+              <CardTitle>{t("admin.apiSettings")}</CardTitle>
+              <CardDescription>{t("admin.apiSettingsDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {settings
@@ -292,7 +293,7 @@ export default function AdminSettingsPage() {
                         disabled={!editedSettings[setting.id]}
                       >
                         <Save className="h-4 w-4 mr-1" />
-                        Save
+                        {t("common.save")}
                       </Button>
                     </div>
                     {setting.description && <p className="text-sm text-muted-foreground">{setting.description}</p>}
@@ -312,8 +313,8 @@ export default function AdminSettingsPage() {
         <TabsContent value="security">
           <Card>
             <CardHeader>
-              <CardTitle>Security Settings</CardTitle>
-              <CardDescription>Configure security and authentication settings.</CardDescription>
+              <CardTitle>{t("admin.securitySettings")}</CardTitle>
+              <CardDescription>{t("admin.securitySettingsDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {settings
@@ -329,7 +330,7 @@ export default function AdminSettingsPage() {
                         disabled={!editedSettings[setting.id]}
                       >
                         <Save className="h-4 w-4 mr-1" />
-                        Save
+                        {t("common.save")}
                       </Button>
                     </div>
                     {setting.description && <p className="text-sm text-muted-foreground">{setting.description}</p>}

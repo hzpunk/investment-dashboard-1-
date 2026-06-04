@@ -1,10 +1,11 @@
 // POST /api/auth/reset-password - Reset password with token
-import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/password'
 import { createHash } from 'crypto'
 import { LIMITS, validateLength } from '@/lib/validation'
 import { checkRateLimit } from '@/lib/rate-limit-simple'
+import { ApiErrorCode } from '@/lib/api-errors'
+import { apiError, apiSuccess } from '@/lib/api-response'
 
 function sha256Hex(input: string): string {
   return createHash('sha256').update(input).digest('hex')
@@ -14,31 +15,25 @@ export async function POST(request: Request) {
   // Rate limit by IP
   const ip = request.headers.get('x-forwarded-for') || 'unknown'
   if (!checkRateLimit(`reset-password:${ip}`, 5)) {
-    return NextResponse.json(
-      { error: 'Too many attempts. Please try again later.' },
-      { status: 429 }
-    )
+    return apiError(ApiErrorCode.RATE_LIMITED, 'Too many attempts. Please try again later.', { status: 429 })
   }
 
   let body: { token?: string; password?: string }
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    return apiError(ApiErrorCode.BAD_REQUEST, 'Invalid JSON body', { status: 400 })
   }
 
   const token = typeof body?.token === 'string' ? body.token : ''
   const password = typeof body?.password === 'string' ? body.password : ''
 
   if (!token) {
-    return NextResponse.json({ error: 'Reset token is required' }, { status: 400 })
+    return apiError(ApiErrorCode.VALIDATION_ERROR, 'Reset token is required', { status: 400 })
   }
 
   if (!validateLength(password, LIMITS.PASSWORD_MAX, LIMITS.PASSWORD_MIN)) {
-    return NextResponse.json(
-      { error: `Password must be ${LIMITS.PASSWORD_MIN}-${LIMITS.PASSWORD_MAX} characters` },
-      { status: 400 }
-    )
+    return apiError(ApiErrorCode.VALIDATION_ERROR, `Password must be ${LIMITS.PASSWORD_MIN}-${LIMITS.PASSWORD_MAX} characters`, { status: 400 })
   }
 
   const tokenHash = sha256Hex(token)
@@ -52,10 +47,7 @@ export async function POST(request: Request) {
   })
 
   if (!resetRecord) {
-    return NextResponse.json(
-      { error: 'Invalid or expired reset token' },
-      { status: 400 }
-    )
+    return apiError(ApiErrorCode.VALIDATION_ERROR, 'Invalid or expired reset token', { status: 400 })
   }
 
   // Hash new password
@@ -77,8 +69,7 @@ export async function POST(request: Request) {
     }),
   ])
 
-  return NextResponse.json({
+  return apiSuccess({
     success: true,
-    message: 'Password has been reset successfully. Please sign in with your new password.',
-  })
+  }, { message: 'Password has been reset successfully. Please sign in with your new password.' })
 }

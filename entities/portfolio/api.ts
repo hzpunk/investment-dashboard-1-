@@ -1,7 +1,5 @@
-import { createLogger } from "@/lib/logger"
+import { apiFetch } from "@/lib/api-client"
 import { type Asset } from "@/entities/asset/api"
-
-const logger = createLogger("PortfolioAPI")
 
 export type Portfolio = {
   id: string
@@ -33,23 +31,6 @@ export type PortfolioAllocationSummary = {
   totalValue: number
   allocation: PortfolioAllocationItem[]
   source: "portfolio_assets" | "transactions" | "mixed" | "empty"
-}
-
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
-  try {
-    const res = await fetch(url, options)
-    const data = await res.json().catch(() => null)
-
-    if (!res.ok) {
-      logger.warn(`API request failed: ${url}`, data?.error)
-      return null
-    }
-
-    return data as T
-  } catch (error) {
-    logger.error(`API request error: ${url}`, error)
-    return null
-  }
 }
 
 export async function fetchPortfolios() {

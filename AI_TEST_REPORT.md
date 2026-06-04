@@ -27,14 +27,33 @@
 
 ```json
 {
-  "message": "Краткий ответ ассистента",
-  "contextStatus": {
-    "portfolio": "available",
-    "accounts": "available",
-    "marketData": "partial"
+  "ok": true,
+  "data": {
+    "message": "Краткий ответ ассистента",
+    "contextStatus": {
+      "portfolio": "available",
+      "accounts": "available",
+      "marketData": "partial"
+    },
+    "timestamp": "2026-06-01T00:00:00.000Z"
+  },
+  "message": "AI response generated"
+}
+```
+
+Provider/backend errors use the unified API error envelope:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "AI_PROVIDER_UNAVAILABLE",
+    "message": "AI assistant is temporarily unavailable"
   }
 }
 ```
+
+Frontend UI maps `error.code` to localized messages from `messages/ru.json` and `messages/en.json`.
 
 ## Проверка LM Studio
 

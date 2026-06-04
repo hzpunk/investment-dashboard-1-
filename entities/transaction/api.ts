@@ -1,6 +1,4 @@
-import { createLogger } from "@/lib/logger"
-
-const logger = createLogger("TransactionAPI")
+import { apiFetch } from "@/lib/api-client"
 
 export type Transaction = {
   id: string
@@ -20,23 +18,6 @@ export type Transaction = {
 }
 
 type TransactionInsert = Omit<Transaction, "id" | "accounts" | "assets"> & { id?: string }
-
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T | null> {
-  try {
-    const res = await fetch(url, options)
-    const data = await res.json().catch(() => null)
-
-    if (!res.ok) {
-      logger.warn(`API request failed: ${url}`, data?.error)
-      throw new Error(data?.error || "Request failed")
-    }
-
-    return data as T
-  } catch (error) {
-    logger.error(`API request error: ${url}`, error)
-    throw error
-  }
-}
 
 export async function fetchTransactions(userId: string): Promise<Transaction[]> {
   void userId

@@ -423,7 +423,46 @@
     "templateSaved": "Шаблон сохранён",
     "templateSaveFailed": "Не удалось сохранить шаблон",
     "notificationSent": "Уведомление отправлено",
-    "notificationSendFailed": "Не удалось отправить уведомление"
+    "notificationSendFailed": "Не удалось отправить уведомление",
+    "cannotDeleteOwnAccount": "Нельзя удалить собственный администраторский аккаунт",
+    "passwordMinLength": "Минимальная длина пароля",
+    "requireSpecialChars": "Требовать специальные символы",
+    "requireNumbers": "Требовать цифры",
+    "requireUppercase": "Требовать заглавные буквы",
+    "maxLoginAttempts": "Максимум попыток входа",
+    "maxLoginAttemptsHint": "Количество неудачных попыток входа до временной блокировки аккаунта.",
+    "lockoutDuration": "Длительность блокировки аккаунта (минуты)",
+    "twoFactorAuthentication": "Двухфакторная аутентификация",
+    "twoFactorAuthenticationHint": "Требовать 2FA для всех пользователей.",
+    "sessionTimeout": "Тайм-аут сессии (минуты)",
+    "sessionTimeoutHint": "Время бездействия до автоматического выхода пользователя.",
+    "subject": "Тема",
+    "body": "Текст",
+    "notificationSettings": "Настройки уведомлений",
+    "notificationSettingsDescription": "Настройте общие параметры уведомлений.",
+    "emailNotifications": "Email-уведомления",
+    "pushNotifications": "Push-уведомления",
+    "inAppNotifications": "Уведомления в приложении",
+    "notificationTypes": "Типы уведомлений",
+    "priceAlerts": "Ценовые алерты",
+    "transactionNotifications": "Уведомления о транзакциях",
+    "goalNotifications": "Уведомления о целях",
+    "systemNotifications": "Системные уведомления",
+    "marketUpdates": "Рыночные обновления",
+    "saveTemplate": "Сохранить шаблон",
+    "selectTemplateType": "Выберите тип шаблона",
+    "priceAlertTemplate": "Ценовой алерт",
+    "transactionTemplate": "Транзакция",
+    "goalTemplate": "Цель",
+    "systemTemplate": "Система",
+    "settingKey": "Ключ",
+    "settingValue": "Значение",
+    "generalSettings": "Общие настройки",
+    "generalSettingsDescription": "Настройте общие параметры приложения.",
+    "apiSettings": "Настройки API",
+    "apiSettingsDescription": "Настройте API-ключи и конечные точки.",
+    "securitySettings": "Настройки безопасности",
+    "securitySettingsDescription": "Настройте безопасность и аутентификацию."
   },
   "legal": {
     "title": "Правовая информация",
@@ -485,7 +524,8 @@
   },
   "role": {
     "admin": "Администратор",
-    "user": "Пользователь"
+    "user": "Пользователь",
+    "premium": "Премиум"
   },
   "accountType": {
     "brokerage": "Брокерский",
@@ -510,5 +550,54 @@
     "interest": "Процент",
     "deposit": "Пополнение",
     "withdrawal": "Вывод"
+  },
+  "api": {
+    "errors": {
+      "BAD_REQUEST": "Некорректный запрос.",
+      "UNAUTHORIZED": "Необходимо войти в аккаунт.",
+      "FORBIDDEN": "Недостаточно прав для выполнения действия.",
+      "NOT_FOUND": "Данные не найдены.",
+      "VALIDATION_ERROR": "Проверьте корректность введённых данных.",
+      "CONFLICT": "Конфликт данных. Проверьте введённые значения.",
+      "RATE_LIMITED": "Слишком много запросов. Попробуйте позже.",
+      "INTERNAL_ERROR": "Внутренняя ошибка сервера. Попробуйте позже.",
+      "DATABASE_ERROR": "Не удалось получить данные из базы.",
+      "CACHE_ERROR": "Временная ошибка кэша.",
+      "AI_PROVIDER_UNAVAILABLE": "AI-ассистент временно недоступен. Проверьте подключение к локальной модели.",
+      "AI_PROVIDER_TIMEOUT": "AI-ассистент слишком долго отвечает. Попробуйте ещё раз.",
+      "AI_PROVIDER_BAD_REQUEST": "AI-ассистент получил некорректный запрос. Попробуйте сократить сообщение.",
+      "AI_CONTEXT_UNAVAILABLE": "Данные портфеля временно недоступны. Ответ может быть ограничен.",
+      "AI_EMPTY_RESPONSE": "AI-ассистент не вернул ответ. Попробуйте ещё раз.",
+      "UNKNOWN_ERROR": "Произошла неизвестная ошибка."
+    }
+  },
+  "aiAssistant": {
+    "title": "AI-ассистент по инвестициям",
+    "subtitle": "Портфель, риски, доходность",
+    "description": "Помогу проанализировать активы, риски, доходность и структуру портфеля.",
+    "placeholder": "Спросите что-нибудь о портфеле...",
+    "send": "Отправить",
+    "thinking": "AI думает...",
+    "disclaimer": "AI не даёт финансовых гарантий. Проверяйте данные перед решениями.",
+    "open": "Открыть AI-ассистента",
+    "close": "Закрыть AI-ассистента",
+    "emptyStateTitle": "AI-ассистент по инвестициям",
+    "emptyStateDescription": "Помогу проанализировать активы, риски, доходность и структуру портфеля.",
+    "quickPrompts": {
+      "analyzePortfolio": "Проанализируй мой портфель",
+      "riskyAssets": "Какие активы самые рискованные?",
+      "profitSummary": "Дай краткую сводку по доходности",
+      "diversification": "Что можно улучшить в диверсификации?",
+      "accountBalance": "Сколько сейчас на моём счету?",
+      "btcPrice": "Какой сейчас курс биткоина?"
+    },
+    "context": {
+      "portfolioAvailable": "Данные портфеля подключены",
+      "portfolioEmpty": "Данных портфеля пока нет",
+      "accountsAvailable": "Данные счетов подключены",
+      "accountsEmpty": "Счета не найдены",
+      "marketPartial": "Часть рыночных данных недоступна",
+      "marketUnavailable": "Актуальные цены недоступны"
+    }
   }
 }

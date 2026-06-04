@@ -1,3 +1,5 @@
+import { apiFetch } from "@/lib/api-client"
+
 type AdminSetting = {
   id: string
   settingKey: string
@@ -14,25 +16,6 @@ type AdminSettingResponse = {
   updatedAt: string
 }
 
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    credentials: "include",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers ?? {}),
-    },
-  })
-
-  const data = await response.json().catch(() => ({}))
-
-  if (!response.ok) {
-    throw new Error(data?.error || "Request failed")
-  }
-
-  return data as T
-}
-
 function toLegacySetting(setting: AdminSettingResponse): AdminSetting {
   return {
     id: setting.id,
@@ -44,13 +27,15 @@ function toLegacySetting(setting: AdminSettingResponse): AdminSetting {
 }
 
 export async function fetchAdminSettings() {
-  const data = await apiFetch<{ settings: AdminSettingResponse[] }>("/api/admin/settings")
+  const data = await apiFetch<{ settings: AdminSettingResponse[] }>("/api/admin/settings", { credentials: "include" })
   return data.settings.map(toLegacySetting)
 }
 
 export async function updateAdminSetting(id: string, value: string) {
   const data = await apiFetch<{ setting: AdminSettingResponse }>(`/api/admin/settings/${id}`, {
     method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ value }),
   })
 
@@ -60,6 +45,8 @@ export async function updateAdminSetting(id: string, value: string) {
 export async function createAdminSetting(setting: Omit<AdminSetting, "id" | "updatedAt">) {
   const data = await apiFetch<{ setting: AdminSettingResponse }>("/api/admin/settings", {
     method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       key: setting.settingKey,
       value: setting.settingValue,
@@ -71,6 +58,6 @@ export async function createAdminSetting(setting: Omit<AdminSetting, "id" | "upd
 }
 
 export async function isUserAdmin(userId: string) {
-  const data = await apiFetch<{ user: { id: string; role: string } | null }>("/api/auth/me")
+  const data = await apiFetch<{ user: { id: string; role: string } | null }>("/api/auth/me", { credentials: "include" })
   return data.user?.id === userId && data.user.role === "admin"
 }

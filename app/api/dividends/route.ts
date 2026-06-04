@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireRequestUser } from "@/lib/api-auth"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError, apiSuccess } from "@/lib/api-response"
 
 // GET /api/dividends - get dividend history and projections
 export async function GET(request: Request) {
@@ -81,7 +82,7 @@ export async function GET(request: Request) {
     const monthsWithDividends = Object.values(byMonth).filter((v) => v > 0).length
     const monthlyAverage = monthsWithDividends > 0 ? totalDividends / monthsWithDividends : 0
 
-    return NextResponse.json({
+    return apiSuccess({
       year: parseInt(year),
       summary: {
         totalDividends,
@@ -103,10 +104,7 @@ export async function GET(request: Request) {
       })),
     })
   } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch dividends" },
-      { status: 500 }
-    )
+    return apiError(ApiErrorCode.INTERNAL_ERROR, "Failed to fetch dividends", { status: 500 })
   }
 }
 
@@ -125,10 +123,7 @@ export async function POST(request: Request) {
     } = body
 
     if (!assetId || !amount) {
-      return NextResponse.json(
-        { error: "Missing assetId or amount" },
-        { status: 400 }
-      )
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "Missing assetId or amount", { status: 400 })
     }
 
     // Verify asset exists
@@ -137,10 +132,7 @@ export async function POST(request: Request) {
     })
 
     if (!asset) {
-      return NextResponse.json(
-        { error: "Asset not found" },
-        { status: 404 }
-      )
+      return apiError(ApiErrorCode.NOT_FOUND, "Asset not found", { status: 404 })
     }
 
     // Find default account if not provided
@@ -150,10 +142,7 @@ export async function POST(request: Request) {
         where: { userId: user.id },
       })
       if (!defaultAccount) {
-        return NextResponse.json(
-          { error: "No account found" },
-          { status: 400 }
-        )
+        return apiError(ApiErrorCode.VALIDATION_ERROR, "No account found", { status: 400 })
       }
       finalAccountId = defaultAccount.id
     }
@@ -216,11 +205,8 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({ dividend })
+    return apiSuccess({ dividend }, { message: "Dividend recorded" })
   } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to record dividend" },
-      { status: 500 }
-    )
+    return apiError(ApiErrorCode.INTERNAL_ERROR, "Failed to record dividend", { status: 500 })
   }
 }

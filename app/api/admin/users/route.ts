@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/api-auth"
 import { hashPassword } from "@/lib/password"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError, apiSuccess } from "@/lib/api-response"
 
 const roles = ["admin", "user", "premium"] as const
 type Role = (typeof roles)[number]
@@ -35,12 +36,9 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     })
 
-    return NextResponse.json({ users: users.map(formatUser) })
+    return apiSuccess({ users: users.map(formatUser) })
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error?.status === 403 ? "Forbidden" : "Failed to fetch users" },
-      { status: error?.status ?? 500 },
-    )
+    return apiError(error?.status === 403 ? ApiErrorCode.FORBIDDEN : ApiErrorCode.INTERNAL_ERROR, error?.status === 403 ? "Forbidden" : "Failed to fetch users", { status: error?.status ?? 500 })
   }
 }
 
@@ -55,13 +53,13 @@ export async function POST(request: Request) {
     const role = isRole(body?.role) ? body.role : "user"
 
     if (!email || !email.includes("@")) {
-      return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "Valid email is required", { status: 400 })
     }
     if (password.length < 6) {
-      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "Password must be at least 6 characters", { status: 400 })
     }
     if (username.length < 2 || username.length > 50) {
-      return NextResponse.json({ error: "Username must be 2-50 characters" }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "Username must be 2-50 characters", { status: 400 })
     }
 
     const passwordHash = await hashPassword(password)
@@ -89,12 +87,12 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({ user: formatUser(user) }, { status: 201 })
+    return apiSuccess({ user: formatUser(user) }, { status: 201, message: "User created" })
   } catch (error: any) {
     if (error?.code === "P2002") {
-      return NextResponse.json({ error: "User with this email already exists" }, { status: 409 })
+      return apiError(ApiErrorCode.CONFLICT, "User with this email already exists", { status: 409 })
     }
 
-    return NextResponse.json({ error: "Failed to create user" }, { status: error?.status ?? 500 })
+    return apiError(error?.status === 403 ? ApiErrorCode.FORBIDDEN : ApiErrorCode.INTERNAL_ERROR, "Failed to create user", { status: error?.status ?? 500 })
   }
 }

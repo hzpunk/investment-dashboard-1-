@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRequestUser } from './api-auth'
+import { ApiErrorCode, getDefaultErrorCode } from './api-errors'
+import { apiError, apiSuccess, type ApiErrorBody, type ApiSuccess } from './api-response'
 
 // User type from auth
 export interface AuthenticatedUser {
@@ -13,7 +15,7 @@ export type RouteContext = {
 }
 
 // Error response type
-export type ErrorResponse = { error: string; code?: string }
+export type ErrorResponse = ApiErrorBody
 
 // Enhanced API handler type - handler returns success response, wrapper handles errors
 export type ApiHandler<T = unknown> = (
@@ -56,45 +58,30 @@ export function withAuth<T>(handler: ApiHandler<T>) {
 
       if (errorStatus === 401) {
         status = 401
-        return NextResponse.json(
-          { error: 'Unauthorized', code: 'UNAUTHORIZED' },
-          { status: 401 }
-        )
+        return apiError(ApiErrorCode.UNAUTHORIZED, 'Authentication required', { status: 401 })
       }
 
       if (errorStatus === 403) {
         status = 403
-        return NextResponse.json(
-          { error: 'Forbidden', code: 'FORBIDDEN' },
-          { status: 403 }
-        )
+        return apiError(ApiErrorCode.FORBIDDEN, 'Forbidden', { status: 403 })
       }
 
       // Handle 401 from requireRequestUser
       if (error instanceof ApiError && error.statusCode === 401) {
         status = 401
-        return NextResponse.json(
-          { error: 'Unauthorized', code: 'UNAUTHORIZED' },
-          { status: 401 }
-        )
+        return apiError(ApiErrorCode.UNAUTHORIZED, 'Authentication required', { status: 401 })
       }
 
       // Handle custom API errors
       if (error instanceof ApiError) {
         status = error.statusCode
-        return NextResponse.json(
-          { error: error.message, code: error.code },
-          { status: error.statusCode }
-        )
+        return apiError(error.code || getDefaultErrorCode(error.statusCode), error.message, { status: error.statusCode })
       }
 
       // Log and return 500 for unexpected errors
       console.error('API Error:', error)
       status = 500
-      return NextResponse.json(
-        { error: 'Internal server error', code: 'INTERNAL_ERROR' },
-        { status: 500 }
-      )
+      return apiError(ApiErrorCode.INTERNAL_ERROR, 'Internal server error', { status: 500 })
     } finally {
       if (process.env.NODE_ENV !== 'production') {
         const durationMs = Math.round(performance.now() - startedAt)
@@ -113,15 +100,14 @@ export function errorResponse(
   status: number = 500,
   code?: string
 ): NextResponse<ErrorResponse> {
-  const body: ErrorResponse = code ? { error: message, code } : { error: message }
-  return NextResponse.json(body, { status })
+  return apiError(code || getDefaultErrorCode(status), message, { status })
 }
 
 /**
  * Create standard success response
  */
-export function successResponse<T>(data: T, status: number = 200): NextResponse<T> {
-  return NextResponse.json(data, { status })
+export function successResponse<T>(data: T, status: number = 200): NextResponse<ApiSuccess<T>> {
+  return apiSuccess(data, { status })
 }
 
 /**
@@ -132,7 +118,7 @@ export function paginatedResponse<T>(
   total: number,
   page: number,
   pageSize: number
-): NextResponse<{
+): NextResponse<ApiSuccess<{
   data: T[]
   pagination: {
     total: number
@@ -141,8 +127,8 @@ export function paginatedResponse<T>(
     totalPages: number
     hasMore: boolean
   }
-}> {
-  return NextResponse.json({
+}>> {
+  return apiSuccess({
     data,
     pagination: {
       total,

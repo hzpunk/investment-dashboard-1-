@@ -1,0 +1,32 @@
+export const ApiErrorCode = {
+  BAD_REQUEST: "BAD_REQUEST",
+  UNAUTHORIZED: "UNAUTHORIZED",
+  FORBIDDEN: "FORBIDDEN",
+  NOT_FOUND: "NOT_FOUND",
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  CONFLICT: "CONFLICT",
+  RATE_LIMITED: "RATE_LIMITED",
+  INTERNAL_ERROR: "INTERNAL_ERROR",
+
+  DATABASE_ERROR: "DATABASE_ERROR",
+  CACHE_ERROR: "CACHE_ERROR",
+
+  AI_PROVIDER_UNAVAILABLE: "AI_PROVIDER_UNAVAILABLE",
+  AI_PROVIDER_TIMEOUT: "AI_PROVIDER_TIMEOUT",
+  AI_PROVIDER_BAD_REQUEST: "AI_PROVIDER_BAD_REQUEST",
+  AI_CONTEXT_UNAVAILABLE: "AI_CONTEXT_UNAVAILABLE",
+  AI_EMPTY_RESPONSE: "AI_EMPTY_RESPONSE",
+} as const
+
+export type ApiErrorCodeValue = (typeof ApiErrorCode)[keyof typeof ApiErrorCode]
+
+export function getDefaultErrorCode(status: number): ApiErrorCodeValue {
+  if (status === 400) return ApiErrorCode.BAD_REQUEST
+  if (status === 401) return ApiErrorCode.UNAUTHORIZED
+  if (status === 403) return ApiErrorCode.FORBIDDEN
+  if (status === 404) return ApiErrorCode.NOT_FOUND
+  if (status === 409) return ApiErrorCode.CONFLICT
+  if (status === 422) return ApiErrorCode.VALIDATION_ERROR
+  if (status === 429) return ApiErrorCode.RATE_LIMITED
+  return ApiErrorCode.INTERNAL_ERROR
+}

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server"
 import { invalidateUserTransactionsCache } from "@/lib/cache-invalidation"
 import { withAuth, errorResponse, successResponse, parsePagination } from "@/lib/api-handler"
 import { prisma } from "@/lib/prisma"
@@ -134,7 +133,7 @@ export const POST = withAuth(async (request, user) => {
     })
 
     await invalidateUserTransactionsCache(user.id)
-    return NextResponse.json({ transaction: formatTransaction(transaction) }, { status: 201 })
+    return successResponse({ transaction: formatTransaction(transaction) }, 201)
   } catch (error) {
     console.error("Failed to create transaction:", error)
     return errorResponse("Failed to create transaction", 500, "TRANSACTION_CREATE_FAILED")

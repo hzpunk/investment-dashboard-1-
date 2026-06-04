@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server"
 import { cacheKeys } from "@/lib/cache-keys"
 import { prisma } from "@/lib/prisma"
 import { requireRequestUser } from "@/lib/api-auth"
 import { getPortfolioSummary } from "@/lib/services/portfolio-summary"
 import { cached } from "@/lib/server-cache"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError, apiSuccess } from "@/lib/api-response"
 
 // GET /api/analytics - portfolio analytics and metrics
 // Query params: from, to (ISO dates), portfolioId (optional)
@@ -24,17 +25,17 @@ export async function GET(request: Request) {
     
     // Validate dates
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-      return NextResponse.json({ error: 'Invalid date format' }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, 'Invalid date format', { status: 400 })
     }
     
     if (fromDate > toDate) {
-      return NextResponse.json({ error: 'From date must be before to date' }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, 'From date must be before to date', { status: 400 })
     }
     
     // Max range: 5 years
     const maxRange = 5 * 366 * 24 * 60 * 60 * 1000
     if (toDate.getTime() - fromDate.getTime() > maxRange) {
-      return NextResponse.json({ error: 'Date range too large (max 5 years)' }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, 'Date range too large (max 5 years)', { status: 400 })
     }
 
     const rangeKey = `${fromDate.toISOString()}:${toDate.toISOString()}`
@@ -97,12 +98,9 @@ export async function GET(request: Request) {
       },
     })
 
-    return NextResponse.json(analytics)
+    return apiSuccess(analytics)
   } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to calculate analytics" },
-      { status: 500 }
-    )
+    return apiError(ApiErrorCode.INTERNAL_ERROR, "Failed to calculate analytics", { status: 500 })
   }
 }
 

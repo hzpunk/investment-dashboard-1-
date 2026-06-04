@@ -423,7 +423,46 @@
     "templateSaved": "Template saved successfully",
     "templateSaveFailed": "Failed to save template",
     "notificationSent": "Notification sent successfully",
-    "notificationSendFailed": "Failed to send notification"
+    "notificationSendFailed": "Failed to send notification",
+    "cannotDeleteOwnAccount": "You cannot delete your own admin account",
+    "passwordMinLength": "Minimum password length",
+    "requireSpecialChars": "Require special characters",
+    "requireNumbers": "Require numbers",
+    "requireUppercase": "Require uppercase letters",
+    "maxLoginAttempts": "Maximum login attempts",
+    "maxLoginAttemptsHint": "Number of failed login attempts before the account is temporarily locked.",
+    "lockoutDuration": "Account lockout duration (minutes)",
+    "twoFactorAuthentication": "Two-factor authentication",
+    "twoFactorAuthenticationHint": "Require 2FA for all users.",
+    "sessionTimeout": "Session timeout (minutes)",
+    "sessionTimeoutHint": "Time of inactivity before a user is automatically logged out.",
+    "subject": "Subject",
+    "body": "Body",
+    "notificationSettings": "Notification settings",
+    "notificationSettingsDescription": "Configure system-wide notification settings.",
+    "emailNotifications": "Email notifications",
+    "pushNotifications": "Push notifications",
+    "inAppNotifications": "In-app notifications",
+    "notificationTypes": "Notification types",
+    "priceAlerts": "Price alerts",
+    "transactionNotifications": "Transaction notifications",
+    "goalNotifications": "Goal notifications",
+    "systemNotifications": "System notifications",
+    "marketUpdates": "Market updates",
+    "saveTemplate": "Save template",
+    "selectTemplateType": "Select template type",
+    "priceAlertTemplate": "Price alert",
+    "transactionTemplate": "Transaction",
+    "goalTemplate": "Goal",
+    "systemTemplate": "System",
+    "settingKey": "Key",
+    "settingValue": "Value",
+    "generalSettings": "General settings",
+    "generalSettingsDescription": "Configure general application settings.",
+    "apiSettings": "API settings",
+    "apiSettingsDescription": "Configure API keys and endpoints.",
+    "securitySettings": "Security settings",
+    "securitySettingsDescription": "Configure security and authentication settings."
   },
   "legal": {
     "title": "Legal information",
@@ -485,7 +524,8 @@
   },
   "role": {
     "admin": "Admin",
-    "user": "User"
+    "user": "User",
+    "premium": "Premium"
   },
   "accountType": {
     "brokerage": "Brokerage",
@@ -510,9 +550,54 @@
     "interest": "Interest",
     "deposit": "Deposit",
     "withdrawal": "Withdrawal"
+  },
+  "api": {
+    "errors": {
+      "BAD_REQUEST": "Invalid request.",
+      "UNAUTHORIZED": "Please sign in to continue.",
+      "FORBIDDEN": "You do not have permission to perform this action.",
+      "NOT_FOUND": "Data was not found.",
+      "VALIDATION_ERROR": "Check that the entered data is correct.",
+      "CONFLICT": "Data conflict. Check the entered values.",
+      "RATE_LIMITED": "Too many requests. Try again later.",
+      "INTERNAL_ERROR": "Internal server error. Try again later.",
+      "DATABASE_ERROR": "Could not load data from the database.",
+      "CACHE_ERROR": "Temporary cache error.",
+      "AI_PROVIDER_UNAVAILABLE": "AI assistant is temporarily unavailable. Check the local model connection.",
+      "AI_PROVIDER_TIMEOUT": "AI assistant is taking too long to respond. Try again.",
+      "AI_PROVIDER_BAD_REQUEST": "AI assistant received an invalid request. Try shortening your message.",
+      "AI_CONTEXT_UNAVAILABLE": "Portfolio data is temporarily unavailable. The answer may be limited.",
+      "AI_EMPTY_RESPONSE": "AI assistant did not return a response. Try again.",
+      "UNKNOWN_ERROR": "An unknown error occurred."
+    }
+  },
+  "aiAssistant": {
+    "title": "AI investment assistant",
+    "subtitle": "Portfolio, risks, returns",
+    "description": "I can help analyze assets, risks, returns, and portfolio structure.",
+    "placeholder": "Ask something about your portfolio...",
+    "send": "Send",
+    "thinking": "AI is thinking...",
+    "disclaimer": "AI does not provide financial guarantees. Verify data before decisions.",
+    "open": "Open AI assistant",
+    "close": "Close AI assistant",
+    "emptyStateTitle": "AI investment assistant",
+    "emptyStateDescription": "I can help analyze assets, risks, returns, and portfolio structure.",
+    "quickPrompts": {
+      "analyzePortfolio": "Analyze my portfolio",
+      "riskyAssets": "Which assets are the riskiest?",
+      "profitSummary": "Give a short returns summary",
+      "diversification": "What can be improved in diversification?",
+      "accountBalance": "How much is in my account now?",
+      "btcPrice": "What is the current Bitcoin price?"
+    },
+    "context": {
+      "portfolioAvailable": "Portfolio data included",
+      "portfolioEmpty": "No portfolio data yet",
+      "accountsAvailable": "Accounts included",
+      "accountsEmpty": "No accounts found",
+      "marketPartial": "Some market data is unavailable",
+      "marketUnavailable": "Current prices are unavailable"
+    }
   }
 }
-
-
-
-

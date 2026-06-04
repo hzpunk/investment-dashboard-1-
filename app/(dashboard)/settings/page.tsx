@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useI18n } from "@/contexts/i18n-context"
+import { apiFetch, getLocalizedApiError } from "@/lib/api-client"
 
 type Profile = {
   id: string
@@ -42,15 +43,13 @@ export default function SettingsPage() {
 
       setIsLoading(true)
       try {
-        const res = await fetch("/api/data/profiles", { credentials: "include" })
-        const data = await res.json().catch(() => null)
-        if (!res.ok) throw new Error(data?.error || t("settings.profileUpdateFailed"))
+        const data = await apiFetch<Profile>("/api/data/profiles", { credentials: "include" })
 
         setProfile(data)
         setUsername(data.username || "")
         setAvatarUrl(data.avatarUrl || "")
       } catch (error) {
-        setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
+        setMessage({ type: "error", text: getLocalizedApiError(t, error) })
       } finally {
         setIsLoading(false)
       }
@@ -66,7 +65,7 @@ export default function SettingsPage() {
     setMessage(null)
 
     try {
-      const res = await fetch("/api/data/profiles", {
+      const data = await apiFetch<Profile>("/api/data/profiles", {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -75,13 +74,11 @@ export default function SettingsPage() {
           avatarUrl,
         }),
       })
-      const data = await res.json().catch(() => null)
-      if (!res.ok) throw new Error(data?.error || t("settings.profileUpdateFailed"))
 
       setProfile(data)
       setMessage({ type: "success", text: t("settings.profileUpdated") })
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.message || t("settings.profileUpdateFailed") })
+    } catch (error) {
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     } finally {
       setIsSaving(false)
     }
@@ -99,21 +96,19 @@ export default function SettingsPage() {
     setMessage(null)
 
     try {
-      const res = await fetch("/api/auth/password", {
+      await apiFetch<{ success: boolean }>("/api/auth/password", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: newPassword }),
       })
-      const data = await res.json().catch(() => null)
-      if (!res.ok) throw new Error(data?.error || t("settings.passwordUpdateFailed"))
 
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
       setMessage({ type: "success", text: t("settings.passwordUpdated") })
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.message || t("settings.passwordUpdateFailed") })
+    } catch (error) {
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     } finally {
       setIsSaving(false)
     }

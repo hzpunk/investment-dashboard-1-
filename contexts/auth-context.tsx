@@ -4,6 +4,7 @@ import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { apiFetch, isApiClientError } from "@/lib/api-client"
  
 type AuthUser = {
   id: string
@@ -34,9 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const fetchSession = async () => {
       try {
-        const res = await fetch("/api/auth/me", { method: "GET" })
-        const data = await res.json().catch(() => null)
-        const nextUser = data?.user as AuthUser | null
+        const data = await apiFetch<{ user: AuthUser | null }>("/api/auth/me", { method: "GET" })
+        const nextUser = data.user
 
         setSession(null)
         setUser(nextUser)
@@ -54,50 +54,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const res = await fetch("/api/auth/login", {
+      const data = await apiFetch<{ user: AuthUser }>("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, password }),
       })
 
-      const data = await res.json().catch(() => null)
-      if (!res.ok) {
-        return { error: { message: data?.error || "Login failed" } }
-      }
-
       queryClient.clear()
-      setUser(data?.user ?? null)
-      setUserRole(data?.user?.role ?? null)
+      setUser(data.user)
+      setUserRole(data.user.role ?? null)
       return { error: null }
     } catch (error) {
-      return { error }
+      return { error: isApiClientError(error) ? { message: error.message, code: error.code } : error }
     }
   }
 
   const signUp = async (email: string, password: string, username: string) => {
     try {
-      const res = await fetch("/api/auth/register", {
+      const data = await apiFetch<{ user: AuthUser }>("/api/auth/register", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, password, username }),
       })
 
-      const data = await res.json().catch(() => null)
-      if (!res.ok) {
-        return { error: { message: data?.error || "Registration failed" } }
-      }
-
       queryClient.clear()
-      setUser(data?.user ?? null)
-      setUserRole(data?.user?.role ?? null)
+      setUser(data.user)
+      setUserRole(data.user.role ?? null)
       return { error: null }
     } catch (error) {
-      return { error }
+      return { error: isApiClientError(error) ? { message: error.message, code: error.code } : error }
     }
   }
 
   const signOut = async () => {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null)
+    await apiFetch<{ signedOut: boolean }>("/api/auth/logout", { method: "POST" }).catch(() => null)
     queryClient.clear()
     setUser(null)
     setUserRole(null)

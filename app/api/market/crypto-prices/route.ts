@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server"
 import { getCryptoPricesServer } from "@/lib/services/market-data"
+import { apiSuccess } from "@/lib/api-response"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -9,5 +9,5 @@ export async function GET(request: Request) {
     .filter(Boolean)
 
   const result = await getCryptoPricesServer(ids)
-  return NextResponse.json(result)
+  return apiSuccess(result)
 }

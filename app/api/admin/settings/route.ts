@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/api-auth"
+import { ApiErrorCode } from "@/lib/api-errors"
+import { apiError, apiSuccess } from "@/lib/api-response"
 
 function formatSetting(setting: {
   id: string
@@ -25,11 +26,11 @@ export async function GET() {
       orderBy: { settingKey: "asc" },
     })
 
-    return NextResponse.json({
+    return apiSuccess({
       settings: settings.map(formatSetting),
     })
   } catch (error: any) {
-    return NextResponse.json({ error: "Failed to fetch settings" }, { status: error?.status ?? 500 })
+    return apiError(error?.status === 403 ? ApiErrorCode.FORBIDDEN : ApiErrorCode.INTERNAL_ERROR, "Failed to fetch settings", { status: error?.status ?? 500 })
   }
 }
 
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     const key = String(body?.key ?? "").trim()
 
     if (!key) {
-      return NextResponse.json({ error: "Setting key is required" }, { status: 400 })
+      return apiError(ApiErrorCode.VALIDATION_ERROR, "Setting key is required", { status: 400 })
     }
 
     const setting = await prisma.adminSetting.upsert({
@@ -57,9 +58,9 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({ setting: formatSetting(setting) }, { status: 201 })
+    return apiSuccess({ setting: formatSetting(setting) }, { status: 201, message: "Setting saved" })
   } catch (error: any) {
-    return NextResponse.json({ error: "Failed to save setting" }, { status: error?.status ?? 500 })
+    return apiError(ApiErrorCode.INTERNAL_ERROR, "Failed to save setting", { status: error?.status ?? 500 })
   }
 }
 
@@ -89,8 +90,8 @@ export async function PATCH(request: Request) {
         ),
     )
 
-    return NextResponse.json({ success: true })
+    return apiSuccess({ success: true }, { message: "Settings saved" })
   } catch (error: any) {
-    return NextResponse.json({ error: "Failed to save settings" }, { status: error?.status ?? 500 })
+    return apiError(ApiErrorCode.INTERNAL_ERROR, "Failed to save settings", { status: error?.status ?? 500 })
   }
 }

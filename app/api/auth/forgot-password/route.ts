@@ -1,9 +1,10 @@
 // POST /api/auth/forgot-password - Request password reset
-import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createHash, randomBytes } from 'crypto'
 import { validateEmail } from '@/lib/validation'
 import { checkRateLimit } from '@/lib/rate-limit-simple'
+import { ApiErrorCode } from '@/lib/api-errors'
+import { apiError, apiSuccess } from '@/lib/api-response'
 
 const RESET_TOKEN_TTL = 1000 * 60 * 60 // 1 hour
 
@@ -15,33 +16,27 @@ export async function POST(request: Request) {
   // Rate limit by IP
   const ip = request.headers.get('x-forwarded-for') || 'unknown'
   if (!checkRateLimit(`forgot-password:${ip}`, 3)) {
-    return NextResponse.json(
-      { error: 'Too many attempts. Please try again later.' },
-      { status: 429 }
-    )
+    return apiError(ApiErrorCode.RATE_LIMITED, 'Too many attempts. Please try again later.', { status: 429 })
   }
 
   let body: { email?: string }
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    return apiError(ApiErrorCode.BAD_REQUEST, 'Invalid JSON body', { status: 400 })
   }
 
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
 
   if (!email || !validateEmail(email)) {
-    return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+    return apiError(ApiErrorCode.VALIDATION_ERROR, 'Invalid email format', { status: 400 })
   }
 
   const user = await prisma.user.findUnique({ where: { email } })
 
   // Always return success to prevent user enumeration
   if (!user) {
-    return NextResponse.json({ 
-      success: true, 
-      message: 'If an account exists, a reset link has been sent.' 
-    })
+    return apiSuccess({ success: true }, { message: 'If an account exists, a reset link has been sent.' })
   }
 
   // Invalidate existing unused tokens
@@ -68,10 +63,9 @@ export async function POST(request: Request) {
   // For development, return the token
   console.log(`[DEV] Password reset token for ${email}: ${token}`)
 
-  return NextResponse.json({
+  return apiSuccess({
     success: true,
-    message: 'If an account exists, a reset link has been sent.',
     // Remove in production:
     devToken: process.env.NODE_ENV !== 'production' ? token : undefined,
-  })
+  }, { message: 'If an account exists, a reset link has been sent.' })
 }

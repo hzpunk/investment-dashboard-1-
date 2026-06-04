@@ -23,6 +23,7 @@ import { Plus, Pencil, Trash2, Search, RefreshCw, ArrowUpDown } from "lucide-rea
 import { fetchAssets, createAsset, deleteAsset, triggerAssetPricesUpdate, updateAsset, type Asset } from "@/entities/asset/api"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAssetTypeLabel } from "@/lib/i18n-display"
+import { getLocalizedApiError } from "@/lib/api-client"
 
 export default function AdminAssetsPage() {
   const { user, userRole } = useAuth()
@@ -50,7 +51,7 @@ export default function AdminAssetsPage() {
         const data = await fetchAssets()
         setAssets(data)
       } catch (error) {
-        setMessage({ type: "error", text: t("errors.unavailable") })
+        setMessage({ type: "error", text: getLocalizedApiError(t, error) })
       } finally {
         setIsLoading(false)
       }
@@ -124,7 +125,7 @@ export default function AdminAssetsPage() {
       setIsAddAssetOpen(false)
       setMessage({ type: "success", text: t("actions.addAsset") })
     } catch (error) {
-      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     } finally {
       setIsSubmitting(false)
     }
@@ -153,7 +154,7 @@ export default function AdminAssetsPage() {
       setIsEditAssetOpen(false)
       setMessage({ type: "success", text: t("actions.saveChanges") })
     } catch (error) {
-      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     } finally {
       setIsSubmitting(false)
     }
@@ -169,7 +170,7 @@ export default function AdminAssetsPage() {
       setAssets(assets.filter((asset) => asset.id !== id))
       setMessage({ type: "success", text: t("actions.deleteAsset") })
     } catch (error) {
-      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     }
   }
 
@@ -183,7 +184,7 @@ export default function AdminAssetsPage() {
       setAssets(updatedAssets)
       setMessage({ type: "success", text: t("assets.updatePrices") })
     } catch (error) {
-      setMessage({ type: "error", text: t("settings.profileUpdateFailed") })
+      setMessage({ type: "error", text: getLocalizedApiError(t, error) })
     } finally {
       setIsRefreshing(false)
     }
@@ -207,12 +208,12 @@ export default function AdminAssetsPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{t("assets.addDialogTitle")}</DialogTitle>
-                <DialogDescription>Enter the details of the investment asset.</DialogDescription>
+                <DialogDescription>{t("assets.addDialogDescription")}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="symbol" className="text-right">
-                    Symbol
+                    {t("common.symbol")}
                   </Label>
                   <Input
                     id="symbol"
@@ -223,7 +224,7 @@ export default function AdminAssetsPage() {
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="name" className="text-right">
-                    Name
+                    {t("common.name")}
                   </Label>
                   <Input
                     id="name"
@@ -234,7 +235,7 @@ export default function AdminAssetsPage() {
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="type" className="text-right">
-                    Type
+                    {t("common.type")}
                   </Label>
                   <Select
                     value={newAsset.type as string}
@@ -244,18 +245,18 @@ export default function AdminAssetsPage() {
                       <SelectValue placeholder={t("assets.selectAssetType")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="stock">Stock</SelectItem>
-                      <SelectItem value="bond">Bond</SelectItem>
-                      <SelectItem value="etf">ETF</SelectItem>
-                      <SelectItem value="crypto">Cryptocurrency</SelectItem>
-                      <SelectItem value="commodity">Commodity</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="stock">{t("assetType.stock")}</SelectItem>
+                      <SelectItem value="bond">{t("assetType.bond")}</SelectItem>
+                      <SelectItem value="etf">{t("assetType.etf")}</SelectItem>
+                      <SelectItem value="crypto">{t("assetType.crypto")}</SelectItem>
+                      <SelectItem value="commodity">{t("assetType.commodity")}</SelectItem>
+                      <SelectItem value="other">{t("assetType.other")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="price" className="text-right">
-                    Current Price
+                    {t("assets.currentPrice")}
                   </Label>
                   <Input
                     id="price"
@@ -267,14 +268,14 @@ export default function AdminAssetsPage() {
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="currency" className="text-right">
-                    Currency
+                    {t("common.currency")}
                   </Label>
                   <Select
                     value={newAsset.currency}
                     onValueChange={(value) => setNewAsset({ ...newAsset, currency: value })}
                   >
                     <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select currency" />
+                      <SelectValue placeholder={t("assets.form.currency")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="USD">USD</SelectItem>
@@ -288,10 +289,10 @@ export default function AdminAssetsPage() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddAssetOpen(false)}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button onClick={handleAddAsset} disabled={isSubmitting}>
-                  {isSubmitting ? "Adding..." : "Add Asset"}
+                  {isSubmitting ? t("common.loading") : t("actions.addAsset")}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -330,41 +331,41 @@ export default function AdminAssetsPage() {
                   <TableRow>
                     <TableHead>
                       <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("symbol")}>
-                        Symbol
+                        {t("common.symbol")}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
                     <TableHead>
                       <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("name")}>
-                        Name
+                        {t("common.name")}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
                     <TableHead>
                       <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("type")}>
-                        Type
+                        {t("common.type")}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
                     <TableHead className="text-right">
                       <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("currentPrice")}>
-                        Price
+                        {t("common.price")}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
                     <TableHead>
                       <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("currency")}>
-                        Currency
+                        {t("common.currency")}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
                     <TableHead className="text-right">
                       <Button variant="ghost" className="p-0 font-medium" onClick={() => handleSort("updatedAt")}>
-                        Last Updated
+                        {t("common.lastUpdated")}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead className="w-[100px]">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -423,14 +424,14 @@ export default function AdminAssetsPage() {
       <Dialog open={isEditAssetOpen} onOpenChange={setIsEditAssetOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Asset</DialogTitle>
-            <DialogDescription>Update the details of the investment asset.</DialogDescription>
+            <DialogTitle>{t("assets.editAsset")}</DialogTitle>
+            <DialogDescription>{t("assets.detailsDescription")}</DialogDescription>
           </DialogHeader>
           {editAsset && (
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-symbol" className="text-right">
-                  Symbol
+                  {t("common.symbol")}
                 </Label>
                 <Input
                   id="edit-symbol"
@@ -441,7 +442,7 @@ export default function AdminAssetsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-name" className="text-right">
-                  Name
+                  {t("common.name")}
                 </Label>
                 <Input
                   id="edit-name"
@@ -452,7 +453,7 @@ export default function AdminAssetsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-type" className="text-right">
-                  Type
+                  {t("common.type")}
                 </Label>
                 <Select
                   value={editAsset.type}
@@ -462,18 +463,18 @@ export default function AdminAssetsPage() {
                     <SelectValue placeholder={t("assets.selectAssetType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="stock">Stock</SelectItem>
-                    <SelectItem value="bond">Bond</SelectItem>
-                    <SelectItem value="etf">ETF</SelectItem>
-                    <SelectItem value="crypto">Cryptocurrency</SelectItem>
-                    <SelectItem value="commodity">Commodity</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="stock">{t("assetType.stock")}</SelectItem>
+                    <SelectItem value="bond">{t("assetType.bond")}</SelectItem>
+                    <SelectItem value="etf">{t("assetType.etf")}</SelectItem>
+                    <SelectItem value="crypto">{t("assetType.crypto")}</SelectItem>
+                    <SelectItem value="commodity">{t("assetType.commodity")}</SelectItem>
+                    <SelectItem value="other">{t("assetType.other")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-price" className="text-right">
-                  Current Price
+                  {t("assets.currentPrice")}
                 </Label>
                 <Input
                   id="edit-price"
@@ -485,14 +486,14 @@ export default function AdminAssetsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-currency" className="text-right">
-                  Currency
+                  {t("common.currency")}
                 </Label>
                 <Select
                   value={editAsset.currency}
                   onValueChange={(value) => setEditAsset({ ...editAsset, currency: value })}
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select currency" />
+                    <SelectValue placeholder={t("assets.form.currency")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
@@ -507,10 +508,10 @@ export default function AdminAssetsPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditAssetOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button onClick={handleEditAsset} disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : "Save Changes"}
+              {isSubmitting ? t("common.loading") : t("actions.saveChanges")}
             </Button>
           </DialogFooter>
         </DialogContent>

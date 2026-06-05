@@ -306,3 +306,33 @@ Error:
 ```
 
 Frontend code should use `lib/api-client.ts` and map `error.code` to localized strings from `messages/ru.json` and `messages/en.json`. Backend responses must not expose raw SQL, provider errors, tokens, cookies, secrets, or internal infrastructure details to the browser.
+## 2026 Analytics and Calculators Update
+
+This iteration adds a production-style investment analytics layer:
+
+- centralized finance formulas in `lib/finance`;
+- normalized `/api/analytics` DTO with summary, performance, allocation, positions, risk and projections;
+- real portfolio performance charts derived from transactions and current positions;
+- redesigned allocation donut/table with grouping for small positions;
+- `/calculators` page with investment, asset, business, VAT, ROI, break-even, tax and loan/mortgage calculators;
+- AI portfolio context enriched with analytics, risk and projection metrics.
+
+Calculations are approximate and are not financial, investment or tax advice.
+
+## 2026 Data Export Module
+
+The `/export` module adds `Выгрузка данных` / `Data export` to the sidebar. Users can choose sections, period, format, document options, review a stable summary of what will be exported, inspect per-section details, and download generated files. Browser print is intentionally removed from this module.
+
+Implemented formats: PDF, DOCX, CSV, XLSX, XLS, ODS, TXT, JSON, XML, QIF, OFX, MT940, CAMT.053. Planned/disabled formats return clear 422 API errors and are disabled in the UI: HTML.
+
+PDF and DOCX reports include selected investment data, metadata, the application link, QR code when available, and a disclaimer. PDF embeds Noto Sans TTF fonts for Cyrillic text, reserves a separate QR/link block, renders simple charts from export data, and validates the layout before returning the file. JSON is compact by default, with detailed projection points included only in detailed mode. See `EXPORT_REPORT.md` and `API_DOCUMENTATION.md` for the API contract, summary preview behavior, layout validation, security notes, and limitations.
+
+### Data Export Presentation Layer
+
+The export module now uses a user-facing presentation layer before file generation. PDF, DOCX, TXT, CSV, and XLSX receive localized report sections and headers instead of raw database/API field names. Examples: `Сводка портфеля`, `Стоимость портфеля`, `Счета`, `Название`, `Тип`, `Баланс` instead of `portfolioSummary`, `totalPortfolioValue`, `createdAt`, or `currentPrice`.
+
+User-facing exports remove internal identifiers such as `id`, `key`, `assetId`, `portfolioId`, `accountId`, and `userId`. JSON export uses a compact public structure by default and omits QR base64/SVG, chart snapshots, raw DTO keys, and full projection point arrays unless detailed/technical mode is explicitly selected.
+
+CSV export is Excel-friendly on Windows: files start with a UTF-8 BOM, use `;` as the delimiter, and normalize non-breaking spaces in formatted currency values. XLS, ODS, XML, QIF, OFX, MT940, and CAMT.053 are implemented in addition to PDF, DOCX, TXT, CSV, XLSX, and JSON. HTML remains planned/disabled with controlled API errors.
+
+Financial exports focus on accounts and transactions. QIF supports personal-finance imports, OFX exports an XML-style account statement, MT940 exports a simplified SWIFT statement-like text file, and CAMT.053 exports a simplified ISO 20022 XML statement. These files are for portability/reporting/demo use and are not certified bank statements.

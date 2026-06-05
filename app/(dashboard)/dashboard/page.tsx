@@ -16,9 +16,8 @@ import { AIAssistant } from "@/components/ai-assistant"
 import { useI18n } from "@/contexts/i18n-context"
 import {
   accountsQuery,
-  dashboardPerformanceQuery,
+  analyticsQuery,
   goalsQuery,
-  portfolioAllocationQuery,
   recentTransactionsQuery,
 } from "@/lib/query-options"
 import { RefreshCw } from "lucide-react"
@@ -32,44 +31,44 @@ export default function DashboardPage() {
   const accountsResult = useQuery({ ...accountsQuery(userId), enabled })
   const recentTransactionsResult = useQuery({ ...recentTransactionsQuery(userId, 5), enabled })
   const goalsResult = useQuery({ ...goalsQuery(userId), enabled })
-  const allocationResult = useQuery({ ...portfolioAllocationQuery(userId), enabled })
-  const performanceResult = useQuery({ ...dashboardPerformanceQuery(userId), enabled })
+  const analyticsResult = useQuery({ ...analyticsQuery(userId), enabled })
 
   const dashboardData = useMemo(() => {
     const accounts = accountsResult.data ?? []
-    const portfolioSummary = allocationResult.data ?? { totalValue: 0, allocation: [] }
-    const performanceData = performanceResult.data ?? {}
-    const oneMonthData = performanceData["1M"] ?? []
-    const totalValue = accounts.reduce((sum, account) => sum + (account?.balance || 0), 0)
+    const analytics = analyticsResult.data
+    const performanceData = analytics?.performance.byPeriod
+    const oneMonthData = performanceData?.["1M"] ?? []
+    const accountValue = accounts.reduce((sum, account) => sum + (account?.balance || 0), 0)
+    const totalValue = analytics?.summary.totalPortfolioValue ?? accountValue
     let portfolioChange = 0
     let portfolioChangePercent = 0
 
     if (oneMonthData.length > 1) {
-      const currentPrice = oneMonthData[oneMonthData.length - 1].value
-      const oneMonthAgoPrice = oneMonthData[0].value
-      if (oneMonthAgoPrice !== 0) {
-        portfolioChange = currentPrice - oneMonthAgoPrice
-        portfolioChangePercent = (portfolioChange / oneMonthAgoPrice) * 100
+      const currentValue = oneMonthData[oneMonthData.length - 1].portfolioValue
+      const oneMonthAgoValue = oneMonthData[0].portfolioValue
+      if (oneMonthAgoValue !== 0) {
+        portfolioChange = currentValue - oneMonthAgoValue
+        portfolioChangePercent = (portfolioChange / oneMonthAgoValue) * 100
       }
     }
 
     return {
-      totalValue: portfolioSummary.totalValue || totalValue,
+      totalValue,
       accounts,
-      portfolioAllocation: portfolioSummary.allocation || [],
+      portfolioAllocation: analytics?.allocation.byType || [],
       recentTransactions: recentTransactionsResult.data ?? [],
       goals: goalsResult.data ?? [],
       portfolioChange,
       portfolioChangePercent,
-      ytdReturn: 0,
-      allTimeReturn: 0,
-      performanceData,
+      ytdReturn: analytics?.performance.metrics.annualizedReturnPercent ?? 0,
+      allTimeReturn: analytics?.summary.pnlPercent ?? 0,
+      performanceData: performanceData ?? {},
+      analytics,
     }
   }, [
     accountsResult.data,
-    allocationResult.data,
+    analyticsResult.data,
     goalsResult.data,
-    performanceResult.data,
     recentTransactionsResult.data,
   ])
 
@@ -77,14 +76,13 @@ export default function DashboardPage() {
     (accountsResult.isLoading && !accountsResult.data) ||
     (recentTransactionsResult.isLoading && !recentTransactionsResult.data) ||
     (goalsResult.isLoading && !goalsResult.data) ||
-    (allocationResult.isLoading && !allocationResult.data)
+    (analyticsResult.isLoading && !analyticsResult.data)
   const isRefreshing =
     !isLoading &&
     (accountsResult.isFetching ||
       recentTransactionsResult.isFetching ||
       goalsResult.isFetching ||
-      allocationResult.isFetching ||
-      performanceResult.isFetching)
+      analyticsResult.isFetching)
 
   if (isLoading) {
     return (
@@ -116,7 +114,14 @@ export default function DashboardPage() {
           <CryptoTicker />
         </SafeWidget>
         <SafeWidget title={t("dashboard.portfolioAllocation")}>
-          <PortfolioAllocation data={dashboardData.portfolioAllocation} className="col-span-1 md:col-span-2" />
+          <PortfolioAllocation
+            data={dashboardData.portfolioAllocation}
+            totalValue={dashboardData.analytics?.allocation.totalValue}
+            assetCount={dashboardData.analytics?.summary.assetCount}
+            largestPosition={dashboardData.analytics?.summary.largestPosition}
+            diversificationScore={dashboardData.analytics?.summary.diversificationScore}
+            className="col-span-1 md:col-span-2"
+          />
         </SafeWidget>
         <SafeWidget title={t("dashboard.performanceChart")}>
           <PerformanceChart className="col-span-1" data={dashboardData.performanceData} />

@@ -1,6 +1,7 @@
 import "server-only"
 
 import { prisma } from "@/lib/prisma"
+import { buildProjectionScenarios } from "@/lib/finance"
 import { cryptoIdMap, getCryptoPricesServer } from "@/lib/services/market-data"
 import { getPortfolioSummary } from "@/lib/services/portfolio-summary"
 
@@ -56,6 +57,21 @@ export type AIPortfolioContext = {
     allocationByCurrency: Array<{ currency: string; value: number; percent: number }>
     allocationBySector: "not_available"
     source: string
+  }
+  analytics: {
+    unrealizedPnL: number | null
+    totalPnL: number | null
+    totalPnLPercent: number | null
+    largestPositionShare: number | null
+    diversificationScore: number | null
+    stalePriceCount: number
+    missingPriceCount: number
+    projectionScenarios: Array<{
+      id: "conservative" | "base" | "optimistic"
+      annualReturnPercent: number
+      finalValue: number
+      inflationAdjustedFinalValue: number
+    }>
   }
   holdings: HoldingContext[]
   recentTransactions: Array<{
@@ -259,7 +275,7 @@ function buildRiskSignals(holdings: HoldingContext[], totalValue: number) {
     signals.push({
       type: "concentration",
       severity: "warning",
-      message: `${largestHolding.symbol} занимает около ${largestPercent.toFixed(1)}% портфеля; стоит проверить концентрационный риск.`,
+      message: `${largestHolding.symbol} is about ${largestPercent.toFixed(1)}% of the portfolio; concentration risk should be checked.`,
     })
   }
 
@@ -271,7 +287,7 @@ function buildRiskSignals(holdings: HoldingContext[], totalValue: number) {
     signals.push({
       type: "crypto_exposure",
       severity: "warning",
-      message: `Криптоактивы занимают около ${cryptoPercent.toFixed(1)}% портфеля; это может повышать волатильность.`,
+      message: `Crypto assets are about ${cryptoPercent.toFixed(1)}% of the portfolio; this may increase volatility.`,
     })
   }
 
@@ -284,7 +300,7 @@ function buildRiskSignals(holdings: HoldingContext[], totalValue: number) {
     signals.push({
       type: "stale_prices",
       severity: "info",
-      message: `У ${stalePriceCount} позиций цена может быть неактуальной; перед выводами стоит обновить рыночные данные.`,
+      message: `${stalePriceCount} positions may have stale prices; market data should be refreshed before conclusions.`,
     })
   }
 
@@ -475,6 +491,31 @@ export async function buildAIPortfolioContext(userId: string, userMessage: strin
     knownPnlHoldings.length > 0
       ? knownPnlHoldings.reduce((sum, holding) => sum + holding.value - (holding.pnl ?? 0), 0)
       : null
+  const largestPositionShare = holdings[0] && totalValue > 0 ? (holdings[0].value / totalValue) * 100 : null
+  const hhi = totalValue > 0 ? holdings.reduce((sum, holding) => sum + (holding.value / totalValue) ** 2, 0) : null
+  const diversificationScore =
+    hhi !== null && holdings.length > 1
+      ? Math.max(0, Math.min(100, ((1 - hhi) / (1 - 1 / holdings.length)) * 100))
+      : holdings.length === 1
+        ? 0
+        : null
+  const stalePriceCount = holdings.filter((holding) => {
+    if (!holding.currentPriceUpdatedAt) return true
+    return Date.now() - new Date(holding.currentPriceUpdatedAt).getTime() > 24 * 60 * 60 * 1000
+  }).length
+  const missingPriceCount = holdings.filter((holding) => !holding.currentPrice || holding.currentPrice <= 0).length
+  const projectionScenarios = buildProjectionScenarios({
+    principal: totalValue,
+    monthlyContribution: totalValue > 0 ? Math.max(100, Math.round(totalValue * 0.03)) : 500,
+    annualRatePercent: 7,
+    months: 120,
+    inflationRatePercent: 4,
+  }).map((scenario) => ({
+    id: scenario.id,
+    annualReturnPercent: roundNumber(scenario.annualReturnPercent, 2) ?? scenario.annualReturnPercent,
+    finalValue: roundNumber(scenario.finalValue) ?? scenario.finalValue,
+    inflationAdjustedFinalValue: roundNumber(scenario.inflationAdjustedFinalValue) ?? scenario.inflationAdjustedFinalValue,
+  }))
 
   const marketData = await buildMarketData(userMessage, holdings)
   const marketStatuses = Object.values(marketData).map((item) => item.status)
@@ -524,6 +565,16 @@ export async function buildAIPortfolioContext(userId: string, userMessage: strin
       allocationByCurrency,
       allocationBySector: "not_available",
       source: portfolioSummary.source,
+    },
+    analytics: {
+      unrealizedPnL: roundNumber(totalPnL),
+      totalPnL: roundNumber(totalPnL),
+      totalPnLPercent: totalCost && totalCost > 0 && totalPnL !== null ? roundNumber((totalPnL / totalCost) * 100) : null,
+      largestPositionShare: roundNumber(largestPositionShare),
+      diversificationScore: roundNumber(diversificationScore),
+      stalePriceCount,
+      missingPriceCount,
+      projectionScenarios,
     },
     holdings,
     recentTransactions: recentTransactions.map((transaction) => ({

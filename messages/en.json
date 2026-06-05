@@ -107,7 +107,9 @@
     "assetDatabase": "Asset database",
     "notifications": "Notifications",
     "systemProcesses": "System processes",
-    "closeSidebar": "Close sidebar"
+    "closeSidebar": "Close sidebar",
+    "calculators": "Calculators",
+    "dataExport": "Data export"
   },
   "auth": {
     "loginTitle": "Log in",
@@ -327,7 +329,7 @@
   },
   "analytics": {
     "title": "Analytics",
-    "description": "Analyze your investment performance and portfolio.",
+    "description": "Portfolio analytics, returns, allocation, risk and future projections.",
     "portfolioPerformance": "Portfolio performance",
     "portfolioPerformanceDescription": "Track portfolio performance over time",
     "assetAllocation": "Asset allocation",
@@ -335,7 +337,102 @@
     "transactionAnalysis": "Transaction analysis",
     "transactionAnalysisDescription": "Breakdown of your investment activities",
     "noTransactionData": "No transaction data available",
-    "noPerformanceData": "No performance data available"
+    "noPerformanceData": "No performance data available",
+    "summary": {
+      "totalPortfolioValue": "Portfolio value",
+      "totalInvested": "Invested amount",
+      "totalPnl": "Total P&L",
+      "cashBalance": "Cash balance",
+      "assetCount": "Assets",
+      "largestPosition": "Largest position",
+      "diversificationScore": "Diversification",
+      "updatedAt": "Updated at"
+    },
+    "source": {
+      "portfolio_assets": "From portfolio positions",
+      "transactions": "Derived from transactions",
+      "mixed": "Portfolio and transactions",
+      "empty": "No portfolio data"
+    },
+    "chart": {
+      "portfolioValue": "Portfolio value",
+      "investedAmount": "Invested amount",
+      "pnl": "P&L"
+    },
+    "period": {
+      "7D": "7D",
+      "1M": "1M",
+      "3M": "3M",
+      "6M": "6M",
+      "1Y": "1Y",
+      "ALL": "All"
+    },
+    "empty": {
+      "performanceTitle": "Not enough data for a return chart.",
+      "performanceDescription": "Add assets or transactions to see portfolio dynamics.",
+      "noAnalytics": "Analytics data is not available yet."
+    },
+    "allocation": {
+      "title": "Portfolio structure",
+      "description": "Allocation by type, asset, currency and sector when available.",
+      "structureTitle": "Portfolio structure",
+      "type": "By type",
+      "asset": "By asset",
+      "currency": "By currency",
+      "sector": "By sector",
+      "typeDescription": "How value is distributed across asset classes.",
+      "assetDescription": "How value is distributed across individual positions.",
+      "currencyDescription": "How value is distributed across currencies.",
+      "sectorDescription": "Sector/category allocation when data exists.",
+      "other": "Other",
+      "positions": "positions"
+    },
+    "positions": {
+      "title": "Positions",
+      "description": "Current holdings with value, cost basis and unrealized P&L.",
+      "value": "Value",
+      "pnl": "P&L"
+    },
+    "risk": {
+      "title": "Risk and diversification",
+      "description": "Concentration, exposure and data quality signals.",
+      "concentration": "Concentration risk",
+      "cryptoShare": "Crypto exposure",
+      "cashShare": "Cash share",
+      "stalePrices": "Stale prices",
+      "noWarnings": "No material risk warnings from available data.",
+      "level": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "warning": {
+        "high_concentration": "Too high a share of one asset",
+        "low_diversification": "Insufficient diversification",
+        "stale_prices": "Some prices may be stale",
+        "missing_prices": "Some positions have missing prices",
+        "high_crypto_exposure": "High crypto exposure",
+        "high_cash_share": "High cash share"
+      }
+    },
+    "projection": {
+      "title": "Future projection",
+      "description": "Scenario-based future portfolio value using compound return and monthly contributions.",
+      "initialAmount": "Initial amount",
+      "monthlyContribution": "Monthly contribution",
+      "annualReturnPercent": "Expected annual return, %",
+      "horizonYears": "Horizon, years",
+      "inflationPercent": "Inflation, %",
+      "inflationAdjusted": "Inflation-adjusted",
+      "yearShort": "y",
+      "month": "Month",
+      "disclaimer": "Calculations are approximate and are not financial, investment, or tax advice."
+    },
+    "scenario": {
+      "conservative": "Conservative",
+      "base": "Base",
+      "optimistic": "Optimistic"
+    }
   },
   "settings": {
     "title": "Settings",
@@ -568,7 +665,18 @@
       "AI_PROVIDER_BAD_REQUEST": "AI assistant received an invalid request. Try shortening your message.",
       "AI_CONTEXT_UNAVAILABLE": "Portfolio data is temporarily unavailable. The answer may be limited.",
       "AI_EMPTY_RESPONSE": "AI assistant did not return a response. Try again.",
-      "UNKNOWN_ERROR": "An unknown error occurred."
+      "UNKNOWN_ERROR": "An unknown error occurred.",
+      "EXPORT_FORMAT_NOT_SUPPORTED": "This export format is not supported.",
+      "EXPORT_FORMAT_NOT_IMPLEMENTED": "This format will be added later.",
+      "EXPORT_NO_SECTIONS_SELECTED": "Select at least one section to export.",
+      "EXPORT_NO_DATA": "There is no data for the selected sections.",
+      "EXPORT_LAYOUT_OVERLAP": "The report layout contains overlapping blocks.",
+      "EXPORT_LAYOUT_FAILED": "The document layout could not be validated safely.",
+      "EXPORT_GENERATION_FAILED": "Failed to generate the export file.",
+      "EXPORT_QR_FAILED": "Failed to generate the report QR code.",
+      "EXPORT_CHART_SNAPSHOT_FAILED": "Failed to prepare the chart snapshot for export.",
+      "EXPORT_FONT_FAILED": "Failed to load document font.",
+      "EXPORT_CHART_RENDER_FAILED": "Failed to render the export chart."
     }
   },
   "aiAssistant": {
@@ -598,6 +706,483 @@
       "accountsEmpty": "No accounts found",
       "marketPartial": "Some market data is unavailable",
       "marketUnavailable": "Current prices are unavailable"
+    }
+  },
+  "calculators": {
+    "title": "Calculators",
+    "description": "Investment, asset, business, loan and tax calculators for quick estimates.",
+    "workspaceTitle": "Investor calculator workspace",
+    "disclaimer": "Calculations are for reference only and are not financial, investment, or tax advice.",
+    "searchPlaceholder": "Search calculators...",
+    "result": "Result",
+    "formula": "Formula",
+    "empty": "No calculators match your search.",
+    "categories": {
+      "investment": "Investments",
+      "assets": "Assets",
+      "business": "Business",
+      "loans": "Loans and mortgage",
+      "taxes": "Taxes"
+    },
+    "units": {
+      "months": "mo."
+    },
+    "action": {
+      "buy": "Buy",
+      "sell": "Sell",
+      "hold": "Hold"
+    },
+    "inputs": {
+      "principal": "Principal",
+      "annualRate": "Annual rate, %",
+      "months": "Months",
+      "monthlyContribution": "Monthly contribution",
+      "targetAmount": "Target amount",
+      "currentCapital": "Current capital",
+      "initialValue": "Initial value",
+      "finalValue": "Final value",
+      "years": "Years",
+      "currentQuantity": "Current quantity",
+      "averagePrice": "Average price",
+      "additionalQuantity": "Additional quantity",
+      "additionalPrice": "Additional price",
+      "quantity": "Quantity",
+      "buyPrice": "Buy price",
+      "sellPrice": "Sell price",
+      "fees": "Fees",
+      "shares": "Shares",
+      "dividendPerShare": "Dividend per share",
+      "taxRate": "Tax rate, %",
+      "paymentsPerYear": "Payments per year",
+      "currentValue": "Current value",
+      "targetPercent": "Target allocation, %",
+      "totalPortfolioValue": "Total portfolio value",
+      "price": "Price",
+      "positionValue": "Position value",
+      "accountSize": "Account size",
+      "riskPercent": "Risk, %",
+      "entryPrice": "Entry price",
+      "stopLoss": "Stop-loss price",
+      "amount": "Amount",
+      "vatRate": "VAT rate, %",
+      "cost": "Cost",
+      "revenue": "Revenue",
+      "costs": "Costs",
+      "fixedCosts": "Fixed costs",
+      "pricePerUnit": "Price per unit",
+      "variableCost": "Variable cost per unit",
+      "investment": "Investment",
+      "returnAmount": "Return amount",
+      "monthlyCashFlow": "Monthly cash flow",
+      "loanPrincipal": "Loan principal",
+      "income": "Income",
+      "profit": "Profit"
+    },
+    "results": {
+      "futureValue": "Future value",
+      "monthlyRequired": "Monthly required",
+      "cagr": "CAGR",
+      "simpleReturn": "Simple return",
+      "averagePrice": "Average price",
+      "pnl": "P&L",
+      "pnlPercent": "P&L, %",
+      "grossIncome": "Gross income",
+      "netIncome": "Net income",
+      "targetValue": "Target value",
+      "rebalanceDifference": "Difference",
+      "action": "Action",
+      "positionValue": "Position value",
+      "breakEvenPrice": "Break-even price",
+      "allocationPercent": "Allocation",
+      "riskAmount": "Risk amount",
+      "quantity": "Quantity",
+      "vatAddedTotal": "Total with VAT",
+      "vatAddedAmount": "VAT added",
+      "vatExtractedBase": "Base without VAT",
+      "vatExtractedAmount": "VAT extracted",
+      "profit": "Profit",
+      "margin": "Margin",
+      "markup": "Markup",
+      "breakEvenUnits": "Break-even units",
+      "breakEvenRevenue": "Break-even revenue",
+      "roi": "ROI",
+      "paybackMonths": "Payback period",
+      "monthlyPayment": "Monthly payment",
+      "totalPaid": "Total paid",
+      "overpayment": "Overpayment",
+      "annuityPayment": "Annuity payment",
+      "firstPayment": "First payment",
+      "lastPayment": "Last payment",
+      "tax": "Tax",
+      "taxableProfit": "Taxable profit",
+      "netProfit": "Net profit"
+    },
+    "items": {
+      "compoundInterest": {
+        "title": "Compound interest",
+        "description": "Future value of capital with monthly compounding.",
+        "formula": "Future Value = P * (1 + r / 12)^n."
+      },
+      "futureValueContributions": {
+        "title": "Future value with contributions",
+        "description": "Portfolio growth with regular monthly additions.",
+        "formula": "FV = P * (1 + i)^n + PMT * ((1 + i)^n - 1) / i; when i = 0, FV = P + PMT * n."
+      },
+      "goal": {
+        "title": "Goal calculator",
+        "description": "Monthly amount needed to reach a target.",
+        "formula": "PMT = (Target - P * (1 + i)^n) / (((1 + i)^n - 1) / i)."
+      },
+      "cagr": {
+        "title": "CAGR",
+        "description": "Annualized growth between two values.",
+        "formula": "CAGR = ((Final / Initial)^(1 / years) - 1) * 100."
+      },
+      "averagePurchasePrice": {
+        "title": "Average purchase price",
+        "description": "Weighted average after an additional buy.",
+        "formula": "Average = (Q1 * P1 + Q2 * P2) / (Q1 + Q2)."
+      },
+      "profitLoss": {
+        "title": "Profit / loss",
+        "description": "P&L for a position after selling.",
+        "formula": "P&L = quantity * sell price - quantity * buy price - fees."
+      },
+      "dividendIncome": {
+        "title": "Dividend income",
+        "description": "Gross and net dividend estimate.",
+        "formula": "Net = shares * dividend per share * payments - tax."
+      },
+      "rebalancing": {
+        "title": "Portfolio rebalancing",
+        "description": "How much to buy or sell to hit target allocation.",
+        "formula": "Target value = total portfolio value * target percent / 100."
+      },
+      "positionValue": {
+        "title": "Position value",
+        "description": "Value of a stock or crypto position.",
+        "formula": "Position value = quantity * current price."
+      },
+      "averageAfterPurchase": {
+        "title": "Average after purchase",
+        "description": "New average price after buying more.",
+        "formula": "Average = (old quantity * old average + added quantity * added price) / total quantity."
+      },
+      "breakEvenPrice": {
+        "title": "Break-even price",
+        "description": "Price needed to cover purchase and fees.",
+        "formula": "Break-even = buy price + fees / quantity."
+      },
+      "allocationPercentage": {
+        "title": "Allocation percentage",
+        "description": "Position share in total portfolio value.",
+        "formula": "Allocation = position value / total value * 100."
+      },
+      "riskPositionSize": {
+        "title": "Risk per trade",
+        "description": "Position size from account risk and stop-loss.",
+        "formula": "Quantity = account size * risk percent / abs(entry - stop-loss)."
+      },
+      "vat": {
+        "title": "VAT / НДС",
+        "description": "Add or extract VAT with a custom rate.",
+        "formula": "Add VAT: total = amount * (1 + rate). Extract VAT: base = total / (1 + rate)."
+      },
+      "marginMarkup": {
+        "title": "Margin and markup",
+        "description": "Profitability of selling price versus cost.",
+        "formula": "Margin = profit / price * 100. Markup = profit / cost * 100."
+      },
+      "revenueProfit": {
+        "title": "Revenue and profit",
+        "description": "Profit and margin from revenue and costs.",
+        "formula": "Profit = revenue - costs. Margin = profit / revenue * 100."
+      },
+      "businessBreakEven": {
+        "title": "Break-even point",
+        "description": "Units and revenue needed to cover fixed costs.",
+        "formula": "Units = fixed costs / (price per unit - variable cost per unit)."
+      },
+      "roi": {
+        "title": "ROI",
+        "description": "Return on investment estimate.",
+        "formula": "ROI = (return amount - investment) / investment * 100."
+      },
+      "payback": {
+        "title": "Payback period",
+        "description": "Months needed to recover an investment.",
+        "formula": "Payback = initial investment / monthly cash flow."
+      },
+      "mortgagePayment": {
+        "title": "Mortgage payment",
+        "description": "Monthly annuity mortgage payment.",
+        "formula": "Payment = P * i * (1 + i)^n / ((1 + i)^n - 1)."
+      },
+      "loanOverpayment": {
+        "title": "Loan overpayment",
+        "description": "Total paid and interest overpayment.",
+        "formula": "Overpayment = monthly payment * months - principal."
+      },
+      "annuityPayment": {
+        "title": "Annuity payment",
+        "description": "Generic annuity payment formula.",
+        "formula": "Payment = P * i * (1 + i)^n / ((1 + i)^n - 1); zero interest uses P / n."
+      },
+      "differentiatedPayment": {
+        "title": "Differentiated payment",
+        "description": "First, last and total payments for differentiated loan.",
+        "formula": "Monthly principal is fixed; interest is charged on remaining principal."
+      },
+      "incomeTax": {
+        "title": "Income tax",
+        "description": "Generic income tax percentage estimate.",
+        "formula": "Tax = income * tax rate / 100."
+      },
+      "investmentProfitTax": {
+        "title": "Investment profit tax",
+        "description": "Simple tax estimate for positive investment profit.",
+        "formula": "Tax = max(profit, 0) * tax rate / 100."
+      },
+      "vatTax": {
+        "title": "VAT extraction",
+        "description": "Extract VAT from an amount including VAT.",
+        "formula": "Base = amount / (1 + rate); VAT = amount - base."
+      }
+    }
+  },
+  "navigation": {
+    "dataExport": "Data export"
+  },
+  "export": {
+    "title": "Data export",
+    "description": "Create portfolio reports, spreadsheets, and text exports with a contents summary, app link, and QR code.",
+    "defaultTitle": "Investment report",
+    "print": "Print",
+    "download": "Download",
+    "disclaimer": "Calculations are for reference only and are not financial, investment, or tax advice.",
+    "actions": {
+      "preview": "Preview",
+      "export": "Export",
+      "print": "Print",
+      "download": "Download"
+    },
+    "formats": {
+      "title": "File format",
+      "description": "Choose a document, spreadsheet, data, or financial format. Planned formats are visible but disabled.",
+      "documents": "Documents",
+      "data": "Spreadsheets and data",
+      "financial": "Financial formats",
+      "pdf": "PDF",
+      "docx": "DOCX",
+      "txt": "TXT",
+      "html": "HTML",
+      "csv": "CSV",
+      "xlsx": "XLSX",
+      "xls": "XLS",
+      "ods": "ODS",
+      "json": "JSON",
+      "xml": "XML",
+      "qif": "QIF",
+      "ofx": "OFX",
+      "mt940": "MT940",
+      "camt053": "CAMT.053"
+    },
+    "status": {
+      "title": "Status",
+      "supported": "Fully supported",
+      "experimental": "Experimental format",
+      "planned": "This format will be added later.",
+      "sectionsSelected": "Sections selected: {count}",
+      "loadingPreview": "Preparing summary...",
+      "previewReady": "Export summary has been updated.",
+      "downloading": "Generating file...",
+      "downloadStarted": "File download has started."
+    },
+    "sections": {
+      "title": "Export sections",
+      "description": "Choose which data should be included in the document or spreadsheet.",
+      "portfolioSummary": "Portfolio summary",
+      "portfolioSummaryDescription": "Value, invested amount, PnL, and diversification.",
+      "accounts": "Accounts",
+      "accountsDescription": "Account names, types, balances, and currencies.",
+      "assets": "Assets",
+      "assetsDescription": "Instruments used in holdings and transactions.",
+      "holdings": "Holdings",
+      "holdingsDescription": "Quantity, average price, current price, and market value.",
+      "transactions": "Transactions",
+      "transactionsDescription": "Operations for the selected period.",
+      "analytics": "Analytics",
+      "analyticsDescription": "Returns, risk, diversification, and period metrics.",
+      "allocationChart": "Allocation chart",
+      "allocationChartDescription": "Portfolio structure by asset and share.",
+      "performanceChart": "Performance chart",
+      "performanceChartDescription": "Portfolio value, invested amount, and PnL dynamics.",
+      "calculators": "Calculator results",
+      "calculatorsDescription": "Not stored yet; the report includes a service note.",
+      "aiSummary": "AI summary",
+      "aiSummaryDescription": "Optional assistant summary when available in a future feature.",
+      "auditLogSummary": "Audit log",
+      "auditLogSummaryDescription": "Administrative summary; available to admins only.",
+      "metadata": "Metadata",
+      "metadataDescription": "Generated time, period, data source, app link, and QR code.",
+      "summary": "Portfolio summary",
+      "allocation": "Asset allocation",
+      "performance": "Portfolio performance"
+    },
+    "fields": {
+      "portfolioValue": "Portfolio value",
+      "investedAmount": "Invested amount",
+      "cashBalance": "Cash balance",
+      "profitLoss": "Profit/Loss",
+      "returnPercent": "Return",
+      "assetCount": "Asset count",
+      "largestPosition": "Largest position",
+      "name": "Name",
+      "type": "Type",
+      "balance": "Balance",
+      "currency": "Currency",
+      "createdAt": "Created at",
+      "symbol": "Ticker",
+      "currentPrice": "Current price",
+      "updatedAt": "Updated at",
+      "quantity": "Quantity",
+      "averageBuyPrice": "Average purchase price",
+      "marketValue": "Market value",
+      "costBasis": "Cost basis",
+      "allocationPercent": "Portfolio share",
+      "date": "Date",
+      "transactionType": "Operation type",
+      "asset": "Asset",
+      "pricePerUnit": "Price per unit",
+      "totalAmount": "Amount",
+      "fee": "Fee",
+      "account": "Account",
+      "comment": "Comment"
+    },
+    "enums": {
+      "assetTypes": {
+        "stock": "Stock",
+        "crypto": "Cryptocurrency",
+        "etf": "ETF",
+        "commodity": "Commodity"
+      },
+      "accountTypes": {
+        "brokerage": "Brokerage account"
+      },
+      "transactionTypes": {
+        "buy": "Buy",
+        "sell": "Sell",
+        "dividend": "Dividend",
+        "deposit": "Deposit",
+        "withdrawal": "Withdrawal"
+      },
+      "risk": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      }
+    },
+    "period": {
+      "title": "Period",
+      "description": "Limit transactions and analytics to a selected time range.",
+      "all": "All time",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "3m": "Last 3 months",
+      "1y": "Last year",
+      "custom": "Custom range",
+      "from": "From",
+      "to": "To"
+    },
+    "options": {
+      "title": "Document options",
+      "description": "Set title, language, currency, and layout elements.",
+      "documentTitle": "Document title",
+      "subtitle": "Subtitle or comment",
+      "language": "Report language",
+      "currency": "Currency",
+      "orientation": "Page orientation",
+      "portrait": "Portrait",
+      "landscape": "Landscape",
+      "pageSize": "Page size",
+      "includeCharts": "Include charts or chart tables",
+      "includeQrCode": "Include QR code",
+      "includeAppLink": "Include app link",
+      "includeGeneratedAt": "Include generation timestamp",
+      "includeEmptySections": "Show empty sections",
+      "compactMode": "Compact mode",
+      "detailedMode": "Detailed JSON",
+      "exportAudienceTechnical": "Technical export"
+    },
+    "preview": {
+      "button": "Preview",
+      "contentsTitle": "Export contents",
+      "title": "Export contents",
+      "description": "This is a data summary preview, not an exact visual rendering of the output file.",
+      "contents": "Sections",
+      "format": "Format",
+      "estimatedRecords": "Estimated records",
+      "selectedSections": "Selected sections",
+      "options": "Options",
+      "warnings": "Warnings",
+      "ready": "Ready",
+      "notReady": "Not ready",
+      "plannedFormat": "This format will be added later.",
+      "noSections": "No sections selected",
+      "clickToPreview": "Click Preview",
+      "sectionDetails": "Section",
+      "recordsCount": "Records",
+      "includedFields": "Included fields",
+      "willBeCalculated": "Will be calculated before export",
+      "chartsAsSvg": "PDF will include a simple chart generated from section data.",
+      "chartsAsTable": "Charts will be exported as source data tables for the selected format.",
+      "financialSectionsOnly": "Financial formats primarily export accounts and transactions. Charts and visual sections will be skipped.",
+      "compactJson": "Detailed projection points are not included. Enable detailed mode for the full export.",
+      "detailedJson": "Detailed mode includes extended calculation data and projection points.",
+      "sampleData": "Sample data",
+      "notEstimated": "Click Preview",
+      "included": "Included",
+      "notIncluded": "Not included",
+      "noDataForSection": "No data for section: {section}.",
+      "formatNoCharts": "{format} does not embed charts; chart data will be exported as rows.",
+      "emptyTitle": "Preview has not been generated yet",
+      "emptyDescription": "Choose a format and sections, then click Preview to estimate records and check export readiness.",
+      "qr": "QR code",
+      "generatedAt": "Generated",
+      "period": "Period",
+      "user": "User",
+      "appLink": "Application link",
+      "noData": "No data",
+      "chartPreview": "The preview chart is rendered from section data.",
+      "chartTableFallback": "If no chart snapshot is provided, chart data is exported as a table.",
+      "calculatorsUnavailable": "Calculator results are client-side and are not stored yet.",
+      "aiSummaryUnavailable": "AI summaries are generated on demand and are not stored for export yet."
+    },
+    "errors": {
+      "title": "Export error",
+      "noSections": "Select at least one section besides metadata.",
+      "plannedFormat": "The selected format is planned and is not available for download yet.",
+      "VALIDATION_ERROR": "Invalid export request. Check the selected format, sections, period and options.",
+      "EXPORT_GENERATION_FAILED": "Failed to generate the export file.",
+      "EXPORT_FORMAT_NOT_SUPPORTED": "This export format is not supported.",
+      "EXPORT_FORMAT_NOT_IMPLEMENTED": "This format will be added later.",
+      "EXPORT_NO_SECTIONS_SELECTED": "Select at least one section to export.",
+      "EXPORT_NO_DATA": "There is no data for the selected sections.",
+      "EXPORT_LAYOUT_OVERLAP": "The report layout contains overlapping blocks.",
+      "EXPORT_LAYOUT_FAILED": "The document layout could not be validated safely.",
+      "EXPORT_QR_FAILED": "Failed to generate the report QR code.",
+      "EXPORT_CHART_SNAPSHOT_FAILED": "Failed to prepare the chart snapshot for export.",
+      "EXPORT_FONT_FAILED": "Failed to load document font.",
+      "EXPORT_CHART_RENDER_FAILED": "Failed to render the export chart."
+    },
+    "warnings": {
+      "title": "Warnings",
+      "EXPORT_NO_DATA": "There is no data for the selected sections.",
+      "EXPORT_QR_FAILED": "QR code was not included because generation failed.",
+      "FORMAT_EXPERIMENTAL:xls": "XLS is exported in experimental mode.",
+      "FORMAT_EXPERIMENTAL:ods": "ODS is exported in experimental mode.",
+      "FORMAT_EXPERIMENTAL:xml": "XML is exported in experimental mode.",
+      "ADMIN_SECTION_SKIPPED:auditLogSummary": "Audit log skipped: this section is available only to admins."
     }
   }
 }

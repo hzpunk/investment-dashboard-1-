@@ -7,6 +7,8 @@ import { apiError, apiSuccess, type ApiErrorBody, type ApiSuccess } from './api-
 export interface AuthenticatedUser {
   id: string
   email: string
+  username?: string | null
+  role?: string | null
 }
 
 // API Route context type

@@ -1,300 +1,165 @@
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { requireRequestUser } from "@/lib/api-auth"
-import { ApiErrorCode } from "@/lib/api-errors"
+import { NextRequest, NextResponse } from "next/server"
 import { apiError } from "@/lib/api-response"
+import { withAuth } from "@/lib/api-handler"
+import { generateExportFile } from "@/lib/export/generators"
+import { prepareExportBundle } from "@/lib/export/prepare-export"
+import type { ExportRequest, ExportSections } from "@/lib/export/types"
 
-// GET /api/export/transactions - export transactions as CSV
-export async function GET(request: Request) {
+export const POST = withAuth(async (request: NextRequest, user) => {
+  let body: unknown = null
   try {
-    const user = await requireRequestUser()
-    const { searchParams } = new URL(request.url)
-    const format = searchParams.get("format") || "csv"
-    const type = searchParams.get("type") || "transactions"
-    let data: string
-    let filename: string
-    let contentType: string
+    body = await parseJson(request)
+    const prepared = await prepareExportBundle(request, user, body)
 
-    switch (type) {
-      case "transactions":
-        const result = await exportTransactions(user.id, format)
-        data = result.data
-        filename = result.filename
-        contentType = result.contentType
-        break
-      case "portfolio":
-        const portfolioResult = await exportPortfolio(user.id, format)
-        data = portfolioResult.data
-        filename = portfolioResult.filename
-        contentType = portfolioResult.contentType
-        break
-      case "tax-report":
-        const taxResult = await exportTaxReport(user.id, format)
-        data = taxResult.data
-        filename = taxResult.filename
-        contentType = taxResult.contentType
-        break
-      default:
-        return apiError(ApiErrorCode.VALIDATION_ERROR, "Invalid export type", { status: 400 })
+    if (!prepared.ok) {
+      return apiError(prepared.validation.code, prepared.validation.message, {
+        status: exportStatusForCode(prepared.validation.code),
+        details: prepared.validation.details,
+      })
     }
 
-    return new NextResponse(data, {
+    const file = await generateExportFile(prepared.bundle.metadata.format, prepared.bundle)
+    return new NextResponse(toResponseBody(file.body), {
+      status: 200,
       headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Type": file.contentType,
+        "Content-Disposition": `attachment; filename="${file.filename}"`,
+        "Cache-Control": "no-store",
       },
     })
-  } catch (error: any) {
-    return apiError(error?.status === 401 ? ApiErrorCode.UNAUTHORIZED : ApiErrorCode.INTERNAL_ERROR, error?.status === 401 ? "Authentication required" : "Failed to export data", { status: error?.status === 401 ? 401 : 500 })
+  } catch (error) {
+    const code = typeof (error as { code?: unknown })?.code === "string" ? String((error as { code?: unknown }).code) : "EXPORT_GENERATION_FAILED"
+    console.error("[Export] Generation failed", {
+      format: readLogFormat(body),
+      sections: readLogSections(body),
+      error,
+    })
+    return apiError(code, publicExportErrorMessage(code), {
+      status: exportStatusForCode(code),
+      details: (error as { details?: unknown })?.details,
+    })
+  }
+})
+
+export const GET = withAuth(async (request: NextRequest, user) => {
+  try {
+    const { searchParams } = new URL(request.url)
+    const format = (searchParams.get("format") || "csv") as ExportRequest["format"]
+    const type = searchParams.get("type") || "transactions"
+    const sections: ExportSections =
+      type === "portfolio"
+        ? { portfolioSummary: true, accounts: true, holdings: true, assets: true, analytics: true, metadata: true }
+        : type === "tax-report"
+          ? { transactions: true, analytics: true, metadata: true }
+          : { transactions: true, metadata: true }
+
+    const body: ExportRequest = {
+      format,
+      sections,
+      period: type === "tax-report" ? { type: "1y" } : { type: "all" },
+      options: {
+        title: type === "portfolio" ? "Portfolio export" : type === "tax-report" ? "Tax report export" : "Transactions export",
+        includeCharts: false,
+        includeQrCode: false,
+        includeAppLink: false,
+      },
+    }
+
+    const prepared = await prepareExportBundle(request, user, body)
+    if (!prepared.ok) {
+      return apiError(prepared.validation.code, prepared.validation.message, {
+        status: exportStatusForCode(prepared.validation.code),
+        details: prepared.validation.details,
+      })
+    }
+
+    const file = await generateExportFile(prepared.bundle.metadata.format, prepared.bundle)
+    return new NextResponse(toResponseBody(file.body), {
+      status: 200,
+      headers: {
+        "Content-Type": file.contentType,
+        "Content-Disposition": `attachment; filename="${file.filename}"`,
+        "Cache-Control": "no-store",
+      },
+    })
+  } catch (error) {
+    const code = typeof (error as { code?: unknown })?.code === "string" ? String((error as { code?: unknown }).code) : "EXPORT_GENERATION_FAILED"
+    console.error("[Export] Generation failed", {
+      format: new URL(request.url).searchParams.get("format") || "csv",
+      sections: [],
+      error,
+    })
+    return apiError(code, publicExportErrorMessage(code), {
+      status: exportStatusForCode(code),
+      details: (error as { details?: unknown })?.details,
+    })
+  }
+})
+
+async function parseJson(request: NextRequest) {
+  try {
+    return await request.json()
+  } catch {
+    return null
   }
 }
 
-async function exportTransactions(userId: string, format: string) {
-  const transactions = await prisma.transaction.findMany({
-    where: { userId },
-    include: {
-      asset: true,
-      account: true,
-    },
-    orderBy: { date: "desc" },
-  })
-
-  if (format === "csv") {
-    const headers = [
-      "Date",
-      "Type",
-      "Symbol",
-      "Asset Name",
-      "Quantity",
-      "Price Per Unit",
-      "Total Amount",
-      "Fee",
-      "Currency",
-      "Account",
-      "Notes",
-    ].join(",")
-
-    const rows = transactions.map((t: typeof transactions[0]) =>
-      [
-        t.date.toISOString().split("T")[0],
-        t.type,
-        t.asset?.symbol || "",
-        t.asset?.name || "",
-        t.quantity || "",
-        t.pricePerUnit || "",
-        t.totalAmount,
-        t.fee,
-        t.currency,
-        t.account.name,
-        t.notes || "",
-      ].map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")
-    )
-
-    return {
-      data: [headers, ...rows].join("\n"),
-      filename: `transactions_${new Date().toISOString().split("T")[0]}.csv`,
-      contentType: "text/csv",
-    }
-  }
-
-  // JSON format
-  return {
-    data: JSON.stringify(transactions, null, 2),
-    filename: `transactions_${new Date().toISOString().split("T")[0]}.json`,
-    contentType: "application/json",
+function publicExportErrorMessage(code: string) {
+  switch (code) {
+    case "VALIDATION_ERROR":
+      return "Invalid export request"
+    case "EXPORT_NO_SECTIONS_SELECTED":
+      return "No export sections selected"
+    case "EXPORT_FORMAT_NOT_SUPPORTED":
+      return "Export format is not supported"
+    case "EXPORT_LAYOUT_FAILED":
+      return "Export layout validation failed"
+    case "EXPORT_LAYOUT_OVERLAP":
+      return "Export layout has overlapping blocks"
+    case "EXPORT_FORMAT_NOT_IMPLEMENTED":
+      return "Export format is not implemented"
+    case "EXPORT_FONT_FAILED":
+      return "Failed to load document font"
+    case "EXPORT_CHART_RENDER_FAILED":
+      return "Export chart rendering failed"
+    default:
+      return "Export generation failed"
   }
 }
 
-async function exportPortfolio(userId: string, format: string) {
-  const portfolios = await prisma.portfolio.findMany({
-    where: { userId },
-    include: {
-      assets: {
-        include: {
-          asset: true,
-        },
-      },
-    },
-  })
-
-  const accounts = await prisma.account.findMany({
-    where: { userId },
-  })
-
-  const data = {
-    exportDate: new Date().toISOString(),
-    accounts: accounts.map((a: typeof accounts[0]) => ({
-      name: a.name,
-      type: a.type,
-      balance: a.balance,
-      currency: a.currency,
-    })),
-    portfolios: portfolios.map((p: typeof portfolios[0]) => ({
-      name: p.name,
-      description: p.description,
-      assets: p.assets.map((pa: typeof p.assets[0]) => ({
-        symbol: pa.asset.symbol,
-        name: pa.asset.name,
-        type: pa.asset.type,
-        quantity: pa.quantity,
-        averageBuyPrice: pa.averageBuyPrice,
-        currentPrice: pa.asset.currentPrice,
-        value: pa.quantity * pa.asset.currentPrice,
-      })),
-    })),
-  }
-
-  if (format === "csv") {
-    const rows: string[] = []
-    rows.push("Portfolio Export")
-    rows.push(`Export Date,${data.exportDate}`)
-    rows.push("")
-    rows.push("Accounts")
-    rows.push("Name,Type,Balance,Currency")
-    for (const acc of data.accounts) {
-      rows.push(`${acc.name},${acc.type},${acc.balance},${acc.currency}`)
-    }
-    rows.push("")
-    rows.push("Portfolios")
-    for (const p of data.portfolios as any[]) {
-      rows.push(`Portfolio: ${p.name}`)
-      rows.push("Symbol,Name,Type,Quantity,Avg Price,Current Price,Value")
-      for (const a of p.assets as any[]) {
-        rows.push(
-          `${a.symbol},${a.name},${a.type},${a.quantity},${a.averageBuyPrice},${a.currentPrice},${a.value}`
-        )
-      }
-      rows.push("")
-    }
-
-    return {
-      data: rows.join("\n"),
-      filename: `portfolio_${new Date().toISOString().split("T")[0]}.csv`,
-      contentType: "text/csv",
-    }
-  }
-
-  return {
-    data: JSON.stringify(data, null, 2),
-    filename: `portfolio_${new Date().toISOString().split("T")[0]}.json`,
-    contentType: "application/json",
+function exportStatusForCode(code: string) {
+  switch (code) {
+    case "VALIDATION_ERROR":
+    case "EXPORT_NO_SECTIONS_SELECTED":
+      return 400
+    case "FORBIDDEN":
+      return 403
+    case "EXPORT_FORMAT_NOT_SUPPORTED":
+    case "EXPORT_FORMAT_NOT_IMPLEMENTED":
+    case "EXPORT_NO_DATA":
+    case "EXPORT_LAYOUT_OVERLAP":
+    case "EXPORT_LAYOUT_FAILED":
+    case "EXPORT_CHART_RENDER_FAILED":
+      return 422
+    default:
+      return 500
   }
 }
 
-async function exportTaxReport(userId: string, format: string) {
-  const year = new Date().getFullYear()
-  
-  // Get sell transactions for tax calculation
-  const sellTransactions = await prisma.transaction.findMany({
-    where: {
-      userId,
-      type: "sell",
-      date: {
-        gte: new Date(`${year}-01-01`),
-        lt: new Date(`${year + 1}-01-01`),
-      },
-    },
-    include: {
-      asset: true,
-    },
-    orderBy: { date: "asc" },
-  })
+function readLogFormat(body: unknown) {
+  return body && typeof body === "object" && "format" in body ? String((body as { format?: unknown }).format ?? "") : ""
+}
 
-  // Get matching buy transactions (FIFO method)
-  const buyTransactions = await prisma.transaction.findMany({
-    where: {
-      userId,
-      type: "buy",
-    },
-    include: {
-      asset: true,
-    },
-    orderBy: { date: "asc" },
-  })
+function readLogSections(body: unknown) {
+  if (!body || typeof body !== "object" || !("sections" in body)) return []
+  const sections = (body as { sections?: unknown }).sections
+  if (!sections || typeof sections !== "object") return []
+  return Object.entries(sections as Record<string, unknown>)
+    .filter(([, selected]) => selected === true)
+    .map(([key]) => key)
+}
 
-  // Calculate gains/losses
-  const taxItems = sellTransactions.map((sell: typeof sellTransactions[0]) => {
-    const assetBuys = buyTransactions.filter(
-      (b: typeof buyTransactions[0]) => b.assetId === sell.assetId && b.date <= sell.date
-    )
-    
-    // Simplified: use average cost basis
-    const avgCost =
-      assetBuys.length > 0
-        ? assetBuys.reduce((sum: number, b: typeof buyTransactions[0]) => sum + b.totalAmount, 0) /
-          assetBuys.reduce((sum: number, b: typeof buyTransactions[0]) => sum + (b.quantity || 0), 0)
-        : 0
-
-    const costBasis = (sell.quantity || 0) * avgCost
-    const proceeds = sell.totalAmount
-    const gain = proceeds - costBasis
-
-    return {
-      date: sell.date,
-      symbol: sell.asset?.symbol || "",
-      assetName: sell.asset?.name || "",
-      quantity: sell.quantity,
-      proceeds,
-      costBasis,
-      gain,
-      isLongTerm: false, // Would need to track holding period
-    }
-  })
-
-  const totalGain = taxItems.reduce((sum: number, item: typeof taxItems[0]) => sum + item.gain, 0)
-
-  if (format === "csv") {
-    const headers = [
-      "Date",
-      "Symbol",
-      "Asset Name",
-      "Quantity",
-      "Proceeds",
-      "Cost Basis",
-      "Gain/Loss",
-      "Holding Period",
-    ].join(",")
-
-    const rows = taxItems.map((t: typeof taxItems[0]) =>
-      [
-        t.date.toISOString().split("T")[0],
-        t.symbol,
-        t.assetName,
-        t.quantity,
-        t.proceeds.toFixed(2),
-        t.costBasis.toFixed(2),
-        t.gain.toFixed(2),
-        t.isLongTerm ? "Long-term" : "Short-term",
-      ].join(",")
-    )
-
-    const summary = [
-      "",
-      "Summary",
-      `Total Capital Gains,${totalGain.toFixed(2)}`,
-      `Tax Year,${year}`,
-      `Generated,${new Date().toISOString()}`,
-    ]
-
-    return {
-      data: [headers, ...rows, ...summary].join("\n"),
-      filename: `tax_report_${year}.csv`,
-      contentType: "text/csv",
-    }
-  }
-
-  return {
-    data: JSON.stringify(
-      {
-        year,
-        generatedAt: new Date().toISOString(),
-        totalGain,
-        transactions: taxItems,
-      },
-      null,
-      2
-    ),
-    filename: `tax_report_${year}.json`,
-    contentType: "application/json",
-  }
+function toResponseBody(body: string | Uint8Array): BodyInit {
+  if (typeof body === "string") return body
+  return Buffer.from(body) as unknown as BodyInit
 }

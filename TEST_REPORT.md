@@ -263,3 +263,190 @@ pnpm run test:load:ai
 - AI-сценарий не входит в mixed flow и не запускается с высокой конкуррентностью.
 - k6 scripts не вызывают Tailscale IP или LM Studio напрямую; используется только backend route `/api/ai/chat`.
 - Реальные cookie и секреты не хранятся в репозитории и передаются только через переменные окружения.
+## 2026-06-04 Analytics/Calculators Verification
+
+Added pure finance formula tests:
+
+- `__tests__/finance/calculations.test.ts`
+- `__tests__/finance/projections.test.ts`
+- `__tests__/finance/calculators.test.ts`
+
+Verified commands during this iteration:
+
+```bash
+pnpm run test:finance
+pnpm test
+pnpm run test:i18n
+pnpm typecheck
+```
+
+Current automated result after build validation:
+
+- 11 Jest suites passed.
+- 48 tests passed.
+- i18n RU/EN key parity passed.
+- TypeScript typecheck passed.
+- Next.js production build passed.
+- Docker Compose app image build passed.
+
+## 2026-06-04 Data Export Verification
+
+Added export tests:
+
+- `__tests__/export/app-link.test.ts`
+- `__tests__/export/layout-validator.test.ts`
+- `__tests__/export/formatters.test.ts`
+- `__tests__/export/qr-code.test.ts`
+- `__tests__/export/csv.test.ts`
+- `__tests__/export/xlsx.test.ts`
+- `__tests__/export/pdf-layout.test.ts`
+- `__tests__/export/export-data.test.ts`
+- `__tests__/export/export-route.test.ts`
+- `__tests__/ui/export-page.test.tsx`
+
+Additional script:
+
+```bash
+pnpm run test:export
+```
+
+Covered behavior: export request validation, no sections selected, planned format errors, app link resolution, QR fallback, PDF layout validation, page-break checks, CSV escaping, TXT/JSON generation, XLSX sheets, PDF generation smoke check, safe data collection with no secrets, export API auth requirement, and export page preview/print interactions.
+
+Final automated result for this iteration:
+
+- `pnpm run test:export`: 9 suites passed, 19 tests passed.
+- `pnpm test`: 21 suites passed, 69 tests passed.
+- `pnpm run test:i18n`: 1 suite passed, 3 tests passed.
+- `pnpm typecheck`: passed.
+- `pnpm run build`: passed and includes `/export`, `/api/export`, `/api/export/preview`.
+- `docker compose -f docker-compose.server.yml build app`: passed.
+- Browser verification: `/export` opened on `http://127.0.0.1:3001/export`, sidebar label rendered as `Выгрузка данных`, and Preview generated a document preview for the seeded demo user.
+
+## 2026-06-04 Data Export Stabilization Verification
+
+Updated and added export tests:
+
+- `__tests__/export/export-request-validation.test.ts`
+- `__tests__/export/format-support.test.ts`
+- `__tests__/export/export-route.test.ts`
+- `__tests__/export/layout-validator.test.ts`
+- `__tests__/ui/export-page.test.tsx`
+
+Covered behavior: strict request validation, empty sections, unsupported format 422, planned format 422, PDF/CSV binary response headers, summary preview endpoint, export button click-only behavior, planned formats disabled in UI, QR/link layout separation, footer collision detection, and summary preview print flow.
+
+Automated result after stabilization:
+
+- `pnpm test`: 23 suites passed, 84 tests passed.
+- Local authenticated API smoke on `http://127.0.0.1:3001`: `pdf`, `csv`, `xlsx`, `json` returned 200 with expected content types; `ods` returned 422 `EXPORT_FORMAT_NOT_IMPLEMENTED`; unknown `bad` returned 422 `EXPORT_FORMAT_NOT_SUPPORTED`; `/api/export/summary` returned `{ ok:true, data.summary }`.
+
+Additional validation completed:
+
+- `pnpm run test:i18n`: 1 suite passed, 3 tests passed.
+- `pnpm typecheck`: passed.
+- `pnpm run build`: passed and includes `/export`, `/api/export`, `/api/export/preview`, `/api/export/summary`.
+- `docker compose -f docker-compose.server.yml build app`: passed.
+- Browser verification on `http://127.0.0.1:3001/export`: planned formats are visible and disabled, Preview updates the `Что будет выгружено` summary with record counts, and the page shows the chart-as-table warning instead of a document-like preview.
+## 2026-06-05 Data Export Stabilization Verification
+
+Added and updated export tests:
+
+- `__tests__/export/pdf-font.test.ts`
+- `__tests__/export/date-format.test.ts`
+- `__tests__/export/svg-charts.test.ts`
+- `__tests__/export/json-export.test.ts`
+- `__tests__/export/warnings.test.ts`
+- `__tests__/ui/export-page.test.tsx`
+
+Covered behavior: Cyrillic-capable PDF font assets, PDF generation without ASCII replacement artifacts, QR-safe layout through existing validator coverage, removed Print button, clickable section detail rows, RU/EN human-readable dates, SVG chart generation from allocation/performance data, format-aware chart warnings, compact JSON without projection `points`, detailed JSON with projection `points`, and preview summary behavior that does not call the binary export endpoint.
+
+Focused pre-validation result:
+
+- `pnpm test -- __tests__/export/date-format.test.ts __tests__/export/svg-charts.test.ts __tests__/export/json-export.test.ts __tests__/export/pdf-font.test.ts __tests__/export/warnings.test.ts __tests__/ui/export-page.test.tsx`: 6 suites passed, 15 tests passed.
+
+Final validation result:
+
+- `pnpm test`: 28 suites passed, 97 tests passed.
+- `pnpm run test:export`: 16 suites passed, 47 tests passed.
+- `pnpm run test:i18n`: 1 suite passed, 3 tests passed.
+- `pnpm typecheck`: passed.
+- `pnpm run build`: passed and includes `/export`, `/api/export`, `/api/export/summary`.
+- `docker compose -f docker-compose.server.yml build app`: passed on retry. The first run compiled successfully but hit a transient Docker snapshot extraction error while exporting the image.
+
+## 2026-06-05 Data Export CSV/XLS/ODS/XML Verification
+
+Added and updated export tests:
+
+- `__tests__/export/csv-encoding.test.ts`
+- `__tests__/export/xls-export.test.ts`
+- `__tests__/export/ods-export.test.ts`
+- `__tests__/export/xml-export.test.ts`
+- `__tests__/export/format-support.test.ts`
+- `__tests__/export/export-request-validation.test.ts`
+- `__tests__/export/export-route.test.ts`
+- `__tests__/export/csv-headers.test.ts`
+
+Covered behavior: CSV UTF-8 BOM for Windows Excel, semicolon CSV delimiter, no mojibake snippets, no NBSP/narrow-NBSP in CSV cells, readable Cyrillic CSV headers, true XLS workbook generation via `xlsx`/BIFF8, ODS workbook generation, clean public XML with escaping, implemented format registry for XLS/ODS/XML, then-current planned financial format behavior, and continued sanitization of internal IDs/DTO fields.
+
+Validation result:
+
+- `pnpm run test:export`: 26 suites passed, 59 tests passed.
+- `pnpm test`: 38 suites passed, 109 tests passed.
+- `pnpm run test:i18n`: 1 suite passed, 3 tests passed.
+- `pnpm typecheck`: passed.
+- `pnpm run build`: passed and includes `/export`, `/api/export`, `/api/export/summary`.
+- `docker compose -f docker-compose.server.yml build app`: passed.
+
+## 2026-06-05 Data Export Financial Formats Verification
+
+Added and updated tests:
+
+- `__tests__/export/qif-export.test.ts`
+- `__tests__/export/ofx-export.test.ts`
+- `__tests__/export/mt940-export.test.ts`
+- `__tests__/export/camt053-export.test.ts`
+- `__tests__/export/financial-formats.test.ts`
+- `__tests__/export/format-support.test.ts`
+- `__tests__/export/export-request-validation.test.ts`
+- `__tests__/export/export-route.test.ts`
+
+Covered behavior: QIF investment/bank records with BOM and `^` terminators, OFX XML statement entries, MT940 mandatory tags and debit/credit marks, CAMT.053 ISO 20022 namespace and entries, correct MIME types, implemented registry status for QIF/OFX/MT940/CAMT.053, generated safe references instead of database IDs, financial formats ignoring visual sections with `FINANCIAL_SECTIONS_ONLY`, and no leaks of `assetId`, `accountId`, `portfolioId`, `userId`, `qrCodeDataUrl`, or `projectionDefaults`.
+
+Focused validation:
+
+- `pnpm run test:export`: 31 suites passed, 67 tests passed.
+
+Final validation:
+
+- `pnpm test`: 43 suites passed, 117 tests passed.
+- `pnpm run test:i18n`: 1 suite passed, 3 tests passed.
+- `pnpm typecheck`: passed.
+- `pnpm run build`: passed and includes `/export`, `/api/export`, `/api/export/summary`.
+- `docker compose -f docker-compose.server.yml build app`: passed.
+- `docker compose -f docker-compose.server.yml build app`: passed.
+- Browser note: `http://127.0.0.1:3001/export` responded with HTTP 200, but the in-app browser session stayed on the app loading spinner without console errors; UI behavior is covered by `__tests__/ui/export-page.test.tsx`.
+
+## 2026-06-05 Data Export Presentation Verification
+
+Added and updated export privacy/presentation tests:
+
+- `__tests__/export/presentation-mapping.test.ts`
+- `__tests__/export/export-sanitization.test.ts`
+- `__tests__/export/json-public-export.test.ts`
+- `__tests__/export/csv-headers.test.ts`
+- `__tests__/export/xlsx-headers.test.ts`
+- `__tests__/export/pdf-labels.test.ts`
+- `__tests__/export/csv.test.ts`
+- `__tests__/export/xlsx.test.ts`
+- `__tests__/export/json-export.test.ts`
+- `__tests__/ui/export-page.test.tsx`
+
+Covered behavior: localized report labels, localized enum values, no raw DTO headers in generated section models, no internal IDs or allocation `key` leakage in user-facing rows, compact public JSON without QR/chart/internal projection payloads, localized CSV headers, localized XLSX sheet names and headers, PDF renderer fed from the presentation view model, and export summary/details UI using human-readable fields.
+
+Validation result for this iteration:
+
+- `pnpm run test:export`: 22 suites passed, 54 tests passed.
+- `pnpm run test:ui`: 2 suites passed, 8 tests passed.
+- `pnpm run test:i18n`: 1 suite passed, 3 tests passed.
+- `pnpm test`: 34 suites passed, 104 tests passed.
+- `pnpm typecheck`: passed.
+- `pnpm run build`: passed and includes `/export`, `/api/export`, `/api/export/summary`.

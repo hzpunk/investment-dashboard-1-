@@ -1,17 +1,272 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
+import {
+  AlertTriangle,
+  BarChart3,
+  Clock,
+  Coins,
+  DollarSign,
+  LineChart,
+  PieChart,
+  RefreshCw,
+  ShieldAlert,
+  Target,
+  TrendingUp,
+  Wallet,
+} from "lucide-react"
+import {
+  CartesianGrid,
+  Line,
+  LineChart as RechartsLineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart, PieChart, RefreshCw } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { PerformanceChart } from "@/components/performance-chart"
+import { PortfolioAllocation } from "@/components/portfolio-allocation"
 import { useI18n } from "@/contexts/i18n-context"
-import { getAssetTypeLabel, getTransactionTypeLabel } from "@/lib/i18n-display"
 import { cn } from "@/lib/utils"
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { analyticsQuery } from "@/lib/query-options"
+import { buildProjectionScenarios } from "@/lib/finance"
+import type { AllocationGroup, AnalyticsDto, ProjectionScenario } from "@/lib/finance"
+import { getAssetTypeLabel } from "@/lib/i18n-display"
+
+type ProjectionForm = {
+  initialAmount: number
+  monthlyContribution: number
+  annualReturnPercent: number
+  horizonYears: number
+  inflationPercent: number
+}
+
+const allocationTabs: AllocationGroup[] = ["type", "asset", "currency", "sector"]
+
+function formatMoney(value: number, locale: string) {
+  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(value) ? value : 0)
+}
+
+function formatNumber(value: number, locale: string, digits = 2) {
+  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
+    maximumFractionDigits: digits,
+  }).format(Number.isFinite(value) ? value : 0)
+}
+
+function formatPercent(value: number, locale: string) {
+  const safeValue = Number.isFinite(value) ? value : 0
+  return `${safeValue >= 0 ? "+" : ""}${formatNumber(safeValue, locale, 2)}%`
+}
+
+function formatDate(value: string | null, locale: string) {
+  if (!value) return ""
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString(locale === "ru" ? "ru-RU" : "en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+function MetricCard({
+  label,
+  value,
+  helper,
+  icon: Icon,
+  tone = "default",
+}: {
+  label: string
+  value: string
+  helper?: string
+  icon: typeof DollarSign
+  tone?: "default" | "positive" | "negative" | "warning"
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p
+              className={cn(
+                "mt-1 truncate text-xl font-semibold tracking-tight",
+                tone === "positive" && "text-green-600",
+                tone === "negative" && "text-red-600",
+                tone === "warning" && "text-amber-600",
+              )}
+            >
+              {value}
+            </p>
+            {helper ? <p className="mt-1 truncate text-xs text-muted-foreground">{helper}</p> : null}
+          </div>
+          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function getAllocationData(analytics: AnalyticsDto, group: AllocationGroup) {
+  if (group === "type") return analytics.allocation.byType
+  if (group === "asset") return analytics.allocation.byAsset
+  if (group === "currency") return analytics.allocation.byCurrency
+  return analytics.allocation.bySector
+}
+
+function ProjectionSection({ analytics }: { analytics: AnalyticsDto }) {
+  const { locale, t } = useI18n()
+  const defaults = analytics.projectionDefaults
+  const [form, setForm] = useState<ProjectionForm>({
+    initialAmount: defaults.initialAmount,
+    monthlyContribution: defaults.monthlyContribution,
+    annualReturnPercent: defaults.annualReturnPercent,
+    horizonYears: defaults.horizonYears,
+    inflationPercent: defaults.inflationPercent,
+  })
+
+  const scenarios = useMemo(
+    () =>
+      buildProjectionScenarios({
+        principal: form.initialAmount,
+        monthlyContribution: form.monthlyContribution,
+        annualRatePercent: form.annualReturnPercent,
+        inflationRatePercent: form.inflationPercent,
+        months: Math.max(0, Math.floor(form.horizonYears * 12)),
+      }),
+    [form],
+  )
+
+  const chartData = useMemo(() => {
+    const basePoints = scenarios[1]?.points ?? []
+    return basePoints.map((point, index) => ({
+      month: point.month,
+      conservative: scenarios[0]?.points[index]?.value ?? 0,
+      base: scenarios[1]?.points[index]?.value ?? 0,
+      optimistic: scenarios[2]?.points[index]?.value ?? 0,
+    }))
+  }, [scenarios])
+
+  const updateField = (field: keyof ProjectionForm, value: string) => {
+    const parsed = Number.parseFloat(value)
+    setForm((current) => ({
+      ...current,
+      [field]: Number.isFinite(parsed) ? Math.max(0, parsed) : 0,
+    }))
+  }
+
+  const scenarioColor: Record<ProjectionScenario["id"], string> = {
+    conservative: "#8f9aa8",
+    base: "#4f8cc9",
+    optimistic: "#6aa56f",
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("analytics.projection.title")}</CardTitle>
+        <CardDescription>{t("analytics.projection.description")}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-5">
+          {[
+            ["initialAmount", t("analytics.projection.initialAmount")],
+            ["monthlyContribution", t("analytics.projection.monthlyContribution")],
+            ["annualReturnPercent", t("analytics.projection.annualReturnPercent")],
+            ["horizonYears", t("analytics.projection.horizonYears")],
+            ["inflationPercent", t("analytics.projection.inflationPercent")],
+          ].map(([field, label]) => (
+            <div key={field} className="space-y-2">
+              <Label htmlFor={`projection-${field}`}>{label}</Label>
+              <Input
+                id={`projection-${field}`}
+                type="number"
+                min="0"
+                step={field === "horizonYears" ? "1" : field.includes("Percent") ? "0.1" : "100"}
+                value={form[field as keyof ProjectionForm]}
+                onChange={(event) => updateField(field as keyof ProjectionForm, event.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          {scenarios.map((scenario) => (
+            <div key={scenario.id} className="rounded-md border border-border/70 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium">{t(`analytics.scenario.${scenario.id}`)}</p>
+                <Badge variant="secondary">{formatNumber(scenario.annualReturnPercent, locale, 1)}%</Badge>
+              </div>
+              <p className="mt-3 text-2xl font-semibold">{formatMoney(scenario.finalValue, locale)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("analytics.projection.inflationAdjusted")}: {formatMoney(scenario.inflationAdjustedFinalValue, locale)}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="h-[320px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <RechartsLineChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis
+                dataKey="month"
+                tickLine={false}
+                axisLine={false}
+                fontSize={12}
+                tickFormatter={(value: number) => `${Math.round(value / 12)}${t("analytics.projection.yearShort")}`}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                fontSize={12}
+                tickFormatter={(value: number) =>
+                  new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
+                    notation: "compact",
+                    maximumFractionDigits: 1,
+                  }).format(value)
+                }
+              />
+              <Tooltip
+                formatter={(value: number, name: string) => [
+                  formatMoney(value, locale),
+                  t(`analytics.scenario.${name}`),
+                ]}
+                labelFormatter={(value: number) => `${t("analytics.projection.month")} ${value}`}
+              />
+              {scenarios.map((scenario) => (
+                <Line
+                  key={scenario.id}
+                  type="monotone"
+                  dataKey={scenario.id}
+                  stroke={scenarioColor[scenario.id]}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
+            </RechartsLineChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="text-xs text-muted-foreground">{t("analytics.projection.disclaimer")}</p>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function AnalyticsPage() {
   const { user, isLoading: isAuthLoading } = useAuth()
@@ -21,257 +276,206 @@ export default function AnalyticsPage() {
     ...analyticsQuery(userId),
     enabled: !isAuthLoading && Boolean(user),
   })
+  const [allocationGroup, setAllocationGroup] = useState<AllocationGroup>("type")
 
-  const performanceData = useMemo(() => {
-    const performance = analyticsResult.data?.performanceData ?? {}
-    return Object.fromEntries(
-      Object.entries(performance).map(([period, rows]) => [
-        period,
-        Array.isArray(rows)
-          ? rows
-              .map((row: any) => ({
-                date: typeof row?.date === "string" ? row.date : row?.month ? `${row.month}-01T00:00:00.000Z` : "",
-                value: Number(row?.value ?? row?.invested ?? 0),
-              }))
-              .filter((row) => row.date && Number.isFinite(row.value))
-          : [],
-      ]),
-    )
-  }, [analyticsResult.data])
-
-  const allocationData = useMemo(() => {
-    const allocation = analyticsResult.data?.allocationData ?? []
-    return Array.isArray(allocation)
-      ? allocation
-          .map((item: any) => ({
-            type: typeof item?.type === "string" ? item.type : "other",
-            value: Number(item?.value ?? 0),
-          }))
-          .filter((item) => Number.isFinite(item.value) && item.value > 0)
-      : []
-  }, [analyticsResult.data])
-
-  const transactionStats = useMemo(() => {
-    const transactions = analyticsResult.data?.transactionStats ?? []
-    return Array.isArray(transactions)
-      ? transactions
-          .map((stat: any) => ({
-            type: typeof stat?.type === "string" ? stat.type : "other",
-            count: Number(stat?.count ?? 0),
-          }))
-          .filter((stat) => Number.isFinite(stat.count) && stat.count > 0)
-      : []
-  }, [analyticsResult.data])
-
-  const isLoading = !user ? false : analyticsResult.isLoading && !analyticsResult.data
+  const analytics = analyticsResult.data
+  const isLoading = !user ? false : analyticsResult.isLoading && !analytics
   const isRefreshing = analyticsResult.isFetching && !isLoading
   const error = analyticsResult.isError ? t("errors.unavailable") : null
-
-  // Map asset types to colors
-  const typeColors: Record<string, string> = {
-    stock: "bg-blue-500",
-    bond: "bg-green-500",
-    etf: "bg-yellow-500",
-    crypto: "bg-purple-500",
-    commodity: "bg-red-500",
-    other: "bg-gray-500",
-  }
-
-  // Calculate total allocation value
-  const totalAllocationValue = allocationData.reduce((sum, item) => sum + item.value, 0)
-  const maxTransactionCount = useMemo(
-    () => Math.max(0, ...transactionStats.map((stat: any) => stat.count)),
-    [transactionStats],
-  )
 
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     )
   }
 
-  const calculateMetrics = (data: any[]) => {
-    if (!data || data.length < 2) return { startValue: 0, endValue: 0, returnPercent: 0 }
-
-    const startValue = Number(data[0].value) || 0
-    const endValue = Number(data[data.length - 1].value) || 0
-    const returnPercent = startValue > 0 ? ((endValue - startValue) / startValue) * 100 : 0
-
-    return {
-      startValue,
-      endValue,
-      returnPercent,
-    }
+  if (error || !analytics) {
+    return (
+      <div className="space-y-6">
+        <DashboardHeader heading={t("analytics.title")} text={t("analytics.description")} />
+        <Card>
+          <CardContent className="flex min-h-[260px] items-center justify-center text-muted-foreground">
+            {error ?? t("analytics.empty.noAnalytics")}
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
-  const timeframes = ["1M", "3M", "6M", "1Y", "ALL"] as const
+  const summary = analytics.summary
+  const pnlTone = summary.totalPnL > 0 ? "positive" : summary.totalPnL < 0 ? "negative" : "default"
+  const allocationData = getAllocationData(analytics, allocationGroup)
 
   return (
     <div className="space-y-6">
       <DashboardHeader heading={t("analytics.title")} text={t("analytics.description")}>
-        {isRefreshing ? (
-          <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
-        ) : null}
+        {isRefreshing ? <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" /> : null}
       </DashboardHeader>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label={t("analytics.summary.totalPortfolioValue")}
+          value={formatMoney(summary.totalPortfolioValue, locale)}
+          helper={t(`analytics.source.${summary.source}`)}
+          icon={DollarSign}
+        />
+        <MetricCard
+          label={t("analytics.summary.totalInvested")}
+          value={formatMoney(summary.totalInvested, locale)}
+          icon={Coins}
+        />
+        <MetricCard
+          label={t("analytics.summary.totalPnl")}
+          value={formatMoney(summary.totalPnL, locale)}
+          helper={formatPercent(summary.pnlPercent, locale)}
+          icon={TrendingUp}
+          tone={pnlTone}
+        />
+        <MetricCard
+          label={t("analytics.summary.cashBalance")}
+          value={formatMoney(summary.cashBalance, locale)}
+          icon={Wallet}
+        />
+        <MetricCard
+          label={t("analytics.summary.assetCount")}
+          value={formatNumber(summary.assetCount, locale, 0)}
+          icon={PieChart}
+        />
+        <MetricCard
+          label={t("analytics.summary.largestPosition")}
+          value={summary.largestPosition ? summary.largestPosition.symbol : t("common.notAvailable")}
+          helper={summary.largestPosition ? formatPercent(summary.largestPosition.percent, locale) : undefined}
+          icon={ShieldAlert}
+          tone={summary.largestPosition && summary.largestPosition.percent >= 35 ? "warning" : "default"}
+        />
+        <MetricCard
+          label={t("analytics.summary.diversificationScore")}
+          value={`${formatNumber(summary.diversificationScore, locale, 1)}/100`}
+          icon={BarChart3}
+          tone={summary.diversificationScore < 40 && summary.assetCount > 0 ? "warning" : "default"}
+        />
+        <MetricCard
+          label={t("analytics.summary.updatedAt")}
+          value={summary.updatedAt ? formatDate(summary.updatedAt, locale) : t("common.notAvailable")}
+          icon={Clock}
+        />
+      </div>
+
+      <PerformanceChart data={analytics.performance.byPeriod} period="1M" />
+
+      <Tabs value={allocationGroup} onValueChange={(value) => setAllocationGroup(value as AllocationGroup)} className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">{t("analytics.allocation.title")}</h2>
+            <p className="text-sm text-muted-foreground">{t("analytics.allocation.description")}</p>
+          </div>
+          <TabsList className="flex flex-wrap">
+            {allocationTabs.map((group) => (
+              <TabsTrigger key={group} value={group}>
+                {t(`analytics.allocation.${group}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+        <TabsContent value={allocationGroup}>
+          <PortfolioAllocation
+            title={t("analytics.allocation.structureTitle")}
+            description={t(`analytics.allocation.${allocationGroup}Description`)}
+            data={allocationData}
+            totalValue={analytics.allocation.totalValue}
+            assetCount={summary.assetCount}
+            largestPosition={summary.largestPosition}
+            diversificationScore={summary.diversificationScore}
+            group={allocationGroup}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+        <Card>
           <CardHeader>
-            <CardTitle>{t("analytics.portfolioPerformance")}</CardTitle>
-            <CardDescription>{t("analytics.portfolioPerformanceDescription")}</CardDescription>
+            <CardTitle>{t("analytics.positions.title")}</CardTitle>
+            <CardDescription>{t("analytics.positions.description")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="1M" className="space-y-4">
-              <TabsList>
-                {timeframes.map((timeframe) => (
-                  <TabsTrigger key={timeframe} value={timeframe}>{timeframe}</TabsTrigger>
-                ))}
-              </TabsList>
-              {error ? (
-                <div className="flex items-center justify-center h-[300px]">
-                  <p className="text-muted-foreground">{error}</p>
-                </div>
-              ) : (
-                timeframes.map((period) => {
-                  const dataArray = performanceData[period] as any[]
-                  if (!dataArray || dataArray.length < 2) {
-                    return (
-                      <TabsContent key={period} value={period} className="space-y-4">
-                        <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-                          {t("analytics.noPerformanceData")}
-                        </div>
-                      </TabsContent>
-                    )
-                  }
-
-                  const metrics = calculateMetrics(dataArray)
-
-                  return (
-                    <TabsContent key={period} value={period} className="space-y-4">
-                      <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={dataArray}>
-                            <defs>
-                              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8} />
-                                <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                              </linearGradient>
-                            </defs>
-                            <XAxis
-                              dataKey="date"
-                              stroke="#888888"
-                              fontSize={12}
-                              tickLine={false}
-                              axisLine={false}
-                              tickFormatter={(value: string) => new Date(value).toLocaleDateString(locale, { month: "short", day: "numeric" })}
-                            />
-                            <YAxis
-                              stroke="#888888"
-                              fontSize={12}
-                              tickLine={false}
-                              axisLine={false}
-                              tickFormatter={(value: number) => `$${value.toLocaleString()}`}
-                            />
-                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                            <Tooltip
-                              formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Value"]}
-                              labelFormatter={(label: string) => new Date(label).toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" })}
-                            />
-                            <Area
-                              type="monotone"
-                              dataKey="value"
-                              stroke="var(--primary)"
-                              fillOpacity={1}
-                              fill="url(#colorValue)"
-                            />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-muted-foreground">{t("performance.startingValue")}</p>
-                          <p className="text-lg font-bold">
-                            ${metrics.startValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">{t("performance.currentValue")}</p>
-                          <p className="text-lg font-bold">
-                            ${metrics.endValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">{t("performance.return")}</p>
-                          <p
-                            className={cn(
-                              "text-lg font-bold",
-                              metrics.returnPercent >= 0 ? "text-green-500" : "text-red-500"
-                            )}
-                          >
-                            {metrics.returnPercent >= 0 ? "+" : ""}
-                            {metrics.returnPercent.toFixed(2)}%
-                          </p>
-                        </div>
-                      </div>
-                    </TabsContent>
-                  )
-                }))}
-            </Tabs>
+            {analytics.positions.length === 0 ? (
+              <div className="flex min-h-[220px] items-center justify-center rounded-md border border-dashed text-center text-sm text-muted-foreground">
+                {t("portfolioAllocation.emptyDescription")}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("common.symbol")}</TableHead>
+                    <TableHead>{t("common.type")}</TableHead>
+                    <TableHead className="text-right">{t("common.quantity")}</TableHead>
+                    <TableHead className="text-right">{t("analytics.positions.value")}</TableHead>
+                    <TableHead className="text-right">{t("analytics.positions.pnl")}</TableHead>
+                    <TableHead className="text-right">{t("portfolioAllocation.percentage")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {analytics.positions.map((position) => (
+                    <TableRow key={position.assetId}>
+                      <TableCell>
+                        <div className="font-medium">{position.symbol}</div>
+                        <div className="max-w-[180px] truncate text-xs text-muted-foreground">{position.name}</div>
+                      </TableCell>
+                      <TableCell>{getAssetTypeLabel(position.type, t)}</TableCell>
+                      <TableCell className="text-right">{formatNumber(position.quantity, locale, 6)}</TableCell>
+                      <TableCell className="text-right">{formatMoney(position.marketValue, locale)}</TableCell>
+                      <TableCell className={cn("text-right", position.unrealizedPnL >= 0 ? "text-green-600" : "text-red-600")}>
+                        {formatMoney(position.unrealizedPnL, locale)}
+                      </TableCell>
+                      <TableCell className="text-right">{formatNumber(position.allocationPercent, locale, 1)}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>{t("analytics.assetAllocation")}</CardTitle>
-              <CardDescription>{t("analytics.assetAllocationDescription")}</CardDescription>
-            </div>
-            <PieChart className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle>{t("analytics.risk.title")}</CardTitle>
+            <CardDescription>{t("analytics.risk.description")}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-[200px] w-full relative">
-              {/* Simplified donut chart */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="relative h-32 w-32 rounded-full border-8 border-transparent bg-background flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">{t("common.total")}</p>
-                    <p className="text-lg font-bold">
-                      ${totalAllocationValue.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-                {/* This is a simplified representation. For actual donut chart, you'd use a charting library or more complex SVG/CSS. */}
-                {/* Example of how slices would be rendered - this part is likely placeholder or requires more advanced logic */}
-                {allocationData.map((item, index) => (
-                  <div
-                    key={item.type}
-                    className={`absolute inset-0 rounded-full ${typeColors[item.type] || "bg-gray-500"}`}
-                    style={{
-                      // This clipPath is a basic example and might need adjustment for actual donut slices
-                      clipPath: `polygon(50% 50%, ${50 + 45 * Math.cos((index * 2 * Math.PI) / allocationData.length - Math.PI / 2)}% ${50 + 45 * Math.sin((index * 2 * Math.PI) / allocationData.length - Math.PI / 2)}%, ${50 + 45 * Math.cos(((index + 1) * 2 * Math.PI) / allocationData.length - Math.PI / 2)}% ${50 + 45 * Math.sin(((index + 1) * 2 * Math.PI) / allocationData.length - Math.PI / 2)}%)`,
-                      opacity: 0.8,
-                    }}
-                  />
-                ))}
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-md border px-3 py-2">
+                <p className="text-xs text-muted-foreground">{t("analytics.risk.concentration")}</p>
+                <p className="text-lg font-semibold">{t(`analytics.risk.level.${analytics.risk.concentrationRisk}`)}</p>
+              </div>
+              <div className="rounded-md border px-3 py-2">
+                <p className="text-xs text-muted-foreground">{t("analytics.risk.cryptoShare")}</p>
+                <p className="text-lg font-semibold">{formatNumber(analytics.risk.cryptoShare, locale, 1)}%</p>
+              </div>
+              <div className="rounded-md border px-3 py-2">
+                <p className="text-xs text-muted-foreground">{t("analytics.risk.cashShare")}</p>
+                <p className="text-lg font-semibold">{formatNumber(analytics.risk.cashShare, locale, 1)}%</p>
+              </div>
+              <div className="rounded-md border px-3 py-2">
+                <p className="text-xs text-muted-foreground">{t("analytics.risk.stalePrices")}</p>
+                <p className="text-lg font-semibold">{analytics.risk.stalePriceCount}</p>
               </div>
             </div>
-            <div className="space-y-2 mt-4">
-              {allocationData.length === 0 ? (
-                <div className="text-sm text-muted-foreground">{t("portfolios.noAssetsForAllocation")}</div>
+            <div className="space-y-2">
+              {analytics.risk.warnings.length === 0 ? (
+                <div className="rounded-md border border-border/70 px-3 py-3 text-sm text-muted-foreground">
+                  {t("analytics.risk.noWarnings")}
+                </div>
               ) : (
-                allocationData.map((item) => (
-                  <div key={item.type} className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className={`h-3 w-3 rounded-full mr-2 ${typeColors[item.type] || "bg-gray-500"}`} />
-                      <span className="text-sm">{getAssetTypeLabel(item.type, t)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">
-                        {totalAllocationValue > 0 ? Math.round((item.value / totalAllocationValue) * 100) : 0}%
-                      </span>
-                      <span className="text-xs text-muted-foreground">${item.value.toLocaleString()}</span>
+                analytics.risk.warnings.map((warning) => (
+                  <div key={warning.code} className="flex gap-3 rounded-md border border-border/70 px-3 py-3">
+                    <AlertTriangle className={cn("mt-0.5 h-4 w-4", warning.severity === "warning" ? "text-amber-600" : "text-muted-foreground")} />
+                    <div>
+                      <p className="text-sm font-medium">{t(`analytics.risk.warning.${warning.code}`)}</p>
+                      {typeof warning.value === "number" ? (
+                        <p className="text-xs text-muted-foreground">{formatNumber(warning.value, locale, 1)}</p>
+                      ) : null}
                     </div>
                   </div>
                 ))
@@ -279,38 +483,9 @@ export default function AnalyticsPage() {
             </div>
           </CardContent>
         </Card>
-
-        <Card className="lg:col-span-3">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>{t("analytics.transactionAnalysis")}</CardTitle>
-              <CardDescription>{t("analytics.transactionAnalysisDescription")}</CardDescription>
-            </div>
-            <BarChart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] flex items-end justify-around">
-              {transactionStats.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-muted-foreground">
-                  {t("analytics.noTransactionData")}
-                </div>
-              ) : (
-                transactionStats.map((stat) => {
-                  const height = `${maxTransactionCount > 0 ? (stat.count / maxTransactionCount) * 100 : 0}%`
-                  return (
-                    <div key={stat.type} className="flex flex-col items-center">
-                      <div className="w-16 bg-primary/80 rounded-t-md flex items-end justify-center" style={{ height }}>
-                        <span className="text-xs font-medium text-primary-foreground p-1">{stat.count}</span>
-                      </div>
-                      <span className="mt-2 text-xs">{getTransactionTypeLabel(stat.type, t)}</span>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      <ProjectionSection analytics={analytics} />
     </div>
   )
 }

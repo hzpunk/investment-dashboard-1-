@@ -1,10 +1,9 @@
 import { cacheKeys } from "@/lib/cache-keys"
-import { prisma } from "@/lib/prisma"
 import { requireRequestUser } from "@/lib/api-auth"
-import { getPortfolioSummary } from "@/lib/services/portfolio-summary"
 import { cached } from "@/lib/server-cache"
 import { ApiErrorCode } from "@/lib/api-errors"
 import { apiError, apiSuccess } from "@/lib/api-response"
+import { buildAnalyticsDto } from "@/lib/services/analytics"
 
 // GET /api/analytics - portfolio analytics and metrics
 // Query params: from, to (ISO dates), portfolioId (optional)
@@ -13,9 +12,9 @@ export async function GET(request: Request) {
     const user = await requireRequestUser()
     const { searchParams } = new URL(request.url)
     
-    // Parse date range
     const fromParam = searchParams.get('from')
     const toParam = searchParams.get('to')
+    const portfolioId = searchParams.get("portfolioId")
     
     const now = new Date()
     const defaultFrom = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
@@ -38,198 +37,16 @@ export async function GET(request: Request) {
       return apiError(ApiErrorCode.VALIDATION_ERROR, 'Date range too large (max 5 years)', { status: 400 })
     }
 
-    const rangeKey = `${fromDate.toISOString()}:${toDate.toISOString()}`
+    const rangeKey = `${fromDate.toISOString()}:${toDate.toISOString()}:${portfolioId ?? "all"}`
     const analytics = await cached({
       key: cacheKeys.userAnalytics(user.id, rangeKey),
       ttlSeconds: 300,
       label: `analytics user=${user.id}`,
-      fetcher: async () => {
-        const where: any = {
-          userId: user.id,
-          date: { gte: fromDate, lte: toDate },
-        }
-
-        const [transactions, accounts, portfolios, portfolioSummary] = await Promise.all([
-          prisma.transaction.findMany({
-            where,
-            select: {
-              id: true,
-              type: true,
-              quantity: true,
-              totalAmount: true,
-              date: true,
-              assetId: true,
-              accountId: true,
-              asset: { select: { symbol: true, name: true, type: true, currentPrice: true } },
-              account: { select: { name: true } },
-            },
-            orderBy: { date: "desc" },
-            take: 1000,
-          }),
-          prisma.account.findMany({
-            where: { userId: user.id },
-            select: { id: true, name: true, type: true, balance: true, currency: true },
-          }),
-          prisma.portfolio.findMany({
-            where: { userId: user.id },
-            select: {
-              id: true,
-              name: true,
-              assets: {
-                select: {
-                  quantity: true,
-                  averageBuyPrice: true,
-                  asset: { select: { symbol: true, name: true, currentPrice: true, type: true } },
-                },
-              },
-            },
-            take: 100,
-          }),
-          getPortfolioSummary(user.id),
-        ])
-
-        return {
-          ...calculateAnalytics(transactions, accounts, portfolios, portfolioSummary, fromDate, toDate),
-          period: {
-            from: fromDate.toISOString(),
-            to: toDate.toISOString(),
-          },
-        }
-      },
+      fetcher: () => buildAnalyticsDto(user.id, { fromDate, toDate, portfolioId }),
     })
 
     return apiSuccess(analytics)
   } catch (error) {
     return apiError(ApiErrorCode.INTERNAL_ERROR, "Failed to calculate analytics", { status: 500 })
-  }
-}
-
-function calculateAnalytics(
-  transactions: any[],
-  accounts: any[],
-  portfolios: any[],
-  portfolioSummary: Awaited<ReturnType<typeof getPortfolioSummary>>,
-  fromDate: Date,
-  toDate: Date
-) {
-  const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
-
-  // Total portfolio value is based on actual positions; account balances are separate cash/account data.
-  const totalValue = portfolioSummary.totalValue
-
-  // Calculate total invested (buy transactions)
-  const buyTransactions = transactions.filter((t) => t.type === "buy")
-  const totalInvested = buyTransactions.reduce((sum, t) => sum + t.totalAmount, 0)
-
-  // Calculate total proceeds (sell transactions)
-  const sellTransactions = transactions.filter((t) => t.type === "sell")
-  const totalProceeds = sellTransactions.reduce((sum, t) => sum + t.totalAmount, 0)
-
-  // Realized P&L
-  const realizedPnL = totalProceeds - buyTransactions
-    .filter((t) => sellTransactions.some((s) => s.assetId === t.assetId))
-    .reduce((sum, t) => sum + t.totalAmount, 0)
-
-  // Unrealized P&L (current value - invested in holdings)
-  const holdings: Record<string, { quantity: number; invested: number }> = {}
-  
-  for (const t of transactions) {
-    if (!t.assetId) continue
-    
-    if (!holdings[t.assetId]) {
-      holdings[t.assetId] = { quantity: 0, invested: 0 }
-    }
-    
-    if (t.type === "buy") {
-      holdings[t.assetId].quantity += t.quantity || 0
-      holdings[t.assetId].invested += t.totalAmount
-    } else if (t.type === "sell") {
-      const ratio = holdings[t.assetId].quantity > 0
-        ? (t.quantity || 0) / holdings[t.assetId].quantity
-        : 0
-      holdings[t.assetId].invested *= (1 - ratio)
-      holdings[t.assetId].quantity -= t.quantity || 0
-    }
-  }
-
-  // Calculate returns by time period
-  const transactionsLastYear = transactions.filter((t) => t.date >= oneYearAgo)
-  const transactionsLastMonth = transactions.filter(
-    (t) => t.date >= new Date(toDate.getTime() - 30 * 24 * 60 * 60 * 1000)
-  )
-
-  // Performance metrics
-  const returns = {
-    total: totalValue - totalInvested + totalProceeds,
-    totalPercent: totalInvested > 0 
-      ? ((totalValue - totalInvested + totalProceeds) / totalInvested) * 100 
-      : 0,
-    realized: realizedPnL,
-    unrealized: 0, // Would need current prices
-  }
-
-  const allocationPercent = portfolioSummary.allocation.map((item) => ({
-    asset: item.type,
-    name: item.type,
-    type: item.type,
-    value: item.value,
-    percent: portfolioSummary.totalValue > 0 ? (item.value / portfolioSummary.totalValue) * 100 : 0,
-  }))
-
-  // Transaction statistics for the selected period
-  const transactionStats = {
-    total: transactions.length,
-    buy: transactions.filter((t) => t.type === "buy").length,
-    sell: transactions.filter((t) => t.type === "sell").length,
-    dividend: transactions.filter((t) => t.type === "dividend").length,
-    periodStart: fromDate.toISOString(),
-    periodEnd: toDate.toISOString(),
-  }
-
-  // Monthly performance (simplified)
-  const monthlyData: Record<string, { invested: number; value: number }> = {}
-  
-  for (const t of transactions) {
-    const monthKey = t.date.toISOString().slice(0, 7) // YYYY-MM
-    if (!monthlyData[monthKey]) {
-      monthlyData[monthKey] = { invested: 0, value: 0 }
-    }
-    
-    if (t.type === "buy") {
-      monthlyData[monthKey].invested += t.totalAmount
-    }
-  }
-
-  const monthlyPerformance = Object.entries(monthlyData)
-    .map(([month, data]) => ({
-      month,
-      date: `${month}-01T00:00:00.000Z`,
-      invested: data.invested,
-      value: data.invested,
-    }))
-    .sort((a, b) => a.month.localeCompare(b.month))
-
-  return {
-    summary: {
-      totalValue,
-      totalInvested,
-      returns,
-      accountsCount: accounts.length,
-      portfoliosCount: portfolios.length,
-    },
-    allocation: allocationPercent,
-    transactionStats,
-    monthlyPerformance,
-    topHoldings: portfolioSummary.holdings
-      .map((holding) => ({
-        asset: holding.symbol,
-        name: holding.name,
-        type: holding.type,
-        quantity: holding.quantity,
-        value: holding.value,
-        percent: portfolioSummary.totalValue > 0 ? (holding.value / portfolioSummary.totalValue) * 100 : 0,
-      }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10),
   }
 }

@@ -6,72 +6,50 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/contexts/i18n-context"
 import { getAssetTypeLabel } from "@/lib/i18n-display"
+import { groupSmallAllocations } from "@/lib/finance"
+import type { AllocationItem } from "@/lib/finance"
 
 interface PortfolioAllocationProps {
   className?: string
-  data?: Array<{
-    type: string
-    value: number
-  }>
+  title?: string
+  description?: string
+  data?: Array<Partial<AllocationItem> & { type?: string; value: number }>
+  totalValue?: number
+  assetCount?: number
+  largestPosition?: { symbol: string; percent: number } | null
+  diversificationScore?: number
+  group?: "type" | "asset" | "currency" | "sector"
   isLoading?: boolean
 }
 
-type AllocationType = "stock" | "bond" | "etf" | "crypto" | "commodity" | "other"
-
-type AllocationItem = {
-  type: AllocationType
-  value: number
-  percentage: number
+type ChartAllocationItem = AllocationItem & {
+  color: string
 }
 
-const ASSET_TYPES: AllocationType[] = ["stock", "etf", "crypto", "bond", "commodity", "other"]
-
-const TYPE_COLORS: Record<AllocationType, string> = {
+const TYPE_COLORS: Record<string, string> = {
   stock: "#4f8cc9",
   etf: "#6aa56f",
   crypto: "#8b6fc6",
   bond: "#c9a24f",
   commodity: "#c8795a",
   other: "#7f8a99",
+  "other-small": "#7f8a99",
 }
 
-function isAllocationType(type: string): type is AllocationType {
-  return ASSET_TYPES.includes(type as AllocationType)
-}
+const SERIES_COLORS = ["#4f8cc9", "#6aa56f", "#8b6fc6", "#c9a24f", "#c8795a", "#6d9aa6", "#9a7f5f", "#7f8a99"]
 
-function normalizeAllocationData(data: PortfolioAllocationProps["data"] = []): AllocationItem[] {
-  const totals = new Map<AllocationType, number>()
-
-  for (const item of data) {
-    if (!item || !Number.isFinite(item.value) || item.value <= 0) continue
-
-    const rawType = item.type?.trim().toLowerCase() ?? ""
-    const type = isAllocationType(rawType) ? rawType : "other"
-    totals.set(type, (totals.get(type) ?? 0) + item.value)
-  }
-
-  const totalValue = Array.from(totals.values()).reduce((sum, value) => sum + value, 0)
-  if (totalValue <= 0) return []
-
-  return ASSET_TYPES.map((type) => ({
-    type,
-    value: totals.get(type) ?? 0,
-    percentage: ((totals.get(type) ?? 0) / totalValue) * 100,
-  })).filter((item) => item.value > 0)
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
+function formatCurrency(value: number, locale: string) {
+  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: 2,
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(Number.isFinite(value) ? value : 0)
 }
 
-function formatPercent(value: number) {
+function formatPercent(value: number, locale: string) {
   const normalizedValue = Number.isFinite(value) ? value : 0
-  return `${new Intl.NumberFormat("en-US", {
+  return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: normalizedValue < 10 ? 1 : 0,
   }).format(normalizedValue)}%`
@@ -82,11 +60,13 @@ function AllocationTooltip({
   payload,
   valueLabel,
   percentageLabel,
+  locale,
 }: {
   active?: boolean
-  payload?: Array<{ payload: AllocationItem & { label: string } }>
+  payload?: Array<{ payload: ChartAllocationItem }>
   valueLabel: string
   percentageLabel: string
+  locale: string
 }) {
   if (!active || !payload?.length) return null
 
@@ -96,29 +76,62 @@ function AllocationTooltip({
     <div className="rounded-md border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-md">
       <div className="font-medium">{item.label}</div>
       <div className="text-muted-foreground">
-        {valueLabel}: {formatCurrency(item.value)}
+        {valueLabel}: {formatCurrency(item.value, locale)}
       </div>
       <div className="text-muted-foreground">
-        {percentageLabel}: {formatPercent(item.percentage)}
+        {percentageLabel}: {formatPercent(item.percent, locale)}
       </div>
     </div>
   )
 }
 
-export function PortfolioAllocation({ className, data = [], isLoading = false }: PortfolioAllocationProps) {
-  const { t } = useI18n()
-  const allocationData = normalizeAllocationData(data)
-  const totalValue = allocationData.reduce((sum, item) => sum + item.value, 0)
-  const chartData = allocationData.map((item) => ({
+export function PortfolioAllocation({
+  className,
+  title,
+  description,
+  data = [],
+  totalValue,
+  assetCount,
+  largestPosition,
+  diversificationScore,
+  group = "type",
+  isLoading = false,
+}: PortfolioAllocationProps) {
+  const { locale, t } = useI18n()
+  const rawTotal = totalValue ?? data.reduce((sum, item) => sum + (Number.isFinite(item.value) ? item.value : 0), 0)
+  const normalized = data
+    .map((item) => {
+      const key = item.key ?? item.type ?? "other"
+      const value = Number(item.value)
+      return {
+        key,
+        label:
+          item.label ??
+          (group === "type" ? getAssetTypeLabel(key, t) : key === "other-small" ? t("analytics.allocation.other") : key),
+        value,
+        percent: item.percent ?? (rawTotal > 0 ? (value / rawTotal) * 100 : 0),
+        count: item.count ?? 1,
+      }
+    })
+    .filter((item) => Number.isFinite(item.value) && item.value > 0)
+
+  const allocationData = groupSmallAllocations(normalized, {
+    maxItems: 8,
+    minPercent: 1,
+    otherLabel: t("analytics.allocation.other"),
+  })
+
+  const chartData: ChartAllocationItem[] = allocationData.map((item, index) => ({
     ...item,
-    label: getAssetTypeLabel(item.type, t),
+    color: TYPE_COLORS[item.key] ?? SERIES_COLORS[index % SERIES_COLORS.length],
   }))
+  const chartTotal = chartData.reduce((sum, item) => sum + item.value, 0)
 
   return (
     <Card className={cn("", className)}>
       <CardHeader>
-        <CardTitle>{t("portfolioAllocation.title")}</CardTitle>
-        <CardDescription>{t("portfolioAllocation.description")}</CardDescription>
+        <CardTitle>{title ?? t("portfolioAllocation.title")}</CardTitle>
+        <CardDescription>{description ?? t("portfolioAllocation.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -141,62 +154,83 @@ export function PortfolioAllocation({ className, data = [], isLoading = false }:
         ) : chartData.length === 0 ? (
           <div className="flex min-h-[220px] flex-col items-center justify-center rounded-md border border-dashed border-border px-6 py-8 text-center">
             <p className="text-sm font-medium text-foreground">{t("portfolioAllocation.emptyTitle")}</p>
-            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-              {t("portfolioAllocation.emptyDescription")}
-            </p>
+            <p className="mt-2 max-w-sm text-sm text-muted-foreground">{t("portfolioAllocation.emptyDescription")}</p>
           </div>
         ) : (
-          <div className="space-y-5">
-            <div className="relative h-[240px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    dataKey="value"
-                    nameKey="label"
-                    innerRadius="62%"
-                    outerRadius="84%"
-                    paddingAngle={2}
-                    cornerRadius={4}
-                    stroke="hsl(var(--background))"
-                    strokeWidth={3}
-                    isAnimationActive={false}
-                  >
-                    {chartData.map((item) => (
-                      <Cell key={item.type} fill={TYPE_COLORS[item.type]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    content={
-                      <AllocationTooltip
-                        valueLabel={t("portfolioAllocation.value")}
-                        percentageLabel={t("portfolioAllocation.percentage")}
-                      />
-                    }
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground">{t("portfolioAllocation.total")}</p>
-                  <p className="text-lg font-semibold tracking-tight text-foreground">{formatCurrency(totalValue)}</p>
+          <div className="grid gap-6 xl:grid-cols-[minmax(260px,0.85fr)_1.15fr]">
+            <div className="space-y-4">
+              <div className="relative h-[260px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      dataKey="value"
+                      nameKey="label"
+                      innerRadius="62%"
+                      outerRadius="84%"
+                      paddingAngle={2}
+                      cornerRadius={4}
+                      stroke="hsl(var(--background))"
+                      strokeWidth={3}
+                      isAnimationActive={false}
+                    >
+                      {chartData.map((item) => (
+                        <Cell key={item.key} fill={item.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      content={
+                        <AllocationTooltip
+                          valueLabel={t("portfolioAllocation.value")}
+                          percentageLabel={t("portfolioAllocation.percentage")}
+                          locale={locale}
+                        />
+                      }
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground">{t("portfolioAllocation.total")}</p>
+                    <p className="text-lg font-semibold tracking-tight text-foreground">{formatCurrency(chartTotal, locale)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-2 text-sm">
+                <div className="flex items-center justify-between rounded-md bg-muted/30 px-3 py-2">
+                  <span className="text-muted-foreground">{t("analytics.summary.assetCount")}</span>
+                  <span className="font-medium">{assetCount ?? chartData.reduce((sum, item) => sum + item.count, 0)}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-md bg-muted/30 px-3 py-2">
+                  <span className="text-muted-foreground">{t("analytics.summary.largestPosition")}</span>
+                  <span className="font-medium">
+                    {largestPosition ? `${largestPosition.symbol} · ${formatPercent(largestPosition.percent, locale)}` : t("common.notAvailable")}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-md bg-muted/30 px-3 py-2">
+                  <span className="text-muted-foreground">{t("analytics.summary.diversificationScore")}</span>
+                  <span className="font-medium">{typeof diversificationScore === "number" ? `${diversificationScore}/100` : t("common.notAvailable")}</span>
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
               {chartData.map((item) => (
-                <div key={item.type} className="flex items-center justify-between gap-3 rounded-md bg-muted/30 px-3 py-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: TYPE_COLORS[item.type] }}
-                    />
-                    <span className="truncate text-sm text-foreground">{item.label}</span>
+                <div key={item.key} className="grid gap-2 rounded-md border border-border/70 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="truncate text-sm font-medium text-foreground">{item.label}</span>
+                    </div>
+                    <div className="shrink-0 text-right text-sm font-semibold text-foreground">{formatPercent(item.percent, locale)}</div>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <div className="text-sm font-medium text-foreground">{formatPercent(item.percentage)}</div>
-                    <div className="text-xs text-muted-foreground">{formatCurrency(item.value)}</div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, item.percent)}%`, backgroundColor: item.color }} />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{formatCurrency(item.value, locale)}</span>
+                    <span>{item.count} {t("analytics.allocation.positions")}</span>
                   </div>
                 </div>
               ))}

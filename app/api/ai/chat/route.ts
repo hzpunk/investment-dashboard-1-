@@ -20,7 +20,7 @@ import { INVESTMENT_ASSISTANT_SYSTEM_PROMPT } from "@/lib/ai/system-prompt"
 
 const logger = createLogger("AIChatRoute")
 const PERSONAL_CONTEXT_PATTERN =
-  /портфел|сч[её]т|баланс|актив|холдинг|позици|экспозици|диверсификац|доходност|прибыл|убыт|рискованн|btc|bitcoin|биткоин|курс|котиров|транзакц|сделк|portfolio|account|balance|holding|asset|allocation|diversif|return|performance|pnl|profit|loss|risk|price|quote/i
+  /портфел|сч[её]т|баланс|актив|холдинг|позици|экспозици|диверсифик|доходност|прибыл|убыт|риск|рискованн|прогноз|калькулятор|btc|bitcoin|биткоин|курс|котиров|транзакц|сделк|portfolio|account|balance|holding|asset|allocation|diversif|return|performance|pnl|profit|loss|risk|price|quote|calculator/i
 
 type ContextStatusValue = "available" | "partial" | "empty" | "unavailable"
 

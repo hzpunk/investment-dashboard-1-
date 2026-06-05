@@ -16,7 +16,9 @@ import {
   X,
   Database,
   Bell,
+  Calculator,
   RefreshCw,
+  FileDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
@@ -29,7 +31,6 @@ import {
   analyticsQuery,
   assetsQuery,
   goalsQuery,
-  portfolioAllocationQuery,
   portfoliosQuery,
   recentTransactionsQuery,
   transactionsQuery,
@@ -63,7 +64,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
       void queryClient.prefetchQuery(accountsQuery(user.id))
       void queryClient.prefetchQuery(recentTransactionsQuery(user.id, 5))
       void queryClient.prefetchQuery(goalsQuery(user.id))
-      void queryClient.prefetchQuery(portfolioAllocationQuery(user.id))
+      void queryClient.prefetchQuery(analyticsQuery(user.id))
       return
     }
 
@@ -141,6 +142,18 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
       titleKey: "sidebar.analytics",
       href: "/analytics",
       icon: BarChart3,
+    },
+    {
+      title: "Calculators",
+      titleKey: "sidebar.calculators",
+      href: "/calculators",
+      icon: Calculator,
+    },
+    {
+      title: "Data export",
+      titleKey: "sidebar.dataExport",
+      href: "/export",
+      icon: FileDown,
     },
     {
       title: "Settings",

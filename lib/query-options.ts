@@ -1,10 +1,9 @@
 import { fetchAccounts } from "@/entities/account/api"
 import { fetchAssets } from "@/entities/asset/api"
-import { getAssetAllocation, getPortfolioPerformance, getTransactionStats } from "@/entities/analytics/api"
+import { fetchAnalytics } from "@/entities/analytics/api"
 import { fetchGoals } from "@/entities/goal/api"
 import { fetchPortfolioAllocation, fetchPortfolioWithAssets, fetchPortfolios } from "@/entities/portfolio/api"
 import { fetchRecentTransactions, fetchTransactions } from "@/entities/transaction/api"
-import { getHistoricalPrices } from "@/shared/api/market-data"
 
 export const queryKeys = {
   accounts: (userId: string) => ["accounts", userId] as const,
@@ -107,41 +106,17 @@ export function dashboardPerformanceQuery(userId: string) {
   return {
     queryKey: queryKeys.dashboardPerformance(userId),
     queryFn: async () => {
-      const timeframes = ["1M", "3M", "6M", "1Y", "ALL"] as const
-      const entries = await Promise.all(
-        timeframes.map(async (timeframe) => [
-          timeframe,
-          await getHistoricalPrices("BTC", "crypto", timeframe),
-        ] as const),
-      )
-      return Object.fromEntries(entries) as Record<string, { date: string; value: number }[]>
+      const analytics = await fetchAnalytics()
+      return analytics.performance.byPeriod
     },
-    ...marketDataCache,
+    ...privateDataCache,
   }
 }
 
 export function analyticsQuery(userId: string) {
   return {
     queryKey: queryKeys.analytics(userId),
-    queryFn: async () => {
-      const timeframes = ["1M", "3M", "6M", "1Y", "ALL"] as const
-      const [performanceEntries, allocationData, transactionStats] = await Promise.all([
-        Promise.all(
-          timeframes.map(async (timeframe) => [
-            timeframe,
-            await getPortfolioPerformance(userId, timeframe),
-          ] as const),
-        ),
-        getAssetAllocation(userId),
-        getTransactionStats(userId),
-      ])
-
-      return {
-        performanceData: Object.fromEntries(performanceEntries),
-        allocationData,
-        transactionStats,
-      }
-    },
+    queryFn: () => fetchAnalytics(),
     ...privateDataCache,
   }
 }

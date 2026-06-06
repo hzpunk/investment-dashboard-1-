@@ -5,8 +5,10 @@ import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { AccountSwitcher } from "@/components/account-switcher"
+import { CurrencyConversionWarning } from "@/components/currency-conversion-warning"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -20,33 +22,54 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Pencil, Trash2, Search, RefreshCw } from "lucide-react"
+import { Plus, Pencil, Trash2, Search, RefreshCw, CheckCircle2, BarChart3, Download, LayoutDashboard } from "lucide-react"
 import { createAccount, deleteAccount, Account } from "@/entities/account/api"
 import { useI18n } from "@/contexts/i18n-context"
+import { useSelectedAccount } from "@/hooks/use-selected-account"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
+import { fetchCurrencyRates } from "@/entities/currency/api"
+import { convertMoney } from "@/lib/currency/conversion"
+import { formatMoney } from "@/lib/currency/formatting"
 import { getAccountTypeLabel } from "@/lib/i18n-display"
-import { accountsQuery, queryKeys } from "@/lib/query-options"
+import { accountsQuery, analyticsQuery, marketDataCache, queryKeys, transactionsQuery } from "@/lib/query-options"
 
 export default function AccountsPage() {
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
+  const { scope, selectedAccount, setSelectedAccountId } = useSelectedAccount()
+  const { displayCurrency } = useDisplayCurrency()
   const queryClient = useQueryClient()
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [newAccount, setNewAccount] = useState<Partial<Account>>({
     type: "brokerage",
-    currency: "USD",
+    currency: displayCurrency,
   })
 
   const userId = user?.id ?? ""
   const accountsResult = useQuery({ ...accountsQuery(userId), enabled: Boolean(user) })
   const accounts = accountsResult.data ?? []
+  const accountRateSymbols = Array.from(
+    new Set(["USD", "EUR", displayCurrency, ...accounts.map((account) => account.currency || "RUB")].map((currency) => currency.toUpperCase())),
+  ).filter((currency) => currency !== "RUB")
+  const transactionsResult = useQuery({ ...transactionsQuery(userId, scope), enabled: Boolean(user) })
+  const analyticsResult = useQuery({ ...analyticsQuery(userId, scope, displayCurrency), enabled: Boolean(user) })
+  const ratesResult = useQuery({
+    queryKey: ["currency-rates", "accounts", displayCurrency, accountRateSymbols.join(",")],
+    queryFn: () => fetchCurrencyRates(accountRateSymbols),
+    enabled: Boolean(user) && accountRateSymbols.length > 0,
+    ...marketDataCache,
+  })
+  const scopedTransactions = transactionsResult.data ?? []
+  const analytics = analyticsResult.data
 
   const createAccountMutation = useMutation({
     mutationFn: createAccount,
     onSuccess: (createdAccount) => {
       if (!createdAccount || !user) return
       queryClient.setQueryData<Account[]>(queryKeys.accounts(user.id), (current = []) => [...current, createdAccount])
-      void queryClient.invalidateQueries({ queryKey: queryKeys.portfolioAllocation(user.id) })
+      void queryClient.invalidateQueries({ queryKey: ["portfolio-allocation", user.id] })
+      void queryClient.invalidateQueries({ queryKey: ["analytics", user.id] })
     },
   })
 
@@ -57,9 +80,9 @@ export default function AccountsPage() {
       queryClient.setQueryData<Account[]>(queryKeys.accounts(user.id), (current = []) =>
         current.filter((account) => account.id !== id),
       )
-      void queryClient.invalidateQueries({ queryKey: queryKeys.transactions(user.id) })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.recentTransactions(user.id, 5) })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.portfolioAllocation(user.id) })
+      void queryClient.invalidateQueries({ queryKey: ["transactions", user.id] })
+      void queryClient.invalidateQueries({ queryKey: ["portfolio-allocation", user.id] })
+      void queryClient.invalidateQueries({ queryKey: ["analytics", user.id] })
     },
   })
 
@@ -74,7 +97,7 @@ export default function AccountsPage() {
         name: newAccount.name,
         type: newAccount.type as any,
         balance: newAccount.balance || 0,
-        currency: newAccount.currency || "USD",
+        currency: newAccount.currency || displayCurrency,
       })
 
       if (!createdAccount) {
@@ -84,7 +107,7 @@ export default function AccountsPage() {
 
       setNewAccount({
         type: "brokerage",
-        currency: "USD",
+        currency: displayCurrency,
       })
     } catch (error) {
       console.error("Error adding account:", error)
@@ -111,8 +134,33 @@ export default function AccountsPage() {
       account?.type?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
   const isLoading = accountsResult.isLoading && !accountsResult.data
-  const isRefreshing = accountsResult.isFetching && !isLoading
+  const isRefreshing = (accountsResult.isFetching || transactionsResult.isFetching || analyticsResult.isFetching) && !isLoading
   const isSubmitting = createAccountMutation.isPending
+  const activeAccount = selectedAccount
+  const summaryCurrency = analytics?.currency.baseCurrency ?? displayCurrency
+  const rates = ratesResult.data?.rates.map((rate) => ({
+    base: "RUB" as const,
+    quote: rate.currency,
+    value: rate.value,
+    nominal: rate.nominal,
+    date: ratesResult.data?.dateFormatted ?? ratesResult.data?.date ?? "",
+    source: "CBR" as const,
+  })) ?? []
+  const lastTransaction = scopedTransactions[0]
+  const formatAccountBalance = (account: Account) => {
+    const native = formatMoney(account.balance || 0, account.currency || "RUB", locale)
+    if ((account.currency || "RUB").toUpperCase() === displayCurrency) return native
+    const converted = convertMoney({ amount: account.balance || 0, currency: account.currency || "RUB" }, displayCurrency, rates, {
+      stale: ratesResult.data?.stale,
+    })
+    if (converted.error) return `${native}\n${t("currency.rates.unavailableShort")}`
+    return `${native}\n≈ ${formatMoney(converted.converted.amount, displayCurrency, locale)}`
+  }
+  const scopeValueLabel = analytics
+    ? formatMoney(analytics.summary.totalPortfolioValue, summaryCurrency, locale)
+    : activeAccount
+      ? formatMoney(activeAccount.balance ?? 0, activeAccount.currency || "RUB", locale)
+      : formatMoney(0, summaryCurrency, locale)
 
   return (
     <div className="space-y-6">
@@ -189,6 +237,7 @@ export default function AccountsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="RUB">RUB</SelectItem>
                     <SelectItem value="EUR">EUR</SelectItem>
                     <SelectItem value="GBP">GBP</SelectItem>
                     <SelectItem value="JPY">JPY</SelectItem>
@@ -208,6 +257,94 @@ export default function AccountsPage() {
           </DialogContent>
         </Dialog>
       </DashboardHeader>
+
+      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("accounts.activeAccount")}</CardTitle>
+            <CardDescription>{t("accounts.activeAccountDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <AccountSwitcher />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-md border border-border/70 px-3 py-2">
+                <p className="text-xs text-muted-foreground">{t("accounts.scopeValue")}</p>
+                <p className="text-lg font-semibold">
+                  {scopeValueLabel}
+                </p>
+              </div>
+              <div className="rounded-md border border-border/70 px-3 py-2">
+                <p className="text-xs text-muted-foreground">{t("accounts.transactions")}</p>
+                <p className="text-lg font-semibold">{scopedTransactions.length}</p>
+              </div>
+              <div className="rounded-md border border-border/70 px-3 py-2">
+                <p className="text-xs text-muted-foreground">{t("accounts.assetsCount")}</p>
+                <p className="text-lg font-semibold">{analytics?.summary.assetCount ?? 0}</p>
+              </div>
+              <div className="rounded-md border border-border/70 px-3 py-2">
+                <p className="text-xs text-muted-foreground">{t("accounts.lastTransaction")}</p>
+                <p className="text-sm font-medium">
+                  {lastTransaction
+                    ? new Date(lastTransaction.date).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-US")
+                    : t("common.notAvailable")}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{activeAccount?.name ?? t("accounts.allAccounts")}</CardTitle>
+            <CardDescription>
+              {activeAccount ? getAccountTypeLabel(activeAccount.type, t) : t("accounts.allAccountsDescription")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-muted-foreground">{t("common.currency")}</p>
+                <p className="text-sm font-medium">{activeAccount?.currency ?? t("accounts.allAccounts")} / {summaryCurrency}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t("analytics.summary.totalPnl")}</p>
+                <p className="text-sm font-medium">{formatMoney(analytics?.summary.totalPnL ?? 0, summaryCurrency, locale)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t("analytics.summary.diversificationScore")}</p>
+                <p className="text-sm font-medium">{analytics?.summary.diversificationScore ?? 0}/100</p>
+              </div>
+            </div>
+            <CurrencyConversionWarning status={analytics?.currency.conversionStatus} stale={analytics?.currency.stale} />
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/transactions">
+                  <Plus className="mr-2 h-4 w-4" />
+                  {t("actions.addTransaction")}
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/export">
+                  <Download className="mr-2 h-4 w-4" />
+                  {t("accounts.exportAccount")}
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/analytics">
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  {t("accounts.openAnalytics")}
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/dashboard">
+                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  {t("accounts.openDashboard")}
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardContent className="p-6">
@@ -237,7 +374,7 @@ export default function AccountsPage() {
                     <TableHead>{t("common.type")}</TableHead>
                     <TableHead className="text-right">{t("common.amount")}</TableHead>
                     <TableHead>{t("common.currency")}</TableHead>
-                    <TableHead className="w-[100px]">{t("common.actions")}</TableHead>
+                    <TableHead className="w-[140px]">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -252,17 +389,22 @@ export default function AccountsPage() {
                   ) : (
                     filteredAccounts.map((account) => (
                       <TableRow key={account.id}>
-                        <TableCell className="font-medium">{account?.name || '—'}</TableCell>
+                        <TableCell className="font-medium">{account?.name || "-"}</TableCell>
                         <TableCell>{getAccountTypeLabel(account?.type, t)}</TableCell>
                         <TableCell className="text-right">
-                          {(account?.balance || 0).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          <span className="whitespace-pre-line">{formatAccountBalance(account)}</span>
                         </TableCell>
-                        <TableCell>{account?.currency || 'USD'}</TableCell>
+                        <TableCell>{account?.currency || "RUB"}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end space-x-2">
+                            <Button
+                              variant={scope.type === "single" && scope.accountId === account.id ? "secondary" : "ghost"}
+                              size="icon"
+                              onClick={() => setSelectedAccountId(account.id)}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span className="sr-only">{t("accounts.selectAccount")}</span>
+                            </Button>
                             <Button variant="ghost" size="icon" asChild>
                               <Link href={`/accounts/${account.id}`}>
                                 <Pencil className="h-4 w-4" />

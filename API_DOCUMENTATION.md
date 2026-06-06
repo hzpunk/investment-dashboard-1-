@@ -89,7 +89,7 @@ Content-Type: application/pdf
 Content-Disposition: attachment; filename="investment-report-2026-06-04.pdf"
 ```
 
-Fully implemented formats: `pdf`, `docx`, `csv`, `xlsx`, `txt`, `json`.
+Fully implemented formats: `pdf`, `docx`, `csv`, `xlsx`, `xls`, `ods`, `txt`, `json`, `xml`, `qif`, `ofx`, `mt940`, `camt053`.
 
 Planned/disabled formats return `EXPORT_FORMAT_NOT_IMPLEMENTED` with HTTP 422 before any generator is called: `html`.
 
@@ -557,3 +557,116 @@ Financial format exports:
 - `camt053`: `application/xml; charset=utf-8`, file extension `.xml`, exports a simplified ISO 20022 CAMT.053 XML statement.
 
 Financial formats primarily export `accounts`, `transactions`, and `metadata`. Visual/report sections are ignored with a `FINANCIAL_SECTIONS_ONLY` summary warning. Generated references are hashes of safe public transaction fields and do not expose database IDs.
+
+## Account Scope API
+
+Account-aware endpoints accept an optional `accountId` query parameter:
+
+```text
+GET /api/analytics?accountId=acc_123
+GET /api/data/transactions?accountId=acc_123
+GET /api/data/transactions/recent?accountId=acc_123
+GET /api/portfolio/allocation?accountId=acc_123
+```
+
+`accountId=all` or an omitted `accountId` means all user accounts. A single account scope is applied only after the server verifies that the account belongs to the authenticated user. Invalid or inaccessible accounts return the unified error contract:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "ACCOUNT_NOT_FOUND",
+    "message": "Account not found"
+  }
+}
+```
+
+Export requests accept the same account scope in the JSON body:
+
+```json
+{
+  "format": "pdf",
+  "accountScope": { "type": "single", "accountId": "acc_123" },
+  "sections": { "portfolioSummary": true, "transactions": true }
+}
+```
+
+The AI chat route accepts `accountScope` or `accountId` in the request body. The backend includes only the selected account context unless the scope is `all`.
+
+## Currency Rates API
+
+`GET /api/currency/rates` returns official Bank of Russia daily rates used for RUB conversion. Optional query parameters:
+
+```text
+GET /api/currency/rates?date=2026-06-06
+GET /api/currency/rates?symbols=USD,EUR,CNY
+```
+
+Source endpoint:
+
+```text
+https://www.cbr.ru/scripts/XML_daily.asp?date_req=dd/mm/yyyy
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "base": "RUB",
+    "date": "2026-06-06",
+    "dateFormatted": "06.06.2026",
+    "source": "CBR",
+    "stale": false,
+    "rates": [
+      {
+        "currency": "USD",
+        "nominal": 1,
+        "value": 90.0,
+        "rubPerUnit": 90.0,
+        "stale": false
+      }
+    ]
+  }
+}
+```
+
+CBR quotes foreign currency in RUB for the published nominal:
+
+```text
+rubPerUnit = value / nominal
+foreignToRub = amount * rubPerUnit
+rubToForeign = amount / rubPerUnit
+```
+
+Rates are cached under `currency:rates:cbr:YYYY-MM-DD` with a 12 hour TTL and mirrored in process memory. If a fresh fetch fails, the server attempts stale cached values from the previous seven days. If no rate is available, conversion is marked unavailable and no synthetic exchange rate is produced.
+
+## Display Currency
+
+The UI distinguishes account currency from display currency.
+
+- Account currency: the native currency stored on an account, transaction, or asset row.
+- Display currency: the global UI currency used for aggregate dashboard, analytics, account summary, export, calculator, and AI context values.
+
+Supported display currencies are `RUB`, `USD`, and `EUR`. The browser stores the selected value in `investment-dashboard:display-currency`. Russian locale defaults to `RUB`; English locale defaults to `USD`.
+
+Analytics accepts the selected display currency through the `currency` query parameter:
+
+```text
+GET /api/analytics?accountId=all&currency=RUB
+GET /api/analytics?accountId=acc_123&currency=USD
+```
+
+Export requests pass the same value through `options.currency`. Export options also support `includeCbrRates` to include CBR rate metadata in generated reports.
+
+AI chat requests may include `displayCurrency`; the server includes it in the compact portfolio context with rate and conversion warnings. The assistant must not invent rates when conversion is unavailable.
+
+Display currency is a conversion target, not a label override. API producers must preserve original money where available and convert before returning display-currency totals. For account/export rows this means separate fields such as original amount/currency and display amount/currency. Missing rates must produce `CURRENCY_RATE_UNAVAILABLE` / partial or unavailable conversion status instead of returning the original number with a different currency code.
+
+New error codes:
+
+- `ACCOUNT_NOT_FOUND`
+- `ACCOUNT_ACCESS_DENIED`
+- `CURRENCY_RATE_UNAVAILABLE`
+- `CURRENCY_CONVERSION_FAILED`

@@ -23,7 +23,7 @@ describe("CSV Excel encoding", () => {
     expect(csv).toContain("Стоимость портфеля")
     expect(csv).toContain("Вложено")
     expect(csv).toContain("Свободные средства")
-    expect(csv).toContain("Название;Тип;Баланс;Валюта;Дата создания")
+    expect(csv).toContain("Название;Тип;Баланс в валюте счёта;Валюта счёта;Валюта отображения;Дата создания")
     expect(csv).not.toContain("РЎРІРѕРґРєР°")
     expect(csv).not.toContain("РЎС‚РѕРёРјРѕСЃС‚СЊ")
     expect(csv).not.toContain("Р’Р»РѕР¶РµРЅРѕ")

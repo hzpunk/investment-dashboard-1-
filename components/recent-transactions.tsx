@@ -22,6 +22,7 @@ import { fetchAccounts, type Account } from "@/entities/account/api"
 import { fetchAssets, type Asset } from "@/entities/asset/api"
 import { createTransaction, type Transaction } from "@/entities/transaction/api"
 import { useI18n } from "@/contexts/i18n-context"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
 import { getTransactionTypeLabel } from "@/lib/i18n-display"
 
 interface RecentTransactionsProps {
@@ -32,6 +33,7 @@ interface RecentTransactionsProps {
 export function RecentTransactions({ className, transactions = [] }: RecentTransactionsProps) {
   const { user } = useAuth()
   const { t } = useI18n()
+  const { displayCurrency } = useDisplayCurrency()
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -39,7 +41,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
   const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
     type: "buy",
     date: new Date().toISOString(),
-    currency: "USD",
+    currency: displayCurrency,
     fee: 0,
   })
 
@@ -81,7 +83,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
         pricePerUnit: newTransaction.pricePerUnit ?? null,
         totalAmount: newTransaction.totalAmount || 0,
         fee: newTransaction.fee || 0,
-        currency: newTransaction.currency || "USD",
+        currency: newTransaction.currency || displayCurrency,
         date: newTransaction.date,
         notes: newTransaction.notes || null,
       })
@@ -284,6 +286,7 @@ export function RecentTransactions({ className, transactions = [] }: RecentTrans
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="RUB">RUB</SelectItem>
                     <SelectItem value="EUR">EUR</SelectItem>
                     <SelectItem value="GBP">GBP</SelectItem>
                     <SelectItem value="JPY">JPY</SelectItem>

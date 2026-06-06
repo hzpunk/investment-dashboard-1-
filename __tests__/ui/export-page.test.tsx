@@ -27,6 +27,26 @@ jest.mock("@/lib/api-client", () => {
   }
 })
 
+jest.mock("@/hooks/use-selected-account", () => ({
+  useSelectedAccount: () => ({
+    scope: { type: "all" },
+    selectedAccount: null,
+    accounts: [],
+    isLoading: false,
+    setScope: jest.fn(),
+    setSelectedAccountId: jest.fn(),
+    scopeKey: "all",
+    accountIdParam: "all",
+  }),
+}))
+
+jest.mock("@/hooks/use-display-currency", () => ({
+  useDisplayCurrency: () => ({
+    displayCurrency: "RUB",
+    setDisplayCurrency: jest.fn(),
+  }),
+}))
+
 const translations: Record<string, string> = {
   "export.title": "Data export",
   "export.description": "Create exports",
@@ -196,6 +216,7 @@ describe("DataExportPage", () => {
           includeQrCode: true,
           includeAppLink: true,
           includeGeneratedAt: true,
+          includeCbrRates: true,
           includeEmptySections: false,
           compactMode: false,
           detailedMode: false,

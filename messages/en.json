@@ -189,7 +189,20 @@
     "detailsDescription": "View and update your account information.",
     "transactionsDescription": "All transactions for this account.",
     "noTransactions": "No transactions found for this account.",
-    "viewAllTransactions": "View all transactions"
+    "viewAllTransactions": "View all transactions",
+    "allAccounts": "All accounts",
+    "allAccountsDescription": "Aggregated data across all user accounts.",
+    "currentScope": "Current account",
+    "selectScope": "Select account scope",
+    "selectAccount": "Select account",
+    "activeAccount": "Active account",
+    "activeAccountDescription": "Choose which account drives dashboard, analytics, transactions and exports.",
+    "scopeValue": "Account value",
+    "assetsCount": "Linked assets",
+    "lastTransaction": "Last transaction",
+    "exportAccount": "Export account",
+    "openAnalytics": "Open analytics",
+    "openDashboard": "Open dashboard"
   },
   "assets": {
     "title": "Assets",
@@ -676,7 +689,11 @@
       "EXPORT_QR_FAILED": "Failed to generate the report QR code.",
       "EXPORT_CHART_SNAPSHOT_FAILED": "Failed to prepare the chart snapshot for export.",
       "EXPORT_FONT_FAILED": "Failed to load document font.",
-      "EXPORT_CHART_RENDER_FAILED": "Failed to render the export chart."
+      "EXPORT_CHART_RENDER_FAILED": "Failed to render the export chart.",
+      "ACCOUNT_NOT_FOUND": "Account was not found.",
+      "ACCOUNT_ACCESS_DENIED": "You do not have access to this account.",
+      "CURRENCY_RATE_UNAVAILABLE": "Currency rate is unavailable.",
+      "CURRENCY_CONVERSION_FAILED": "Currency conversion failed."
     }
   },
   "aiAssistant": {
@@ -960,6 +977,11 @@
     "print": "Print",
     "download": "Download",
     "disclaimer": "Calculations are for reference only and are not financial, investment, or tax advice.",
+    "accountScope": {
+      "description": "Choose whether to export all accounts or only the active account.",
+      "selected": "Selected account",
+      "all": "All accounts will be exported"
+    },
     "actions": {
       "preview": "Preview",
       "export": "Export",
@@ -1112,7 +1134,8 @@
       "includeEmptySections": "Show empty sections",
       "compactMode": "Compact mode",
       "detailedMode": "Detailed JSON",
-      "exportAudienceTechnical": "Technical export"
+      "exportAudienceTechnical": "Technical export",
+      "includeCbrRates": "Include CBR exchange rates"
     },
     "preview": {
       "button": "Preview",
@@ -1173,7 +1196,11 @@
       "EXPORT_QR_FAILED": "Failed to generate the report QR code.",
       "EXPORT_CHART_SNAPSHOT_FAILED": "Failed to prepare the chart snapshot for export.",
       "EXPORT_FONT_FAILED": "Failed to load document font.",
-      "EXPORT_CHART_RENDER_FAILED": "Failed to render the export chart."
+      "EXPORT_CHART_RENDER_FAILED": "Failed to render the export chart.",
+      "ACCOUNT_NOT_FOUND": "Account was not found.",
+      "ACCOUNT_ACCESS_DENIED": "You do not have access to this account.",
+      "CURRENCY_RATE_UNAVAILABLE": "Currency rate is unavailable.",
+      "CURRENCY_CONVERSION_FAILED": "Currency conversion failed."
     },
     "warnings": {
       "title": "Warnings",
@@ -1183,6 +1210,37 @@
       "FORMAT_EXPERIMENTAL:ods": "ODS is exported in experimental mode.",
       "FORMAT_EXPERIMENTAL:xml": "XML is exported in experimental mode.",
       "ADMIN_SECTION_SKIPPED:auditLogSummary": "Audit log skipped: this section is available only to admins."
+    }
+  },
+  "currency": {
+    "rub": "Russian ruble",
+    "rates": {
+      "title": "CBR exchange rates",
+      "source": "Bank of Russia",
+      "sourceCbr": "Bank of Russia reference rates",
+      "unavailable": "Currency rates are unavailable.",
+      "unavailableShort": "Rate unavailable",
+      "stale": "Currency conversion uses cached exchange rates because fresh rates are unavailable.",
+      "staleShort": "Stale rate",
+      "updatedAt": "Date",
+      "referenceNote": "CBR reference rate, not a broker or bank execution rate.",
+      "perNominal": "per {nominal} units"
+    },
+    "displayCurrency": "Display currency",
+    "switcher": {
+      "label": "Display currency"
+    },
+    "conversion": {
+      "converted": "Converted",
+      "partial": "Some data was not converted because exchange rates are unavailable.",
+      "partialShort": "Partial conversion",
+      "unavailable": "Currency conversion is unavailable because exchange rates could not be loaded.",
+      "sameCurrency": "No conversion needed",
+      "historicalApproximate": "The chart is converted using a reference rate. Historical returns may differ when using rates from each transaction date."
+    },
+    "errors": {
+      "CURRENCY_RATE_UNAVAILABLE": "Currency rate unavailable",
+      "CURRENCY_CONVERSION_FAILED": "Currency conversion failed"
     }
   }
 }

@@ -14,7 +14,14 @@ export type ExportFieldKey =
   | "name"
   | "type"
   | "balance"
+  | "balanceOriginal"
+  | "balanceDisplay"
   | "currency"
+  | "currencyOriginal"
+  | "currencyDisplay"
+  | "conversionStatus"
+  | "rateSource"
+  | "rateDate"
   | "createdAt"
   | "symbol"
   | "currentPrice"
@@ -98,6 +105,13 @@ export const EXPORT_FIELD_LABELS: Record<ExportPresentationLocale, Record<Export
     type: "Тип",
     balance: "Баланс",
     currency: "Валюта",
+    balanceOriginal: "Баланс в валюте счёта",
+    balanceDisplay: "Баланс в валюте отображения",
+    currencyOriginal: "Валюта счёта",
+    currencyDisplay: "Валюта отображения",
+    conversionStatus: "Статус пересчёта",
+    rateSource: "Источник курса",
+    rateDate: "Дата курса",
     createdAt: "Дата создания",
     symbol: "Тикер",
     currentPrice: "Текущая цена",
@@ -149,6 +163,13 @@ export const EXPORT_FIELD_LABELS: Record<ExportPresentationLocale, Record<Export
     type: "Type",
     balance: "Balance",
     currency: "Currency",
+    balanceOriginal: "Balance in account currency",
+    balanceDisplay: "Balance in display currency",
+    currencyOriginal: "Account currency",
+    currencyDisplay: "Display currency",
+    conversionStatus: "Conversion status",
+    rateSource: "Rate source",
+    rateDate: "Rate date",
     createdAt: "Created at",
     symbol: "Ticker",
     currentPrice: "Current price",

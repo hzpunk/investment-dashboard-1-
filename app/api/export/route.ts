@@ -122,6 +122,10 @@ function publicExportErrorMessage(code: string) {
       return "Failed to load document font"
     case "EXPORT_CHART_RENDER_FAILED":
       return "Export chart rendering failed"
+    case "ACCOUNT_NOT_FOUND":
+      return "Account not found"
+    case "ACCOUNT_ACCESS_DENIED":
+      return "Account access denied"
     default:
       return "Export generation failed"
   }
@@ -134,6 +138,9 @@ function exportStatusForCode(code: string) {
       return 400
     case "FORBIDDEN":
       return 403
+    case "ACCOUNT_NOT_FOUND":
+    case "ACCOUNT_ACCESS_DENIED":
+      return code === "ACCOUNT_NOT_FOUND" ? 404 : 403
     case "EXPORT_FORMAT_NOT_SUPPORTED":
     case "EXPORT_FORMAT_NOT_IMPLEMENTED":
     case "EXPORT_NO_DATA":

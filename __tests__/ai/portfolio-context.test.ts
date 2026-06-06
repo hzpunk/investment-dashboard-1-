@@ -6,6 +6,7 @@ jest.mock("@/lib/prisma", () => ({
     portfolioAsset: { findMany: jest.fn() },
     transaction: { findMany: jest.fn() },
     asset: { findMany: jest.fn() },
+    portfolio: { count: jest.fn() },
   },
 }))
 
@@ -18,9 +19,14 @@ jest.mock("@/lib/services/portfolio-summary", () => ({
   getPortfolioSummary: jest.fn(),
 }))
 
+jest.mock("@/lib/currency/rates", () => ({
+  getCbrCurrencyRates: jest.fn(),
+}))
+
 import { prisma } from "@/lib/prisma"
 import { getCryptoPricesServer } from "@/lib/services/market-data"
 import { getPortfolioSummary } from "@/lib/services/portfolio-summary"
+import { getCbrCurrencyRates } from "@/lib/currency/rates"
 import { buildAIPortfolioContext, getAIContextStatus } from "@/lib/ai/portfolio-context"
 
 const mockedPrisma = prisma as jest.Mocked<typeof prisma>
@@ -30,10 +36,19 @@ const mockAccountFindMany = mockedPrisma.account.findMany as unknown as jest.Moc
 const mockPortfolioAssetFindMany = mockedPrisma.portfolioAsset.findMany as unknown as jest.Mock
 const mockTransactionFindMany = mockedPrisma.transaction.findMany as unknown as jest.Mock
 const mockAssetFindMany = mockedPrisma.asset.findMany as unknown as jest.Mock
+const mockPortfolioCount = mockedPrisma.portfolio.count as unknown as jest.Mock
+const mockGetCbrCurrencyRates = getCbrCurrencyRates as jest.Mock
 
 describe("AI portfolio context", () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPortfolioCount.mockResolvedValue(0)
+    mockGetCbrCurrencyRates.mockResolvedValue({
+      date: "2026-06-06",
+      source: "CBR",
+      stale: false,
+      rates: [{ base: "RUB", quote: "USD", value: 90, nominal: 1, date: "2026-06-06", source: "CBR" }],
+    })
   })
 
   it("builds compact context from accounts, holdings, transactions and market data", async () => {
@@ -101,16 +116,22 @@ describe("AI portfolio context", () => {
 
     const context = await buildAIPortfolioContext("user-1", "Какой сейчас курс биткоина?")
 
-    expect(context.accounts).toEqual([
-      { id: "acc-1", name: "Brokerage", type: "brokerage", balance: 1000.12, currency: "USD" },
-    ])
+    expect(context.accounts[0]).toMatchObject({
+      id: "acc-1",
+      name: "Brokerage",
+      type: "brokerage",
+      balanceOriginal: { amount: 1000.12, currency: "USD" },
+      balanceDisplay: { amount: 90011.07, currency: "RUB" },
+      conversionStatus: "converted",
+    })
     expect(context.holdings[0]).toMatchObject({
       symbol: "BTC",
       quantity: 0.5,
-      currentPrice: 40000,
-      value: 20000,
-      currency: "USD",
+      currentPrice: 3600000,
+      value: 1800000,
+      currency: "RUB",
     })
+    expect(context.selectedAccountScope.conversionStatus).toBe("converted")
     expect(context.marketData.BTC).toMatchObject({
       status: "available",
       price: 41000,

@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/contexts/i18n-context"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
+import { formatMoney } from "@/lib/currency/formatting"
 import { getAssetTypeLabel } from "@/lib/i18n-display"
 import { groupSmallAllocations } from "@/lib/finance"
 import type { AllocationItem } from "@/lib/finance"
@@ -20,6 +22,7 @@ interface PortfolioAllocationProps {
   diversificationScore?: number
   group?: "type" | "asset" | "currency" | "sector"
   isLoading?: boolean
+  currency?: string
 }
 
 type ChartAllocationItem = AllocationItem & {
@@ -38,15 +41,6 @@ const TYPE_COLORS: Record<string, string> = {
 
 const SERIES_COLORS = ["#4f8cc9", "#6aa56f", "#8b6fc6", "#c9a24f", "#c8795a", "#6d9aa6", "#9a7f5f", "#7f8a99"]
 
-function formatCurrency(value: number, locale: string) {
-  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(Number.isFinite(value) ? value : 0)
-}
-
 function formatPercent(value: number, locale: string) {
   const normalizedValue = Number.isFinite(value) ? value : 0
   return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
@@ -61,12 +55,14 @@ function AllocationTooltip({
   valueLabel,
   percentageLabel,
   locale,
+  currency,
 }: {
   active?: boolean
   payload?: Array<{ payload: ChartAllocationItem }>
   valueLabel: string
   percentageLabel: string
   locale: string
+  currency: string
 }) {
   if (!active || !payload?.length) return null
 
@@ -76,7 +72,7 @@ function AllocationTooltip({
     <div className="rounded-md border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-md">
       <div className="font-medium">{item.label}</div>
       <div className="text-muted-foreground">
-        {valueLabel}: {formatCurrency(item.value, locale)}
+        {valueLabel}: {formatMoney(item.value, currency, locale as "ru" | "en")}
       </div>
       <div className="text-muted-foreground">
         {percentageLabel}: {formatPercent(item.percent, locale)}
@@ -96,8 +92,11 @@ export function PortfolioAllocation({
   diversificationScore,
   group = "type",
   isLoading = false,
+  currency,
 }: PortfolioAllocationProps) {
   const { locale, t } = useI18n()
+  const { displayCurrency } = useDisplayCurrency()
+  const allocationCurrency = currency ?? displayCurrency
   const rawTotal = totalValue ?? data.reduce((sum, item) => sum + (Number.isFinite(item.value) ? item.value : 0), 0)
   const normalized = data
     .map((item) => {
@@ -184,6 +183,7 @@ export function PortfolioAllocation({
                           valueLabel={t("portfolioAllocation.value")}
                           percentageLabel={t("portfolioAllocation.percentage")}
                           locale={locale}
+                          currency={allocationCurrency}
                         />
                       }
                     />
@@ -192,7 +192,7 @@ export function PortfolioAllocation({
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground">{t("portfolioAllocation.total")}</p>
-                    <p className="text-lg font-semibold tracking-tight text-foreground">{formatCurrency(chartTotal, locale)}</p>
+                    <p className="text-lg font-semibold tracking-tight text-foreground">{formatMoney(chartTotal, allocationCurrency, locale)}</p>
                   </div>
                 </div>
               </div>
@@ -229,7 +229,7 @@ export function PortfolioAllocation({
                     <div className="h-full rounded-full" style={{ width: `${Math.min(100, item.percent)}%`, backgroundColor: item.color }} />
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{formatCurrency(item.value, locale)}</span>
+                    <span>{formatMoney(item.value, allocationCurrency, locale)}</span>
                     <span>{item.count} {t("analytics.allocation.positions")}</span>
                   </div>
                 </div>

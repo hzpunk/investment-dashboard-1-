@@ -19,6 +19,8 @@ import { Progress } from "@/components/ui/progress"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import { createGoal, deleteGoal, type Goal } from "@/entities/goal/api"
 import { useI18n } from "@/contexts/i18n-context"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
+import { formatMoney } from "@/lib/currency/formatting"
 
 interface GoalsListProps {
   className?: string
@@ -27,7 +29,8 @@ interface GoalsListProps {
 
 export function GoalsList({ className, goals = [] }: GoalsListProps) {
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
+  const { displayCurrency } = useDisplayCurrency()
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [newGoal, setNewGoal] = useState<Partial<Goal>>({
@@ -194,9 +197,9 @@ export function GoalsList({ className, goals = [] }: GoalsListProps) {
                   </div>
                   <Progress value={progress} className="h-2" />
                   <div className="flex items-center justify-between text-sm">
-                    <span>${currentAmount.toLocaleString()}</span>
+                    <span>{formatMoney(currentAmount, displayCurrency, locale)}</span>
                     <span className="text-muted-foreground">{progress}%</span>
-                    <span>${targetAmount.toLocaleString()}</span>
+                    <span>{formatMoney(targetAmount, displayCurrency, locale)}</span>
                   </div>
                 </div>
               )

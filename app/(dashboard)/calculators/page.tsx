@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useI18n } from "@/contexts/i18n-context"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
+import { formatMoney } from "@/lib/currency/formatting"
 import {
   calculateAllocationPercentage,
   calculateAveragePurchasePrice,
@@ -438,7 +440,7 @@ const calculatorDefinitions: CalculatorDefinition[] = [
   },
 ]
 
-function formatResult(value: number | string | null, kind: ResultKind = "money", locale: string, t: (key: string) => string) {
+function formatResult(value: number | string | null, kind: ResultKind = "money", locale: string, t: (key: string) => string, currency: string) {
   if (typeof value === "string") return t(value)
   if (value === null || !Number.isFinite(value)) return t("common.notAvailable")
 
@@ -454,15 +456,12 @@ function formatResult(value: number | string | null, kind: ResultKind = "money",
     return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 1 }).format(value)} ${t("calculators.units.months")}`
   }
 
-  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value)
+  return formatMoney(value, currency, locale as "ru" | "en")
 }
 
 function CalculatorCard({ definition }: { definition: CalculatorDefinition }) {
   const { locale, t } = useI18n()
+  const { displayCurrency } = useDisplayCurrency()
   const initialValues = useMemo(
     () => Object.fromEntries(definition.inputs.map((input) => [input.key, input.defaultValue])),
     [definition.inputs],
@@ -530,7 +529,7 @@ function CalculatorCard({ definition }: { definition: CalculatorDefinition }) {
                         : "text-sm font-semibold"
                   }
                 >
-                  {formatResult(result.value, result.kind, locale, t)}
+                  {formatResult(result.value, result.kind, locale, t, displayCurrency)}
                 </span>
               </div>
             ))}

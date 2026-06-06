@@ -1,6 +1,8 @@
 import "server-only"
 
 import { cacheKeys } from "@/lib/cache-keys"
+import { ALL_ACCOUNTS_SCOPE, type AccountScope } from "@/lib/accounts/account-scope"
+import { accountScopeCachePart } from "@/lib/accounts/account-scope.server"
 import { prisma } from "@/lib/prisma"
 import { cached } from "@/lib/server-cache"
 
@@ -54,7 +56,9 @@ function buildSummary(holdings: PortfolioHoldingItem[], source: PortfolioSummary
   }
 }
 
-async function getPortfolioAssetHoldings(userId: string): Promise<PortfolioHoldingItem[]> {
+async function getPortfolioAssetHoldings(userId: string, scope: AccountScope): Promise<PortfolioHoldingItem[]> {
+  if (scope.type === "single") return []
+
   const portfolioAssets = await prisma.portfolioAsset.findMany({
     where: {
       portfolio: { userId },
@@ -85,10 +89,11 @@ async function getPortfolioAssetHoldings(userId: string): Promise<PortfolioHoldi
   }))
 }
 
-async function getTransactionDerivedHoldings(userId: string): Promise<PortfolioHoldingItem[]> {
+async function getTransactionDerivedHoldings(userId: string, scope: AccountScope): Promise<PortfolioHoldingItem[]> {
   const transactions = await prisma.transaction.findMany({
     where: {
       userId,
+      ...(scope.type === "single" ? { accountId: scope.accountId } : {}),
       type: { in: ["buy", "sell"] },
       assetId: { not: null },
     },
@@ -141,10 +146,10 @@ async function getTransactionDerivedHoldings(userId: string): Promise<PortfolioH
   })
 }
 
-async function calculatePortfolioSummary(userId: string): Promise<PortfolioSummary> {
+async function calculatePortfolioSummary(userId: string, scope: AccountScope): Promise<PortfolioSummary> {
   const [portfolioAssetHoldings, transactionHoldings] = await Promise.all([
-    getPortfolioAssetHoldings(userId),
-    getTransactionDerivedHoldings(userId),
+    getPortfolioAssetHoldings(userId, scope),
+    getTransactionDerivedHoldings(userId, scope),
   ])
 
   if (portfolioAssetHoldings.length === 0 && transactionHoldings.length > 0) {
@@ -170,11 +175,11 @@ async function calculatePortfolioSummary(userId: string): Promise<PortfolioSumma
   return buildSummary([], "empty")
 }
 
-export async function getPortfolioSummary(userId: string): Promise<PortfolioSummary> {
+export async function getPortfolioSummary(userId: string, scope: AccountScope = ALL_ACCOUNTS_SCOPE): Promise<PortfolioSummary> {
   return cached({
-    key: cacheKeys.userPortfolioSummary(userId),
+    key: `${cacheKeys.userPortfolioSummary(userId)}:${accountScopeCachePart(scope)}`,
     ttlSeconds: 120,
-    label: `portfolio-summary user=${userId}`,
-    fetcher: () => calculatePortfolioSummary(userId),
+    label: `portfolio-summary user=${userId} scope=${accountScopeCachePart(scope)}`,
+    fetcher: () => calculatePortfolioSummary(userId, scope),
   })
 }

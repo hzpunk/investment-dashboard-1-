@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { AccountSwitcher } from "@/components/account-switcher"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -23,12 +24,16 @@ import { useToast } from "@/components/ui/use-toast"
 import { Plus, ArrowUpRight, ArrowDownRight, Search, RefreshCw } from "lucide-react"
 import { createTransaction, Transaction } from "@/entities/transaction/api"
 import { useI18n } from "@/contexts/i18n-context"
+import { useSelectedAccount } from "@/hooks/use-selected-account"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
 import { getTransactionTypeLabel } from "@/lib/i18n-display"
 import { accountsQuery, assetsQuery, queryKeys, transactionsQuery } from "@/lib/query-options"
 
 export default function TransactionsPage() {
   const { user } = useAuth()
   const { t } = useI18n()
+  const { scope, selectedAccount } = useSelectedAccount()
+  const { displayCurrency } = useDisplayCurrency()
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
@@ -43,13 +48,13 @@ export default function TransactionsPage() {
   const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
     type: "buy",
     date: new Date().toISOString(),
-    currency: "USD",
+    currency: selectedAccount?.currency ?? displayCurrency,
     fee: 0,
   })
 
   const userId = user?.id ?? ""
   const enabled = Boolean(user)
-  const transactionsResult = useQuery({ ...transactionsQuery(userId), enabled })
+  const transactionsResult = useQuery({ ...transactionsQuery(userId, scope), enabled })
   const accountsResult = useQuery({ ...accountsQuery(userId), enabled })
   const assetsResult = useQuery({ ...assetsQuery(), enabled })
   const transactions = transactionsResult.data ?? []
@@ -60,13 +65,10 @@ export default function TransactionsPage() {
     mutationFn: createTransaction,
     onSuccess: (newTx) => {
       if (!newTx || !user) return
-      queryClient.setQueryData<Transaction[]>(queryKeys.transactions(user.id), (current = []) => [newTx, ...current])
-      queryClient.setQueryData<Transaction[]>(queryKeys.recentTransactions(user.id, 5), (current = []) =>
-        [newTx, ...current].slice(0, 5),
-      )
+      void queryClient.invalidateQueries({ queryKey: ["transactions", user.id] })
       void queryClient.invalidateQueries({ queryKey: queryKeys.accounts(user.id) })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.portfolioAllocation(user.id) })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.analytics(user.id) })
+      void queryClient.invalidateQueries({ queryKey: ["portfolio-allocation", user.id] })
+      void queryClient.invalidateQueries({ queryKey: ["analytics", user.id] })
     },
   })
 
@@ -76,7 +78,8 @@ export default function TransactionsPage() {
     setFormError(null)
     setNewTransaction((previous) => ({
       ...previous,
-      accountId: previous.accountId ?? accounts[0]?.id,
+      accountId: selectedAccount?.id ?? previous.accountId ?? accounts[0]?.id,
+      currency: selectedAccount?.currency ?? previous.currency ?? displayCurrency,
     }))
     setIsAddTransactionOpen(true)
   }
@@ -99,7 +102,7 @@ export default function TransactionsPage() {
         pricePerUnit: newTransaction.pricePerUnit ?? null,
         totalAmount: newTransaction.totalAmount ?? 0,
         fee: newTransaction.fee ?? 0,
-        currency: newTransaction.currency || "USD",
+        currency: newTransaction.currency || selectedAccount?.currency || displayCurrency,
         date: newTransaction.date || new Date().toISOString(),
         notes: newTransaction.notes ?? null,
       })
@@ -113,9 +116,9 @@ export default function TransactionsPage() {
         setNewTransaction({
           type: "buy",
           date: new Date().toISOString(),
-          currency: "USD",
+          currency: selectedAccount?.currency ?? displayCurrency,
           fee: 0,
-          accountId: accounts[0]?.id,
+          accountId: selectedAccount?.id ?? accounts[0]?.id,
         })
         setIsAddTransactionOpen(false)
       } else {
@@ -177,6 +180,7 @@ export default function TransactionsPage() {
         {isRefreshing ? (
           <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
         ) : null}
+        <AccountSwitcher compact />
         <Dialog open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleOpenDialog}>
@@ -370,6 +374,7 @@ export default function TransactionsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="RUB">RUB</SelectItem>
                     <SelectItem value="EUR">EUR</SelectItem>
                     <SelectItem value="GBP">GBP</SelectItem>
                     <SelectItem value="JPY">JPY</SelectItem>

@@ -61,8 +61,16 @@ export function mapToExportViewModel(bundle: ExportDataBundle): ExportViewModel 
         row(locale, {
           name: account.name,
           type: formatAccountType(account.type, locale),
-          balance: formatExportCurrency(account.balance, account.currency || currency, locale),
-          currency: account.currency,
+          balanceOriginal: formatExportCurrency(account.balance, account.currency || currency, locale),
+          currencyOriginal: account.currency,
+          balanceDisplay:
+            account.balanceDisplay === null || account.balanceDisplay === undefined
+              ? ""
+              : formatExportCurrency(account.balanceDisplay, account.currencyDisplay || currency, locale),
+          currencyDisplay: account.currencyDisplay || currency,
+          conversionStatus: account.conversionStatus ?? "",
+          rateSource: account.rateSource ?? "",
+          rateDate: account.rateDate ?? "",
           createdAt: formatExportDate(account.createdAt, locale),
         }),
       ),
@@ -216,16 +224,26 @@ export function mapToExportViewModel(bundle: ExportDataBundle): ExportViewModel 
   }
 
   if (selectedSections.has("metadata")) {
+    const accountLabel = locale === "ru" ? "Счёт" : "Account"
+    const baseCurrencyLabel = locale === "ru" ? "Базовая валюта отчёта" : "Report base currency"
+    const rateSourceLabel = locale === "ru" ? "Источник курса" : "Rate source"
+    const rateDateLabel = locale === "ru" ? "Дата курса" : "Rate date"
     sections.push({
       key: "metadata",
       title: sectionLabel("metadata", locale),
       kind: "table",
       rows: [
-        row(locale, {
-          generatedAt: bundle.metadata.generatedAtFormatted,
-          period: bundle.metadata.period.label,
-          applicationUrl: bundle.metadata.appUrl,
-        }),
+        {
+          ...row(locale, {
+            generatedAt: bundle.metadata.generatedAtFormatted,
+            period: bundle.metadata.period.label,
+            applicationUrl: bundle.metadata.appUrl,
+          }),
+          [accountLabel]: bundle.metadata.accountScope.accountName ?? (locale === "ru" ? "Все счета" : "All accounts"),
+          [baseCurrencyLabel]: bundle.metadata.accountScope.baseCurrency,
+          [rateSourceLabel]: bundle.metadata.accountScope.rateSource ?? "",
+          [rateDateLabel]: bundle.metadata.accountScope.rateDate ?? "",
+        },
       ],
     })
   }
@@ -252,6 +270,15 @@ export function buildPublicJsonExport(bundle: ExportDataBundle) {
       applicationUrl: bundle.metadata.appUrl,
       language: locale,
       currency,
+      account: {
+        scope: bundle.metadata.accountScope.type,
+        name: bundle.metadata.accountScope.accountName ?? (locale === "ru" ? "Все счета" : "All accounts"),
+        currency: bundle.metadata.accountScope.accountCurrency,
+        baseCurrency: bundle.metadata.accountScope.baseCurrency,
+        conversionWarnings: bundle.metadata.accountScope.conversionWarnings,
+        rateSource: bundle.metadata.accountScope.rateSource,
+        rateDate: bundle.metadata.accountScope.rateDate,
+      },
       formatVersion: "1.0",
       period: {
         type: bundle.metadata.period.type,
@@ -284,8 +311,20 @@ export function buildPublicJsonExport(bundle: ExportDataBundle) {
       accounts: selectedSections.has("accounts") ? (bundle.accounts ?? []).map((account) => ({
         name: account.name,
         type: formatAccountType(account.type, locale),
-        balance: account.balance,
-        currency: account.currency,
+        balanceOriginal: {
+          amount: account.balance,
+          currency: account.currency,
+        },
+        balanceDisplay:
+          account.balanceDisplay === null || account.balanceDisplay === undefined
+            ? null
+            : {
+                amount: account.balanceDisplay,
+                currency: account.currencyDisplay || currency,
+              },
+        conversionStatus: account.conversionStatus ?? "same-currency",
+        rateSource: account.rateSource ?? null,
+        rateDate: account.rateDate ?? null,
         createdAt: account.createdAt,
         createdAtFormatted: formatExportDate(account.createdAt, locale),
       })) : [],

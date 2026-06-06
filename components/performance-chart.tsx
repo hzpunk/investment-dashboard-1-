@@ -15,6 +15,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/contexts/i18n-context"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
+import { formatMoney as formatCurrencyMoney } from "@/lib/currency/formatting"
 import type { PerformancePeriod, PortfolioPerformancePoint } from "@/lib/finance"
 
 type LegacyPoint = { date: string; value: number }
@@ -27,6 +29,7 @@ interface PerformanceChartProps {
     | Partial<Record<PerformancePeriod, PortfolioPerformancePoint[] | LegacyPoint[]>>
   period?: PerformancePeriod
   compact?: boolean
+  currency?: string
 }
 
 const periods: PerformancePeriod[] = ["7D", "1M", "3M", "6M", "1Y", "ALL"]
@@ -46,14 +49,6 @@ function normalizePoint(point: PortfolioPerformancePoint | LegacyPoint): Portfol
   }
 }
 
-function formatMoney(value: number, locale: string) {
-  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(Number.isFinite(value) ? value : 0)
-}
-
 function formatDate(value: string, locale: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -64,8 +59,10 @@ function formatDate(value: string, locale: string) {
   })
 }
 
-export function PerformanceChart({ className, data, period = "1M", compact = false }: PerformanceChartProps) {
+export function PerformanceChart({ className, data, period = "1M", compact = false, currency }: PerformanceChartProps) {
   const { locale, t } = useI18n()
+  const { displayCurrency } = useDisplayCurrency()
+  const chartCurrency = currency ?? displayCurrency
   const [activeTab, setActiveTab] = useState<PerformancePeriod>(period)
   const chartData = useMemo(() => {
     const rows = Array.isArray(data) ? data : data[activeTab] ?? []
@@ -140,7 +137,7 @@ export function PerformanceChart({ className, data, period = "1M", compact = fal
                     {payload.map((item) => (
                       <div key={item.dataKey} className="mt-1 flex min-w-48 items-center justify-between gap-4 text-muted-foreground">
                         <span>{item.name}</span>
-                        <span className="font-medium text-foreground">{formatMoney(Number(item.value), locale)}</span>
+                        <span className="font-medium text-foreground">{formatCurrencyMoney(Number(item.value), chartCurrency, locale)}</span>
                       </div>
                     ))}
                   </div>
@@ -179,11 +176,11 @@ export function PerformanceChart({ className, data, period = "1M", compact = fal
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-md bg-muted/30 px-3 py-2">
           <p className="text-xs text-muted-foreground">{t("performance.startingValue")}</p>
-          <p className="text-sm font-semibold">{formatMoney(metrics.startValue, locale)}</p>
+          <p className="text-sm font-semibold">{formatCurrencyMoney(metrics.startValue, chartCurrency, locale)}</p>
         </div>
         <div className="rounded-md bg-muted/30 px-3 py-2">
           <p className="text-xs text-muted-foreground">{t("performance.currentValue")}</p>
-          <p className="text-sm font-semibold">{formatMoney(metrics.endValue, locale)}</p>
+          <p className="text-sm font-semibold">{formatCurrencyMoney(metrics.endValue, chartCurrency, locale)}</p>
         </div>
         <div className="rounded-md bg-muted/30 px-3 py-2">
           <p className="text-xs text-muted-foreground">{t("performance.return")}</p>

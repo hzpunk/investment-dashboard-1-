@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api-client"
+import { appendAccountScope, type AccountScope } from "@/lib/accounts/account-scope"
 
 export type Transaction = {
   id: string
@@ -19,15 +20,20 @@ export type Transaction = {
 
 type TransactionInsert = Omit<Transaction, "id" | "accounts" | "assets"> & { id?: string }
 
-export async function fetchTransactions(userId: string): Promise<Transaction[]> {
+export async function fetchTransactions(userId: string, accountScope?: AccountScope): Promise<Transaction[]> {
   void userId
-  const data = await apiFetch<Transaction[]>("/api/data/transactions")
+  const query = new URLSearchParams()
+  if (accountScope) appendAccountScope(query, accountScope)
+  const suffix = query.toString() ? `?${query.toString()}` : ""
+  const data = await apiFetch<Transaction[]>(`/api/data/transactions${suffix}`)
   return data || []
 }
 
-export async function fetchRecentTransactions(userId: string, limit = 5) {
+export async function fetchRecentTransactions(userId: string, limit = 5, accountScope?: AccountScope) {
   void userId
-  const data = await apiFetch<{ transactions: Transaction[] }>(`/api/data/transactions/recent?limit=${encodeURIComponent(String(limit))}`)
+  const query = new URLSearchParams({ limit: String(limit) })
+  if (accountScope) appendAccountScope(query, accountScope)
+  const data = await apiFetch<{ transactions: Transaction[] }>(`/api/data/transactions/recent?${query.toString()}`)
   return data?.transactions || []
 }
 

@@ -129,3 +129,73 @@ Financial generators use `mapToFinancialExportModel()` and only include safe acc
 For financial formats, supported sections are accounts, transactions, and metadata. Visual/report sections such as analytics, allocation charts, performance charts, calculator results, and AI summaries are ignored with the `FINANCIAL_SECTIONS_ONLY` summary warning rather than causing export failure.
 
 Limitations: these exports are intended for portability, reporting, and demo use. They are not certified bank statements. External finance systems may require stricter bank-specific variants, institution IDs, account numbers, balances, or schema versions.
+
+## 2026-06-06 Account Scope and RUB Update
+
+The export module now respects the global selected account scope. The export page includes an account selector and sends the scope in the export request:
+
+```json
+{
+  "accountScope": { "type": "single", "accountId": "acc_123" }
+}
+```
+
+`collectExportData()` resolves the requested scope on the server and filters accounts, transactions and account-derived holdings to the authenticated user's account. `all` scope exports all user accounts. Invalid account IDs return a controlled `ACCOUNT_NOT_FOUND` API error.
+
+Report metadata now includes:
+
+- selected account name or all-accounts scope;
+- account currency for a single account;
+- report base currency;
+- CBR rate source/date when currency conversion was used;
+- conversion warnings when rates are stale, partial or unavailable.
+
+PDF/DOCX/TXT/CSV/XLSX/JSON/XML exports use the same user-facing presentation layer for account metadata. Financial formats continue to focus on account and transaction sections and ignore visual sections with a warning.
+
+RUB is supported as a primary export currency. For Russian report language, RUB is the default report currency. All-account analytics/export values use CBR reference rates when conversion is needed:
+
+```text
+rubPerUnit = value / nominal
+foreignToRub = amount * rubPerUnit
+rubToForeign = amount / rubPerUnit
+```
+
+Limitations:
+
+- Historical holdings are account-scoped through transactions. Legacy `PortfolioAsset` rows are not account-linked in the current schema, so single-account holdings do not use those rows directly.
+- CBR reference rates may differ from actual broker or bank execution rates.
+- If CBR and cached rates are unavailable, converted aggregate values are marked partial/unavailable instead of using fake rates.
+
+## 2026-06-06 Display Currency Update
+
+The export page now follows the global display currency preference. `options.currency` defaults to the selected display currency, and changing the top-bar switcher updates the export form unless the user overrides it.
+
+Reports include display-currency metadata:
+
+- display/report currency;
+- selected account scope;
+- CBR source/date when conversion was used;
+- conversion warnings for stale, partial or unavailable rates.
+
+New option:
+
+```json
+{
+  "options": {
+    "includeCbrRates": true
+  }
+}
+```
+
+When enabled, generated reports include the CBR exchange-rate metadata used for conversion. CBR rates are informational reference rates, not broker or bank execution rates.
+
+Account rows in user-facing exports now separate native and display values:
+
+- balance in account currency;
+- account currency;
+- balance in display currency;
+- display currency;
+- conversion status;
+- rate source/date when conversion succeeds.
+
+The export presentation layer must not render `21 588.75 RUB` for an original `21 588.75 USD` balance. If the CBR rate is unavailable, the display balance is left empty/null and the report metadata includes a conversion warning.

@@ -35,7 +35,11 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PerformanceChart } from "@/components/performance-chart"
 import { PortfolioAllocation } from "@/components/portfolio-allocation"
+import { AccountSwitcher } from "@/components/account-switcher"
+import { CurrencyConversionWarning } from "@/components/currency-conversion-warning"
 import { useI18n } from "@/contexts/i18n-context"
+import { useSelectedAccount } from "@/hooks/use-selected-account"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
 import { cn } from "@/lib/utils"
 import { analyticsQuery } from "@/lib/query-options"
 import { buildProjectionScenarios } from "@/lib/finance"
@@ -52,10 +56,10 @@ type ProjectionForm = {
 
 const allocationTabs: AllocationGroup[] = ["type", "asset", "currency", "sector"]
 
-function formatMoney(value: number, locale: string) {
+function formatMoney(value: number, locale: string, currency = locale === "ru" ? "RUB" : "USD") {
   return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
     style: "currency",
-    currency: "USD",
+    currency,
     maximumFractionDigits: 2,
   }).format(Number.isFinite(value) ? value : 0)
 }
@@ -129,7 +133,7 @@ function getAllocationData(analytics: AnalyticsDto, group: AllocationGroup) {
   return analytics.allocation.bySector
 }
 
-function ProjectionSection({ analytics }: { analytics: AnalyticsDto }) {
+function ProjectionSection({ analytics, currency }: { analytics: AnalyticsDto; currency: string }) {
   const { locale, t } = useI18n()
   const defaults = analytics.projectionDefaults
   const [form, setForm] = useState<ProjectionForm>({
@@ -212,9 +216,9 @@ function ProjectionSection({ analytics }: { analytics: AnalyticsDto }) {
                 <p className="text-sm font-medium">{t(`analytics.scenario.${scenario.id}`)}</p>
                 <Badge variant="secondary">{formatNumber(scenario.annualReturnPercent, locale, 1)}%</Badge>
               </div>
-              <p className="mt-3 text-2xl font-semibold">{formatMoney(scenario.finalValue, locale)}</p>
+              <p className="mt-3 text-2xl font-semibold">{formatMoney(scenario.finalValue, locale, currency)}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {t("analytics.projection.inflationAdjusted")}: {formatMoney(scenario.inflationAdjustedFinalValue, locale)}
+                {t("analytics.projection.inflationAdjusted")}: {formatMoney(scenario.inflationAdjustedFinalValue, locale, currency)}
               </p>
             </div>
           ))}
@@ -244,7 +248,7 @@ function ProjectionSection({ analytics }: { analytics: AnalyticsDto }) {
               />
               <Tooltip
                 formatter={(value: number, name: string) => [
-                  formatMoney(value, locale),
+                  formatMoney(value, locale, currency),
                   t(`analytics.scenario.${name}`),
                 ]}
                 labelFormatter={(value: number) => `${t("analytics.projection.month")} ${value}`}
@@ -271,9 +275,11 @@ function ProjectionSection({ analytics }: { analytics: AnalyticsDto }) {
 export default function AnalyticsPage() {
   const { user, isLoading: isAuthLoading } = useAuth()
   const { locale, t } = useI18n()
+  const { scope, selectedAccount } = useSelectedAccount()
+  const { displayCurrency } = useDisplayCurrency()
   const userId = user?.id ?? ""
   const analyticsResult = useQuery({
-    ...analyticsQuery(userId),
+    ...analyticsQuery(userId, scope, displayCurrency),
     enabled: !isAuthLoading && Boolean(user),
   })
   const [allocationGroup, setAllocationGroup] = useState<AllocationGroup>("type")
@@ -305,6 +311,7 @@ export default function AnalyticsPage() {
   }
 
   const summary = analytics.summary
+  const analyticsCurrency = analytics.currency.baseCurrency
   const pnlTone = summary.totalPnL > 0 ? "positive" : summary.totalPnL < 0 ? "negative" : "default"
   const allocationData = getAllocationData(analytics, allocationGroup)
 
@@ -312,30 +319,40 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <DashboardHeader heading={t("analytics.title")} text={t("analytics.description")}>
         {isRefreshing ? <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" /> : null}
+        <AccountSwitcher compact />
       </DashboardHeader>
+      <div className="rounded-md border border-border/70 px-4 py-3 text-sm text-muted-foreground">
+        {t("accounts.currentScope")}: <span className="font-medium text-foreground">{selectedAccount?.name ?? t("accounts.allAccounts")}</span>
+        <span className="ml-3">{t("currency.displayCurrency")}: <span className="font-medium text-foreground">{analyticsCurrency}</span></span>
+      </div>
+      <CurrencyConversionWarning
+        status={analytics.currency.conversionStatus}
+        stale={analytics.currency.stale}
+        warnings={analytics.currency.warnings}
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label={t("analytics.summary.totalPortfolioValue")}
-          value={formatMoney(summary.totalPortfolioValue, locale)}
+          value={formatMoney(summary.totalPortfolioValue, locale, analyticsCurrency)}
           helper={t(`analytics.source.${summary.source}`)}
           icon={DollarSign}
         />
         <MetricCard
           label={t("analytics.summary.totalInvested")}
-          value={formatMoney(summary.totalInvested, locale)}
+          value={formatMoney(summary.totalInvested, locale, analyticsCurrency)}
           icon={Coins}
         />
         <MetricCard
           label={t("analytics.summary.totalPnl")}
-          value={formatMoney(summary.totalPnL, locale)}
+          value={formatMoney(summary.totalPnL, locale, analyticsCurrency)}
           helper={formatPercent(summary.pnlPercent, locale)}
           icon={TrendingUp}
           tone={pnlTone}
         />
         <MetricCard
           label={t("analytics.summary.cashBalance")}
-          value={formatMoney(summary.cashBalance, locale)}
+          value={formatMoney(summary.cashBalance, locale, analyticsCurrency)}
           icon={Wallet}
         />
         <MetricCard
@@ -363,7 +380,7 @@ export default function AnalyticsPage() {
         />
       </div>
 
-      <PerformanceChart data={analytics.performance.byPeriod} period="1M" />
+      <PerformanceChart data={analytics.performance.byPeriod} period="1M" currency={analyticsCurrency} />
 
       <Tabs value={allocationGroup} onValueChange={(value) => setAllocationGroup(value as AllocationGroup)} className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -389,6 +406,7 @@ export default function AnalyticsPage() {
             largestPosition={summary.largestPosition}
             diversificationScore={summary.diversificationScore}
             group={allocationGroup}
+            currency={analyticsCurrency}
           />
         </TabsContent>
       </Tabs>
@@ -425,9 +443,9 @@ export default function AnalyticsPage() {
                       </TableCell>
                       <TableCell>{getAssetTypeLabel(position.type, t)}</TableCell>
                       <TableCell className="text-right">{formatNumber(position.quantity, locale, 6)}</TableCell>
-                      <TableCell className="text-right">{formatMoney(position.marketValue, locale)}</TableCell>
+                      <TableCell className="text-right">{formatMoney(position.marketValue, locale, position.currency || analyticsCurrency)}</TableCell>
                       <TableCell className={cn("text-right", position.unrealizedPnL >= 0 ? "text-green-600" : "text-red-600")}>
-                        {formatMoney(position.unrealizedPnL, locale)}
+                        {formatMoney(position.unrealizedPnL, locale, position.currency || analyticsCurrency)}
                       </TableCell>
                       <TableCell className="text-right">{formatNumber(position.allocationPercent, locale, 1)}%</TableCell>
                     </TableRow>
@@ -485,7 +503,7 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      <ProjectionSection analytics={analytics} />
+      <ProjectionSection analytics={analytics} currency={analyticsCurrency} />
     </div>
   )
 }

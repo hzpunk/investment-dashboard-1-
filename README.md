@@ -336,3 +336,67 @@ User-facing exports remove internal identifiers such as `id`, `key`, `assetId`, 
 CSV export is Excel-friendly on Windows: files start with a UTF-8 BOM, use `;` as the delimiter, and normalize non-breaking spaces in formatted currency values. XLS, ODS, XML, QIF, OFX, MT940, and CAMT.053 are implemented in addition to PDF, DOCX, TXT, CSV, XLSX, and JSON. HTML remains planned/disabled with controlled API errors.
 
 Financial exports focus on accounts and transactions. QIF supports personal-finance imports, OFX exports an XML-style account statement, MT940 exports a simplified SWIFT statement-like text file, and CAMT.053 exports a simplified ISO 20022 XML statement. These files are for portability/reporting/demo use and are not certified bank statements.
+
+## Account Scope, RUB, and CBR Rates
+
+Accounts are now first-class data scopes. The dashboard shell provides a global selected account context with two modes:
+
+- `all`: aggregate all user accounts.
+- `single`: filter data to one user-owned account by `accountId`.
+
+The selected scope is persisted in browser `localStorage` and is passed to account-aware API calls as `accountId=<id>`. `accountId=all` or an omitted `accountId` means all accounts. Server routes verify account ownership before applying a single-account filter.
+
+Account-aware modules:
+
+- Dashboard: portfolio value, PnL, allocation, recent transactions and account label are scoped.
+- Analytics: summary, positions, allocation, performance, risk and projections are scoped.
+- Transactions: list filtering uses the selected account, and new transactions default to the selected account when one is active.
+- Export: reports can be generated for the selected account or all accounts and include account scope metadata.
+- AI assistant: portfolio context includes the selected account scope and does not mix all-account data into single-account prompts.
+
+RUB is supported as a primary currency in account and transaction forms, analytics, dashboard formatting and exports. Russian locale defaults use RUB where a new currency needs a default.
+
+Currency conversion for all-account analytics uses Bank of Russia daily XML rates:
+
+```text
+https://www.cbr.ru/scripts/XML_daily.asp?date_req=dd/mm/yyyy
+```
+
+CBR values are quoted as RUB per nominal foreign currency units:
+
+```text
+rubPerUnit = value / nominal
+foreignToRub = amount * rubPerUnit
+rubToForeign = amount / rubPerUnit
+```
+
+Rates are cached with Redis under `currency:rates:cbr:YYYY-MM-DD` for 12 hours and also kept in an in-memory process cache as a fallback when Redis is unavailable. If the current request cannot fetch rates, the service uses stale cached rates for up to seven previous days and marks them as stale. If no official or cached rate exists, conversion is marked unavailable; the app does not fake exchange rates.
+
+### Global Display Currency
+
+The application now separates account currency from display currency. Account currency is the native currency stored on an account or transaction. Display currency is the top-level UI preference used for aggregate values on the dashboard, analytics, accounts, calculators, exports, and AI context.
+
+Supported display currencies: `RUB`, `USD`, `EUR`.
+
+Defaults:
+
+- Russian locale: `RUB`.
+- English locale: `USD`.
+- A saved user selection in `localStorage` takes priority over locale defaults.
+
+The top bar includes a compact display-currency switcher next to the language/theme/profile controls. Switching currency updates TanStack Query keys for analytics so dashboard and analytics totals are refetched in the selected currency. Account rows keep native values visible and show an approximate converted value when conversion is needed.
+
+The dashboard includes a CBR exchange-rate widget for `USD/RUB`, `EUR/RUB`, and optional reference currencies. It uses `/api/currency/rates?symbols=USD,EUR,CNY`, Redis/in-memory caching, stale badges, and a reference-rate note. CBR rates are official reference rates and may differ from broker or bank execution rates.
+
+Display currency conversion is numeric, not cosmetic. The app must never change only the currency label for a monetary value. For example, `21 588.75 USD` displayed in `RUB` is converted through the currency layer and becomes approximately `1 942 987.50 RUB` when USD/RUB is `90`; it must not be rendered as `21 588.75 RUB`.
+
+Cross-currency conversion is routed through RUB because CBR rates are RUB-based:
+
+```text
+rubPerUnit = value / nominal
+foreignToRub = amount * rubPerUnit
+rubToForeign = amount / rubPerUnit
+crossCurrency = source foreign -> RUB -> target foreign
+```
+
+If a rate is missing, the app shows the original amount and a warning, or excludes that row from converted aggregates and marks the result partial/unavailable. It does not invent rates or silently relabel the number.

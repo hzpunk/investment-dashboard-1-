@@ -2,6 +2,12 @@ import "server-only"
 
 import { prisma } from "@/lib/prisma"
 import { buildProjectionScenarios } from "@/lib/finance"
+import { ALL_ACCOUNTS_SCOPE, type AccountScope } from "@/lib/accounts/account-scope"
+import { resolveAccountScopeForUser } from "@/lib/accounts/account-scope.server"
+import { normalizeDisplayCurrency } from "@/lib/currency/display-currency"
+import { convertMoney } from "@/lib/currency/conversion"
+import { getCbrCurrencyRates } from "@/lib/currency/rates"
+import { buildAnalyticsDto } from "@/lib/services/analytics"
 import { cryptoIdMap, getCryptoPricesServer } from "@/lib/services/market-data"
 import { getPortfolioSummary } from "@/lib/services/portfolio-summary"
 
@@ -33,6 +39,23 @@ type HoldingContext = {
 
 export type AIPortfolioContext = {
   generatedAt: string
+  selectedAccountScope: {
+    type: "all" | "single"
+    accountId: string | null
+    accountName: string | null
+    displayCurrency: string
+    baseCurrency: string
+    conversionStatus: "not_required" | "converted" | "partial" | "unavailable"
+    rateSource: "CBR"
+    rateDate: string | null
+  }
+  currencyRatesSummary: {
+    displayCurrency: string
+    source: "CBR"
+    status: "not_required" | "available" | "partial" | "unavailable"
+    note: string
+  }
+  conversionWarnings: string[]
   dataAvailability: {
     accounts: ContextStatus
     holdings: ContextStatus
@@ -46,6 +69,11 @@ export type AIPortfolioContext = {
     type: string
     balance: number
     currency: string
+    balanceOriginal: { amount: number; currency: string }
+    balanceDisplay: { amount: number; currency: string } | null
+    conversionStatus: "same-currency" | "converted" | "unavailable"
+    rateSource: "CBR" | "same-currency" | null
+    rateDate: string | null
   }>
   portfolioSummary: {
     totalValue: number
@@ -307,16 +335,29 @@ function buildRiskSignals(holdings: HoldingContext[], totalValue: number) {
   return signals
 }
 
-export async function buildAIPortfolioContext(userId: string, userMessage: string): Promise<AIPortfolioContext> {
-  const [accounts, portfolioSummary, portfolioAssets, recentTransactions, costTransactions] = await Promise.all([
+export async function buildAIPortfolioContext(
+  userId: string,
+  userMessage: string,
+  inputScope: AccountScope = ALL_ACCOUNTS_SCOPE,
+  inputDisplayCurrency?: string,
+): Promise<AIPortfolioContext> {
+  const displayCurrency = normalizeDisplayCurrency(inputDisplayCurrency, "RUB")
+  const accountScope = await resolveAccountScopeForUser(userId, inputScope.type === "single" ? inputScope.accountId : "all")
+  const transactionWhere = accountScope.transactionWhere
+  const accountWhere = accountScope.accountWhere
+  const now = new Date()
+  const analyticsFromDate = new Date(now)
+  analyticsFromDate.setUTCFullYear(analyticsFromDate.getUTCFullYear() - 1)
+
+  const [accounts, portfolioSummary, portfolioAssets, recentTransactions, costTransactions, analyticsContext] = await Promise.all([
     prisma.account.findMany({
-      where: { userId },
+      where: { userId, ...accountWhere },
       select: { id: true, name: true, type: true, balance: true, currency: true },
       orderBy: { createdAt: "desc" },
     }),
-    getPortfolioSummary(userId),
+    getPortfolioSummary(userId, accountScope),
     prisma.portfolioAsset.findMany({
-      where: { portfolio: { userId } },
+      where: accountScope.type === "single" ? { portfolioId: "__account_scoped_positions_are_transaction_derived__" } : { portfolio: { userId } },
       select: {
         assetId: true,
         quantity: true,
@@ -334,7 +375,7 @@ export async function buildAIPortfolioContext(userId: string, userMessage: strin
       },
     }),
     prisma.transaction.findMany({
-      where: { userId },
+      where: { userId, ...transactionWhere },
       orderBy: { date: "desc" },
       take: MAX_TRANSACTIONS_IN_CONTEXT,
       select: {
@@ -350,6 +391,7 @@ export async function buildAIPortfolioContext(userId: string, userMessage: strin
     prisma.transaction.findMany({
       where: {
         userId,
+        ...transactionWhere,
         type: { in: ["buy", "sell"] },
         assetId: { not: null },
       },
@@ -372,6 +414,12 @@ export async function buildAIPortfolioContext(userId: string, userMessage: strin
           },
         },
       },
+    }),
+    buildAnalyticsDto(userId, {
+      fromDate: analyticsFromDate,
+      toDate: now,
+      accountScope,
+      displayCurrency,
     }),
   ])
 
@@ -453,9 +501,23 @@ export async function buildAIPortfolioContext(userId: string, userMessage: strin
     })
   }
 
-  const holdings = Array.from(holdingsByAsset.values())
+  const rawHoldings = Array.from(holdingsByAsset.values())
     .sort((a, b) => b.value - a.value)
     .slice(0, MAX_HOLDINGS_IN_CONTEXT)
+  const convertedAnalyticsHoldings: HoldingContext[] = analyticsContext.positions.slice(0, MAX_HOLDINGS_IN_CONTEXT).map((position) => ({
+    symbol: position.symbol,
+    name: position.name,
+    type: position.type,
+    quantity: position.quantity,
+    averagePrice: roundNumber(position.averageBuyPrice),
+    currentPrice: roundNumber(position.currentPrice),
+    currentPriceUpdatedAt: position.updatedAt,
+    value: roundNumber(position.marketValue) ?? position.marketValue,
+    pnl: roundNumber(position.unrealizedPnL),
+    pnlPercent: roundNumber(position.unrealizedPnLPercent),
+    currency: analyticsContext.currency.baseCurrency,
+  }))
+  const holdings = convertedAnalyticsHoldings.length > 0 ? convertedAnalyticsHoldings : rawHoldings
 
   const totalValue = holdings.reduce((sum, holding) => sum + holding.value, 0)
   const allocationByAssetType = Array.from(
@@ -538,9 +600,61 @@ export async function buildAIPortfolioContext(userId: string, userMessage: strin
   if (marketDataStatus !== "available") {
     notes.push("Some requested or relevant market prices are missing or stale; do not invent current prices.")
   }
+  const accountCurrencies = accounts.map((account) => (account.currency || displayCurrency).toUpperCase())
+  const needsAccountConversion = accountCurrencies.some((currency) => currency !== displayCurrency)
+  const accountRates = needsAccountConversion ? await getCbrCurrencyRates(now) : null
+  const accountsWithDisplayMoney = accounts.map((account) => {
+    const originalCurrency = (account.currency || displayCurrency).toUpperCase()
+    const balanceOriginal = { amount: account.balance, currency: originalCurrency }
+    if (originalCurrency === displayCurrency) {
+      return {
+        ...account,
+        balanceOriginal,
+        balanceDisplay: { amount: account.balance, currency: displayCurrency },
+        conversionStatus: "same-currency" as const,
+        rateSource: "same-currency" as const,
+        rateDate: null,
+      }
+    }
+
+    const converted = accountRates
+      ? convertMoney(balanceOriginal, displayCurrency, accountRates.rates, { stale: accountRates.stale })
+      : null
+
+    return {
+      ...account,
+      balanceOriginal,
+      balanceDisplay: converted && !converted.error ? converted.converted : null,
+      conversionStatus: converted && !converted.error ? ("converted" as const) : ("unavailable" as const),
+      rateSource: converted && !converted.error ? ("CBR" as const) : null,
+      rateDate: converted && !converted.error ? converted.rateDate ?? accountRates?.date ?? null : null,
+    }
+  })
 
   return {
     generatedAt: new Date().toISOString(),
+    selectedAccountScope: {
+      type: accountScope.type,
+      accountId: accountScope.accountId,
+      accountName: accountScope.account?.name ?? null,
+      displayCurrency,
+      baseCurrency: displayCurrency,
+      conversionStatus: analyticsContext.currency.conversionStatus,
+      rateSource: "CBR",
+      rateDate: analyticsContext.currency.rateDate,
+    },
+    currencyRatesSummary: {
+      displayCurrency,
+      source: "CBR",
+      status:
+        analyticsContext.currency.conversionStatus === "not_required"
+          ? "not_required"
+          : analyticsContext.currency.conversionStatus === "converted"
+            ? "available"
+            : analyticsContext.currency.conversionStatus,
+      note: "Never treat a numeric amount as another currency without conversion. If conversion details are unavailable, say that conversion is unavailable.",
+    },
+    conversionWarnings: analyticsContext.currency.warnings,
     dataAvailability: {
       accounts: accounts.length > 0 ? "available" : "empty",
       holdings: holdings.length > 0 ? "available" : "empty",
@@ -548,21 +662,45 @@ export async function buildAIPortfolioContext(userId: string, userMessage: strin
       marketData: marketDataStatus,
       notes,
     },
-    accounts: accounts.map((account) => ({
+    accounts: accountsWithDisplayMoney.map((account) => ({
       id: account.id,
       name: account.name,
       type: account.type,
       balance: roundNumber(account.balance) ?? account.balance,
       currency: account.currency,
+      balanceOriginal: {
+        amount: roundNumber(account.balanceOriginal.amount) ?? account.balanceOriginal.amount,
+        currency: account.balanceOriginal.currency,
+      },
+      balanceDisplay: account.balanceDisplay
+        ? {
+            amount: roundNumber(account.balanceDisplay.amount) ?? account.balanceDisplay.amount,
+            currency: account.balanceDisplay.currency,
+          }
+        : null,
+      conversionStatus: account.conversionStatus,
+      rateSource: account.rateSource,
+      rateDate: account.rateDate,
     })),
     portfolioSummary: {
-      totalValue: roundNumber(totalValue) ?? totalValue,
-      currency: getSingleCurrency(holdings.map((holding) => holding.currency)),
-      cashBalances: groupCurrencyBalances(accounts),
-      totalPnL: roundNumber(totalPnL),
-      totalPnLPercent: totalCost && totalCost > 0 && totalPnL !== null ? roundNumber((totalPnL / totalCost) * 100) : null,
-      allocationByAssetType,
-      allocationByCurrency,
+      totalValue: roundNumber(analyticsContext.summary.totalPortfolioValue) ?? analyticsContext.summary.totalPortfolioValue,
+      currency: analyticsContext.currency.baseCurrency,
+      cashBalances: accountsWithDisplayMoney.map((account) => ({
+        currency: account.balanceDisplay?.currency ?? account.balanceOriginal.currency,
+        balance: roundNumber(account.balanceDisplay?.amount ?? 0) ?? 0,
+      })),
+      totalPnL: roundNumber(analyticsContext.summary.totalPnL),
+      totalPnLPercent: roundNumber(analyticsContext.summary.pnlPercent),
+      allocationByAssetType: analyticsContext.allocation.byType.map((item) => ({
+        type: item.label,
+        value: item.value,
+        percent: item.percent,
+      })),
+      allocationByCurrency: analyticsContext.allocation.byCurrency.map((item) => ({
+        currency: item.label,
+        value: item.value,
+        percent: item.percent,
+      })),
       allocationBySector: "not_available",
       source: portfolioSummary.source,
     },

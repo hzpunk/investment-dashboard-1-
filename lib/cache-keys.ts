@@ -37,4 +37,5 @@ export const cacheKeys = {
     `${cachePrefix}:market:historical:${safeSegment(symbol.toUpperCase())}:${safeSegment(type)}:${safeSegment(timeframe)}`,
   marketStockPrice: (symbol: string) => `${cachePrefix}:market:stock:${safeSegment(symbol.toUpperCase())}`,
   marketAll: () => `${cachePrefix}:market:*`,
+  currencyRatesCbr: (date: string) => `${cachePrefix}:currency:rates:cbr:${safeSegment(date)}`,
 }

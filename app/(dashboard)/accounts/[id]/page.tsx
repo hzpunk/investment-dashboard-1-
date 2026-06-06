@@ -216,6 +216,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="RUB">RUB</SelectItem>
                     <SelectItem value="EUR">EUR</SelectItem>
                     <SelectItem value="GBP">GBP</SelectItem>
                     <SelectItem value="JPY">JPY</SelectItem>

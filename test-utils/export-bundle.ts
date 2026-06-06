@@ -25,6 +25,16 @@ export function sampleExportBundle(overrides: Partial<ExportDataBundle> = {}): E
       orientation: "portrait",
       options: defaultExportOptions,
       warnings: [],
+      accountScope: {
+        type: "all",
+        accountId: null,
+        accountName: null,
+        accountCurrency: null,
+        baseCurrency: "USD",
+        conversionWarnings: [],
+        rateSource: "CBR",
+        rateDate: null,
+      },
     },
     user: {
       email: "user@example.com",

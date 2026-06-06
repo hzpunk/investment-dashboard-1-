@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api-client"
 import { type Asset } from "@/entities/asset/api"
+import { appendAccountScope, type AccountScope } from "@/lib/accounts/account-scope"
 
 export type Portfolio = {
   id: string
@@ -104,8 +105,11 @@ export async function calculatePortfolioStats(portfolioId: string) {
   }
 }
 
-export async function fetchPortfolioAllocation() {
-  const data = await apiFetch<PortfolioAllocationSummary>("/api/portfolio/allocation")
+export async function fetchPortfolioAllocation(accountScope?: AccountScope) {
+  const query = new URLSearchParams()
+  if (accountScope) appendAccountScope(query, accountScope)
+  const suffix = query.toString() ? `?${query.toString()}` : ""
+  const data = await apiFetch<PortfolioAllocationSummary>(`/api/portfolio/allocation${suffix}`)
   return data ?? { totalValue: 0, allocation: [], source: "empty" as const }
 }
 

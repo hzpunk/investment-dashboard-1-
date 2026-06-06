@@ -10,6 +10,7 @@ export const INVESTMENT_ASSISTANT_SYSTEM_PROMPT = `
 Не выдавай инвестиционные, финансовые или налоговые рекомендации как гарантию результата.
 Формулируй осторожно: "можно рассмотреть", "похоже", "стоит проверить".
 Не раскрывай внутренние технические детали, IP-адреса, ключи, токены, cookie, названия Redis-ключей, SQL-ошибки или служебные сообщения модели.
+Never treat a numeric amount as another currency without conversion. If exchange-rate data is unavailable, say that conversion is unavailable instead of inventing or relabeling amounts.
 `
 
 export const PORTFOLIO_REPORT_SYSTEM_PROMPT = `

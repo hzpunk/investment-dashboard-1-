@@ -189,7 +189,20 @@
     "detailsDescription": "Просмотр и обновление данных счёта.",
     "transactionsDescription": "Все транзакции по этому счёту.",
     "noTransactions": "Для этого счёта транзакции не найдены.",
-    "viewAllTransactions": "Показать все транзакции"
+    "viewAllTransactions": "Показать все транзакции",
+    "allAccounts": "Все счета",
+    "allAccountsDescription": "Сводные данные по всем счетам пользователя.",
+    "currentScope": "Текущий счёт",
+    "selectScope": "Выберите счёт",
+    "selectAccount": "Выбрать счёт",
+    "activeAccount": "Активный счёт",
+    "activeAccountDescription": "Счёт, который сейчас используется для дашборда, аналитики, транзакций и экспорта.",
+    "scopeValue": "Стоимость счёта",
+    "assetsCount": "Количество активов",
+    "lastTransaction": "Последняя транзакция",
+    "exportAccount": "Экспорт счёта",
+    "openAnalytics": "Открыть аналитику",
+    "openDashboard": "Открыть дашборд"
   },
   "assets": {
     "title": "Активы",
@@ -676,7 +689,11 @@
       "EXPORT_QR_FAILED": "Не удалось сформировать QR-код для отчёта.",
       "EXPORT_CHART_SNAPSHOT_FAILED": "Не удалось подготовить снимок графика для выгрузки.",
       "EXPORT_FONT_FAILED": "Не удалось загрузить шрифт для формирования документа.",
-      "EXPORT_CHART_RENDER_FAILED": "Не удалось отрисовать график для выгрузки."
+      "EXPORT_CHART_RENDER_FAILED": "Не удалось отрисовать график для выгрузки.",
+      "ACCOUNT_NOT_FOUND": "Счёт не найден.",
+      "ACCOUNT_ACCESS_DENIED": "У вас нет доступа к этому счёту.",
+      "CURRENCY_RATE_UNAVAILABLE": "Курс валюты недоступен.",
+      "CURRENCY_CONVERSION_FAILED": "Не удалось выполнить конвертацию валюты."
     }
   },
   "aiAssistant": {
@@ -1112,7 +1129,8 @@
       "includeEmptySections": "Показывать пустые разделы",
       "compactMode": "Компактный режим",
       "detailedMode": "Подробный JSON",
-      "exportAudienceTechnical": "Техническая выгрузка"
+      "exportAudienceTechnical": "Техническая выгрузка",
+      "includeCbrRates": "Включить курсы валют ЦБ"
     },
     "preview": {
       "button": "Предпросмотр",
@@ -1173,7 +1191,11 @@
       "EXPORT_QR_FAILED": "Не удалось сформировать QR-код отчёта.",
       "EXPORT_CHART_SNAPSHOT_FAILED": "Не удалось подготовить снимок графика для выгрузки.",
       "EXPORT_FONT_FAILED": "Не удалось загрузить шрифт для формирования документа.",
-      "EXPORT_CHART_RENDER_FAILED": "Не удалось отрисовать график для выгрузки."
+      "EXPORT_CHART_RENDER_FAILED": "Не удалось отрисовать график для выгрузки.",
+      "ACCOUNT_NOT_FOUND": "Счёт не найден.",
+      "ACCOUNT_ACCESS_DENIED": "У вас нет доступа к этому счёту.",
+      "CURRENCY_RATE_UNAVAILABLE": "Курс валюты недоступен.",
+      "CURRENCY_CONVERSION_FAILED": "Не удалось выполнить конвертацию валюты."
     },
     "warnings": {
       "title": "Предупреждения",
@@ -1183,6 +1205,42 @@
       "FORMAT_EXPERIMENTAL:ods": "ODS выгружается в экспериментальном режиме.",
       "FORMAT_EXPERIMENTAL:xml": "XML выгружается в экспериментальном режиме.",
       "ADMIN_SECTION_SKIPPED:auditLogSummary": "Журнал действий пропущен: раздел доступен только администраторам."
+    },
+    "accountScope": {
+      "description": "Выберите, экспорт по какому счёту нужно сформировать.",
+      "selected": "Выбран счёт",
+      "all": "Будут экспортированы все счета"
+    }
+  },
+  "currency": {
+    "rub": "Российский рубль",
+    "rates": {
+      "title": "Курсы валют ЦБ",
+      "source": "Банк России",
+      "sourceCbr": "Центральный банк России",
+      "unavailable": "Курсы валют недоступны.",
+      "unavailableShort": "Курс недоступен",
+      "stale": "Используется сохраненный справочный курс, потому что свежий курс недоступен.",
+      "staleShort": "Устаревший курс",
+      "updatedAt": "Дата",
+      "referenceNote": "Справочный курс ЦБ, не является курсом покупки/продажи брокера или банка.",
+      "perNominal": "за {nominal} ед."
+    },
+    "displayCurrency": "Валюта отображения",
+    "switcher": {
+      "label": "Валюта отображения"
+    },
+    "conversion": {
+      "converted": "Пересчитано",
+      "partial": "Часть данных не была пересчитана из-за отсутствия курса валют.",
+      "partialShort": "Частичный пересчет",
+      "unavailable": "Пересчет валют недоступен: не удалось получить курсы.",
+      "sameCurrency": "Пересчет не требуется",
+      "historicalApproximate": "График пересчитан по справочному курсу. Историческая доходность может отличаться при использовании курса на дату операции."
+    },
+    "errors": {
+      "CURRENCY_RATE_UNAVAILABLE": "Курс валют недоступен",
+      "CURRENCY_CONVERSION_FAILED": "Не удалось пересчитать валюты"
     }
   }
 }

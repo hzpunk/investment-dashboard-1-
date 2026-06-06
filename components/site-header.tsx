@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
 import { useI18n } from "@/contexts/i18n-context"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { CurrencySwitcher } from "@/components/currency-switcher"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
 import {
@@ -41,6 +42,7 @@ export function SiteHeader({ onMenuToggle }: SiteHeaderProps) {
         </div>
         <div className="ml-auto flex items-center gap-2">
           <NotificationsDropdown />
+          <CurrencySwitcher />
           <LanguageSwitcher />
           <ModeToggle />
           <DropdownMenu>

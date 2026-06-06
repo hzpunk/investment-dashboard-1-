@@ -5,6 +5,7 @@ import { collectExportData } from "@/lib/export/collect-export-data"
 import { getPublicAppUrl } from "@/lib/export/app-link"
 import { normalizeExportRequest } from "@/lib/export/formatters"
 import { generateQrCodeAssets } from "@/lib/export/qr-code"
+import { resolveAccountScopeForUser } from "@/lib/accounts/account-scope.server"
 import type { AuthenticatedUser } from "@/lib/api-handler"
 import type { ExportDataBundle, ExportValidationResult } from "@/lib/export/types"
 
@@ -38,6 +39,10 @@ export async function prepareExportBundle(
   }
 
   const appUrl = getPublicAppUrl(request)
+  const resolvedAccountScope = await resolveAccountScopeForUser(
+    user.id,
+    validation.request.accountScope.type === "single" ? validation.request.accountScope.accountId : "all",
+  )
   const warnings = [...validation.warnings]
   let qr: Awaited<ReturnType<typeof generateQrCodeAssets>> = { dataUrl: null, svg: null }
 
@@ -56,6 +61,7 @@ export async function prepareExportBundle(
     userId: user.id,
     user,
     request: validation.request,
+    accountScope: resolvedAccountScope,
     appUrl,
     qrCodeDataUrl: qr.dataUrl,
     qrCodeSvg: qr.svg,

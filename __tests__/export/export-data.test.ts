@@ -14,6 +14,15 @@ jest.mock("@/lib/services/analytics", () => ({
   buildAnalyticsDto: jest.fn(),
 }))
 
+jest.mock("@/lib/currency/rates", () => ({
+  getCbrCurrencyRates: jest.fn(async () => ({
+    date: "2026-06-04",
+    source: "CBR",
+    stale: false,
+    rates: [{ base: "RUB", quote: "USD", value: 90, nominal: 1, date: "2026-06-04", source: "CBR" }],
+  })),
+}))
+
 import { prisma } from "@/lib/prisma"
 import { buildAnalyticsDto } from "@/lib/services/analytics"
 import { collectExportData } from "@/lib/export/collect-export-data"
@@ -102,6 +111,13 @@ describe("export data collector", () => {
       userId: "user-1",
       user: { id: "user-1", email: "user@example.com", role: "user" },
       request: validation.request,
+      accountScope: {
+        type: "all",
+        accountId: null,
+        account: null,
+        transactionWhere: {},
+        accountWhere: {},
+      },
       appUrl: "https://app.example.com",
       qrCodeDataUrl: null,
       qrCodeSvg: null,

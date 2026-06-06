@@ -8,6 +8,7 @@ import { validateHistory, validateMessage } from "@/lib/validation"
 import { findEducationalContext } from "@/lib/ai/knowledge-base"
 import { AIClientError, createChatCompletion, type OpenAICompatibleMessage } from "@/lib/ai/openai-compatible-client"
 import { buildAIPortfolioContext, getAIContextStatus } from "@/lib/ai/portfolio-context"
+import { normalizeAccountScope } from "@/lib/accounts/account-scope"
 import {
   compactSystemContext,
   removeDuplicateFinalUserMessage,
@@ -34,6 +35,9 @@ type ChatRequestBody = {
   message?: unknown
   messages?: unknown
   history?: unknown
+  accountScope?: unknown
+  accountId?: unknown
+  displayCurrency?: unknown
 }
 
 function getUserMessage(body: ChatRequestBody, conversation: OpenAICompatibleMessage[]) {
@@ -148,7 +152,12 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     contextStatus = unavailableContextStatus()
 
     try {
-      const builtContext = await buildAIPortfolioContext(user.id, userMessage)
+      const builtContext = await buildAIPortfolioContext(
+        user.id,
+        userMessage,
+        normalizeAccountScope(body.accountScope ?? body.accountId),
+        typeof body.displayCurrency === "string" ? body.displayCurrency : undefined,
+      )
       portfolioContext = builtContext
       contextStatus = getAIContextStatus(builtContext)
     } catch (contextError) {

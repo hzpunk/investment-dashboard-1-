@@ -1,6 +1,12 @@
 import "server-only"
 
 import { prisma } from "@/lib/prisma"
+import { ALL_ACCOUNTS_SCOPE, type AccountScope } from "@/lib/accounts/account-scope"
+import { accountScopeCachePart } from "@/lib/accounts/account-scope.server"
+import { convertMoney } from "@/lib/currency/conversion"
+import { normalizeDisplayCurrency } from "@/lib/currency/display-currency"
+import { getCbrCurrencyRates } from "@/lib/currency/rates"
+import type { CurrencyRatesResult } from "@/lib/currency/types"
 import {
   buildPerformancePeriods,
   buildProjectionScenarios,
@@ -22,6 +28,8 @@ type BuildAnalyticsOptions = {
   fromDate: Date
   toDate: Date
   portfolioId?: string | null
+  accountScope?: AccountScope
+  displayCurrency?: string
 }
 
 function mapPortfolioAssets(rows: Array<{
@@ -159,13 +167,94 @@ function buildProjectionDefaults(totalPortfolioValue: number): AnalyticsProjecti
   }
 }
 
+function requiresConversion(currencies: Array<string | null | undefined>, baseCurrency: string) {
+  return currencies.some((currency) => currency && currency.toUpperCase() !== baseCurrency)
+}
+
+function convertAmount(value: number | null | undefined, currency: string | null | undefined, baseCurrency: string, rates: CurrencyRatesResult | null) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return { amount: 0, converted: false, failed: false }
+  const sourceCurrency = (currency || baseCurrency).toUpperCase()
+  if (sourceCurrency === baseCurrency) return { amount: numeric, converted: false, failed: false }
+  if (!rates) return { amount: 0, converted: false, failed: true }
+  const converted = convertMoney({ amount: numeric, currency: sourceCurrency }, baseCurrency, rates.rates, { stale: rates.stale })
+  if (converted.error) return { amount: 0, converted: false, failed: true }
+  return { amount: converted.converted.amount, converted: true, failed: false }
+}
+
+function convertPortfolioAssets(positions: PortfolioAssetInput[], baseCurrency: string, rates: CurrencyRatesResult | null) {
+  let converted = 0
+  let failed = 0
+  const values = positions.map((position) => {
+    const currentPrice = convertAmount(Number(position.currentPrice ?? 0), position.currency, baseCurrency, rates)
+    const averageBuyPrice = convertAmount(Number(position.averageBuyPrice ?? 0), position.currency, baseCurrency, rates)
+    if (currentPrice.converted || averageBuyPrice.converted) converted += 1
+    if (currentPrice.failed || averageBuyPrice.failed) failed += 1
+    return {
+      ...position,
+      currentPrice: currentPrice.amount,
+      averageBuyPrice: averageBuyPrice.amount,
+      currency: currentPrice.failed ? position.currency : baseCurrency,
+    }
+  })
+  return { values, converted, failed }
+}
+
+function convertTransactions(transactions: FinanceTransactionInput[], baseCurrency: string, rates: CurrencyRatesResult | null) {
+  let converted = 0
+  let failed = 0
+  const values = transactions.map((transaction) => {
+    const amount = convertAmount(Number(transaction.totalAmount ?? 0), transaction.currency, baseCurrency, rates)
+    const fee = convertAmount(Number(transaction.fee ?? 0), transaction.currency, baseCurrency, rates)
+    const price = convertAmount(Number(transaction.pricePerUnit ?? 0), transaction.currency, baseCurrency, rates)
+    const assetPrice = transaction.asset
+      ? convertAmount(Number(transaction.asset.currentPrice ?? 0), transaction.asset.currency ?? transaction.currency, baseCurrency, rates)
+      : null
+    if (amount.converted || fee.converted || price.converted || assetPrice?.converted) converted += 1
+    if (amount.failed || fee.failed || price.failed || assetPrice?.failed) failed += 1
+    return {
+      ...transaction,
+      totalAmount: amount.amount,
+      fee: fee.amount,
+      pricePerUnit: transaction.pricePerUnit === null || transaction.pricePerUnit === undefined ? transaction.pricePerUnit : price.amount,
+      currency: amount.failed ? transaction.currency : baseCurrency,
+      asset: transaction.asset
+        ? {
+            ...transaction.asset,
+            currentPrice: assetPrice?.amount ?? Number(transaction.asset.currentPrice ?? 0),
+            currency: assetPrice?.failed ? transaction.asset.currency : baseCurrency,
+          }
+        : transaction.asset,
+    }
+  })
+  return { values, converted, failed }
+}
+
+function convertAccountBalances(accounts: AccountBalanceInput[], baseCurrency: string, rates: CurrencyRatesResult | null) {
+  let converted = 0
+  let failed = 0
+  const values = accounts.map((account) => {
+    const balance = convertAmount(Number(account.balance ?? 0), account.currency, baseCurrency, rates)
+    if (balance.converted) converted += 1
+    if (balance.failed) failed += 1
+    return {
+      balance: balance.amount,
+      currency: balance.failed ? account.currency : baseCurrency,
+    }
+  })
+  return { values, converted, failed }
+}
+
 export async function buildAnalyticsDto(userId: string, options: BuildAnalyticsOptions): Promise<AnalyticsDto> {
-  const { fromDate, toDate, portfolioId } = options
+  const { fromDate, toDate, portfolioId, accountScope = ALL_ACCOUNTS_SCOPE } = options
+  const accountFilter = accountScope.type === "single" ? { accountId: accountScope.accountId } : {}
+  const accountWhere = accountScope.type === "single" ? { userId, id: accountScope.accountId } : { userId }
 
   const [portfolioAssets, transactionsRaw, accounts, portfoliosCount] = await Promise.all([
     prisma.portfolioAsset.findMany({
       where: {
         quantity: { gt: 0 },
+        ...(accountScope.type === "single" ? { portfolioId: "__account_scoped_positions_are_transaction_derived__" } : {}),
         portfolio: {
           userId,
           ...(portfolioId ? { id: portfolioId } : {}),
@@ -190,6 +279,7 @@ export async function buildAnalyticsDto(userId: string, options: BuildAnalyticsO
     prisma.transaction.findMany({
       where: {
         userId,
+        ...accountFilter,
         date: { lte: toDate },
       },
       select: {
@@ -218,7 +308,7 @@ export async function buildAnalyticsDto(userId: string, options: BuildAnalyticsO
       take: 5000,
     }),
     prisma.account.findMany({
-      where: { userId },
+      where: accountWhere,
       select: { balance: true, currency: true },
     }),
     prisma.portfolio.count({ where: { userId } }),
@@ -226,17 +316,49 @@ export async function buildAnalyticsDto(userId: string, options: BuildAnalyticsO
 
   void portfoliosCount
 
-  const transactions = mapTransactions(transactionsRaw)
-  const transactionPositions = derivePositionsFromTransactions(transactions)
-  const sourcePositions = combinePositionSources(mapPortfolioAssets(portfolioAssets), transactionPositions)
-  const accountBalances: AccountBalanceInput[] = accounts.map((account) => ({
+  const rawTransactions = mapTransactions(transactionsRaw)
+  const rawPortfolioPositions = mapPortfolioAssets(portfolioAssets)
+  const rawAccountBalances: AccountBalanceInput[] = accounts.map((account) => ({
     balance: account.balance,
     currency: account.currency,
   }))
+  const baseCurrency = normalizeDisplayCurrency(options.displayCurrency, "RUB")
+  const needsRates = requiresConversion(
+    [
+      ...rawTransactions.map((transaction) => transaction.currency),
+      ...rawPortfolioPositions.map((position) => position.currency),
+      ...rawAccountBalances.map((account) => account.currency),
+    ],
+    baseCurrency,
+  )
+  const rates = needsRates ? await getCbrCurrencyRates(toDate) : null
+  const convertedPortfolioPositions = convertPortfolioAssets(rawPortfolioPositions, baseCurrency, rates)
+  const convertedTransactions = convertTransactions(rawTransactions, baseCurrency, rates)
+  const convertedAccounts = convertAccountBalances(rawAccountBalances, baseCurrency, rates)
+  const transactions = convertedTransactions.values
+  const transactionPositions = derivePositionsFromTransactions(transactions)
+  const sourcePositions = combinePositionSources(convertedPortfolioPositions.values, transactionPositions)
+  const accountBalances = convertedAccounts.values
+  const convertedCount = convertedPortfolioPositions.converted + convertedTransactions.converted + convertedAccounts.converted
+  const failedCount = convertedPortfolioPositions.failed + convertedTransactions.failed + convertedAccounts.failed
   const metrics = calculatePortfolioMetrics(sourcePositions.positions, transactions, accountBalances)
   const points = derivePerformanceSeriesFromTransactions(transactions, metrics.positions, toDate)
   const byPeriod = buildPerformancePeriods(points, toDate)
   const returnMetrics = calculateReturnMetrics(points)
+  const hasUsableConvertedValue = metrics.totalPortfolioValue > 0 || metrics.cashBalance > 0 || metrics.totalInvestedAmount > 0 || convertedCount > 0
+  const conversionStatus =
+    !needsRates
+      ? "not_required"
+      : failedCount > 0 && hasUsableConvertedValue
+        ? "partial"
+        : failedCount > 0
+          ? "unavailable"
+          : "converted"
+  const conversionWarnings = [
+    ...(failedCount > 0 ? ["CURRENCY_RATE_UNAVAILABLE"] : []),
+    ...(rates?.stale ? ["CURRENCY_RATE_STALE"] : []),
+    ...(convertedCount > 0 && points.length > 1 ? ["CURRENCY_HISTORICAL_CONVERSION_APPROXIMATE"] : []),
+  ]
 
   return {
     summary: {
@@ -283,6 +405,20 @@ export async function buildAnalyticsDto(userId: string, options: BuildAnalyticsO
     period: {
       from: fromDate.toISOString(),
       to: toDate.toISOString(),
+    },
+    currency: {
+      baseCurrency,
+      conversionApplied: convertedCount > 0,
+      conversionStatus,
+      rateSource: "CBR",
+      rateDate: rates?.date ?? null,
+      stale: Boolean(rates?.stale),
+      warnings: conversionWarnings,
+    },
+    accountScope: {
+      type: accountScope.type,
+      accountId: accountScope.type === "single" ? accountScope.accountId : null,
+      key: accountScopeCachePart(accountScope),
     },
   }
 }

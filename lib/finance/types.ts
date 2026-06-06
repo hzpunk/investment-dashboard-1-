@@ -228,4 +228,18 @@ export type AnalyticsDto = {
     from: string
     to: string
   }
+  currency: {
+    baseCurrency: string
+    conversionApplied: boolean
+    conversionStatus: "not_required" | "converted" | "partial" | "unavailable"
+    rateSource: "CBR"
+    rateDate: string | null
+    stale: boolean
+    warnings: string[]
+  }
+  accountScope?: {
+    type: "all" | "single"
+    accountId: string | null
+    key: string
+  }
 }

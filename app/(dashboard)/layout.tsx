@@ -5,6 +5,7 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
+import { AccountProvider } from "@/contexts/account-context"
 import { SiteHeader } from "@/components/site-header"
 import { Sidebar } from "@/components/sidebar"
 
@@ -36,13 +37,15 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-      <div className="flex flex-1">
-        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="flex-1 p-4 md:p-6 w-full overflow-x-hidden">{children}</main>
+    <AccountProvider>
+      <div className="flex min-h-screen flex-col">
+        <SiteHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+        <div className="flex flex-1">
+          <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+          <main className="flex-1 p-4 md:p-6 w-full overflow-x-hidden">{children}</main>
+        </div>
       </div>
-    </div>
+    </AccountProvider>
   )
 }
 

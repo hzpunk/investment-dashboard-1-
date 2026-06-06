@@ -1,5 +1,6 @@
 import { createLogger } from "@/lib/logger"
 import { apiFetch } from "@/lib/api-client"
+import { appendAccountScope, type AccountScope } from "@/lib/accounts/account-scope"
 import type { AnalyticsDto } from "@/lib/finance"
 import type { PerformancePeriod, PortfolioPerformancePoint } from "@/lib/finance"
 
@@ -7,11 +8,13 @@ const logger = createLogger("AnalyticsAPI")
 
 export type { AnalyticsDto }
 
-export async function fetchAnalytics(params: { from?: string; to?: string; portfolioId?: string } = {}) {
+export async function fetchAnalytics(params: { from?: string; to?: string; portfolioId?: string; accountScope?: AccountScope; displayCurrency?: string } = {}) {
   const query = new URLSearchParams()
   if (params.from) query.set("from", params.from)
   if (params.to) query.set("to", params.to)
   if (params.portfolioId) query.set("portfolioId", params.portfolioId)
+  if (params.displayCurrency) query.set("currency", params.displayCurrency)
+  if (params.accountScope) appendAccountScope(query, params.accountScope)
 
   const suffix = query.toString() ? `?${query.toString()}` : ""
   return apiFetch<AnalyticsDto>(`/api/analytics${suffix}`)

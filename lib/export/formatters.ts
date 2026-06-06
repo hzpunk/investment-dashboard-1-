@@ -26,6 +26,7 @@ import {
   formatDateTime as formatDisplayDateTime,
 } from "@/lib/format/date"
 import { EXPORT_FIELD_LABELS, fieldLabel, sectionLabel, type ExportFieldKey } from "@/lib/export/presentation/labels"
+import { normalizeAccountScope } from "@/lib/accounts/account-scope"
 
 const secretKeyPattern = /(password|token|secret|cookie|session|api[_-]?key|database[_-]?url|auth)/i
 const financialFormats = new Set<ExportFormat>(["qif", "ofx", "mt940", "camt053"])
@@ -108,9 +109,19 @@ export function normalizeExportRequest(input: unknown, now = new Date()): Export
         exportAudience: options.exportAudience,
       },
       chartSnapshots: chartSnapshotsValidation.chartSnapshots,
+      accountScope: normalizeRequestAccountScope((body as { accountScope?: unknown; accountId?: unknown }).accountScope ?? (body as { accountId?: unknown }).accountId),
     },
     warnings,
   }
+}
+
+function normalizeRequestAccountScope(value: unknown) {
+  if (value && typeof value === "object" && "type" in value) {
+    const scope = value as { type?: unknown; accountId?: unknown }
+    if (scope.type === "single") return normalizeAccountScope(scope.accountId)
+    return normalizeAccountScope("all")
+  }
+  return normalizeAccountScope(value)
 }
 
 export function resolveExportPeriod(period: ExportRequest["period"] | undefined, now = new Date()): ResolvedExportPeriod | null {
@@ -377,6 +388,7 @@ export function buildExportSummary(bundle: ExportDataBundle): ExportSummary {
       includeQrCode: bundle.metadata.options.includeQrCode,
       includeAppLink: bundle.metadata.options.includeAppLink,
       includeGeneratedAt: bundle.metadata.options.includeGeneratedAt,
+      includeCbrRates: bundle.metadata.options.includeCbrRates,
       includeEmptySections: bundle.metadata.options.includeEmptySections,
       compactMode: bundle.metadata.options.compactMode,
       detailedMode: bundle.metadata.options.detailedMode,
@@ -622,6 +634,7 @@ function normalizeOptions(input: unknown):
     "includeQrCode",
     "includeAppLink",
     "includeGeneratedAt",
+    "includeCbrRates",
     "includeEmptySections",
     "compactMode",
     "detailedMode",

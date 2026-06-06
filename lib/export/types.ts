@@ -1,4 +1,5 @@
 import type { AnalyticsDto } from "@/lib/finance"
+import type { AccountScope } from "@/lib/accounts/account-scope"
 import {
   exportFormats,
   experimentalExportFormats,
@@ -55,6 +56,7 @@ export type ExportOptions = {
   includeQrCode?: boolean
   includeAppLink?: boolean
   includeGeneratedAt?: boolean
+  includeCbrRates?: boolean
   includeEmptySections?: boolean
   compactMode?: boolean
   detailedMode?: boolean
@@ -75,6 +77,7 @@ export type ExportRequest = {
   period?: ExportPeriod
   options?: ExportOptions
   chartSnapshots?: ExportChartSnapshot[]
+  accountScope?: AccountScope | string
 }
 
 export type ResolvedExportPeriod = {
@@ -93,6 +96,7 @@ export type NormalizedExportRequest = {
   period: ResolvedExportPeriod
   options: Required<ExportOptions>
   chartSnapshots: ExportChartSnapshot[]
+  accountScope: AccountScope
 }
 
 export type ExportValidationResult =
@@ -110,6 +114,11 @@ export type ExportAccount = {
   type: string
   balance: number
   currency: string
+  balanceDisplay?: number | null
+  currencyDisplay?: string | null
+  conversionStatus?: "same-currency" | "converted" | "unavailable"
+  rateSource?: string | null
+  rateDate?: string | null
   createdAt: string
 }
 
@@ -180,6 +189,16 @@ export type ExportMetadata = {
   orientation: "portrait" | "landscape"
   options: Required<ExportOptions>
   warnings: string[]
+  accountScope: {
+    type: "all" | "single"
+    accountId: string | null
+    accountName: string | null
+    accountCurrency: string | null
+    baseCurrency: string
+    conversionWarnings: string[]
+    rateSource?: "CBR"
+    rateDate?: string | null
+  }
 }
 
 export type ExportDataBundle = {
@@ -279,6 +298,7 @@ export type ExportSummary = {
     | "includeQrCode"
     | "includeAppLink"
     | "includeGeneratedAt"
+    | "includeCbrRates"
     | "includeEmptySections"
     | "compactMode"
     | "detailedMode"
@@ -313,11 +333,12 @@ export const defaultExportOptions: Required<ExportOptions> = {
   title: "Investment report",
   subtitle: "",
   language: "ru",
-  currency: "USD",
+  currency: "RUB",
   includeCharts: true,
   includeQrCode: true,
   includeAppLink: true,
   includeGeneratedAt: true,
+  includeCbrRates: true,
   includeEmptySections: false,
   compactMode: false,
   detailedMode: false,

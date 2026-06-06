@@ -57,13 +57,16 @@ export function withAuth<T>(handler: ApiHandler<T>) {
       return response
     } catch (error) {
       const errorStatus = typeof (error as any)?.status === 'number' ? (error as any).status : undefined
+      const errorStatusCode = errorStatus ?? (typeof (error as any)?.statusCode === 'number' ? (error as any).statusCode : undefined)
+      const errorCode = typeof (error as any)?.code === 'string' ? (error as any).code : undefined
+      const errorMessage = typeof (error as any)?.message === 'string' ? (error as any).message : undefined
 
-      if (errorStatus === 401) {
+      if (errorStatusCode === 401) {
         status = 401
         return apiError(ApiErrorCode.UNAUTHORIZED, 'Authentication required', { status: 401 })
       }
 
-      if (errorStatus === 403) {
+      if (errorStatusCode === 403) {
         status = 403
         return apiError(ApiErrorCode.FORBIDDEN, 'Forbidden', { status: 403 })
       }
@@ -78,6 +81,11 @@ export function withAuth<T>(handler: ApiHandler<T>) {
       if (error instanceof ApiError) {
         status = error.statusCode
         return apiError(error.code || getDefaultErrorCode(error.statusCode), error.message, { status: error.statusCode })
+      }
+
+      if (errorStatusCode) {
+        status = errorStatusCode
+        return apiError(errorCode || getDefaultErrorCode(errorStatusCode), errorMessage || 'Request failed', { status: errorStatusCode })
       }
 
       // Log and return 500 for unexpected errors

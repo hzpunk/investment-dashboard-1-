@@ -28,7 +28,7 @@ export async function invalidateUserDashboardCache(userId: string) {
     cacheKeys.userPortfolioAllocation(userId),
     cacheKeys.userPortfolioSummary(userId),
   ])
-  await delPatterns([cacheKeys.userAnalyticsPattern(userId)])
+  await delPatterns([cacheKeys.userAnalyticsPattern(userId), `${cacheKeys.userPortfolioSummary(userId)}*`])
   logInvalidation("user-dashboard", userId, count)
 }
 
@@ -39,7 +39,7 @@ export async function invalidateUserAccountsCache(userId: string) {
     cacheKeys.userPortfolioAllocation(userId),
     cacheKeys.userPortfolioSummary(userId),
   ])
-  await delPatterns([cacheKeys.userAnalyticsPattern(userId)])
+  await delPatterns([cacheKeys.userAnalyticsPattern(userId), `${cacheKeys.userPortfolioSummary(userId)}*`])
   logInvalidation("user-accounts", userId, count)
 }
 
@@ -51,7 +51,7 @@ export async function invalidateUserTransactionsCache(userId: string) {
     cacheKeys.userPortfolioAllocation(userId),
     cacheKeys.userPortfolioSummary(userId),
   ])
-  await delPatterns([cacheKeys.userAnalyticsPattern(userId)])
+  await delPatterns([cacheKeys.userAnalyticsPattern(userId), `${cacheKeys.userPortfolioSummary(userId)}*`])
   logInvalidation("user-transactions", userId, count)
 }
 
@@ -68,7 +68,7 @@ export async function invalidateUserPortfolioCache(userId: string, portfolioId?:
   }
 
   const count = await del(keys)
-  await delPatterns([cacheKeys.userAnalyticsPattern(userId)])
+  await delPatterns([cacheKeys.userAnalyticsPattern(userId), `${cacheKeys.userPortfolioSummary(userId)}*`])
   logInvalidation("user-portfolio", userId, count)
 }
 

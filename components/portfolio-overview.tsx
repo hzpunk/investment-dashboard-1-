@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowUpRight, ArrowDownRight, DollarSign, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/contexts/i18n-context"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
 
 interface PortfolioOverviewProps {
   className?: string
@@ -12,6 +13,7 @@ interface PortfolioOverviewProps {
   portfolioChangePercent?: number
   ytdReturn?: number
   allTimeReturn?: number
+  currency?: string
 }
 
 export function PortfolioOverview({
@@ -21,9 +23,17 @@ export function PortfolioOverview({
   portfolioChangePercent = 0,
   ytdReturn = 0,
   allTimeReturn = 0,
+  currency,
 }: PortfolioOverviewProps) {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
+  const { displayCurrency } = useDisplayCurrency()
+  const overviewCurrency = currency ?? displayCurrency
   const isPositive = portfolioChange >= 0
+  const moneyFormatter = new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
+    style: "currency",
+    currency: overviewCurrency,
+    maximumFractionDigits: 2,
+  })
 
   return (
     <Card className={cn("", className)}>
@@ -40,18 +50,14 @@ export function PortfolioOverview({
             </div>
             <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between">
               <p className="text-2xl sm:text-3xl font-bold">
-                ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {moneyFormatter.format(Number.isFinite(totalValue) ? totalValue : 0)}
               </p>
               <div
                 className={cn("flex items-center text-sm mt-1 sm:mt-0", isPositive ? "text-green-500" : "text-red-500")}
               >
                 {isPositive ? <ArrowUpRight className="mr-1 h-4 w-4" /> : <ArrowDownRight className="mr-1 h-4 w-4" />}
                 <span>
-                  $
-                  {Math.abs(portfolioChange).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {moneyFormatter.format(Math.abs(portfolioChange))}
                 </span>
                 <span className="ml-1">({portfolioChangePercent}%)</span>
               </div>

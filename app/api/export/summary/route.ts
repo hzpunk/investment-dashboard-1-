@@ -24,13 +24,16 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     return apiSuccess({ summary: buildExportSummary(prepared.bundle) }, { meta: { warnings: prepared.bundle.metadata.warnings } })
   } catch (error) {
     console.error("[Export] Failed:", error)
-    return apiError("EXPORT_GENERATION_FAILED", "Export generation failed", { status: 500 })
+    const code = typeof (error as { code?: unknown })?.code === "string" ? String((error as { code?: unknown }).code) : "EXPORT_GENERATION_FAILED"
+    return apiError(code, code === "ACCOUNT_NOT_FOUND" ? "Account not found" : "Export generation failed", { status: statusForCode(code) })
   }
 })
 
 function statusForCode(code: string) {
   if (code === "EXPORT_NO_SECTIONS_SELECTED" || code === "VALIDATION_ERROR") return 400
   if (code === "FORBIDDEN") return 403
+  if (code === "ACCOUNT_NOT_FOUND") return 404
+  if (code === "ACCOUNT_ACCESS_DENIED") return 403
   if (code === "EXPORT_FORMAT_NOT_SUPPORTED" || code === "EXPORT_FORMAT_NOT_IMPLEMENTED") return 422
   return 500
 }

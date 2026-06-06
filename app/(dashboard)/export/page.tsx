@@ -1,8 +1,9 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, CheckCircle2, Download, Eye, FileDown } from "lucide-react"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { AccountSwitcher } from "@/components/account-switcher"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useI18n } from "@/contexts/i18n-context"
+import { useSelectedAccount } from "@/hooks/use-selected-account"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
 import { apiFetch } from "@/lib/api-client"
 import {
   defaultExportOptions,
@@ -58,12 +61,15 @@ const sectionDescriptions: ExportSectionKey[] = [
 
 export default function DataExportPage() {
   const { t, locale } = useI18n()
+  const { scope, selectedAccount } = useSelectedAccount()
+  const { displayCurrency } = useDisplayCurrency()
   const [format, setFormat] = useState<ExportFormat>("pdf")
   const [sections, setSections] = useState<Record<ExportSectionKey, boolean>>({ ...defaultExportSections })
   const [period, setPeriod] = useState<ExportPeriod>({ type: "all" })
   const [options, setOptions] = useState<Required<ExportOptions>>({
     ...defaultExportOptions,
     language: locale === "en" ? "en" : "ru",
+    currency: displayCurrency,
     title: t("export.defaultTitle"),
   })
   const [summary, setSummary] = useState<ExportSummary | null>(null)
@@ -72,6 +78,11 @@ export default function DataExportPage() {
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [activePreviewSection, setActivePreviewSection] = useState<ExportSectionKey>("accounts")
+
+  useEffect(() => {
+    setOptions((current) => ({ ...current, currency: displayCurrency }))
+    setSummary(null)
+  }, [displayCurrency])
 
   const selectedSectionCount = useMemo(
     () => exportSectionKeys.filter((key) => key !== "metadata" && sections[key]).length,
@@ -87,8 +98,9 @@ export default function DataExportPage() {
       period,
       options,
       chartSnapshots: [],
+      accountScope: scope,
     }),
-    [format, options, period, sections],
+    [format, options, period, scope, sections],
   )
 
   const updateSection = (key: ExportSectionKey, value: boolean) => {
@@ -133,6 +145,7 @@ export default function DataExportPage() {
         includeQrCode: options.includeQrCode,
         includeAppLink: options.includeAppLink,
         includeGeneratedAt: options.includeGeneratedAt,
+        includeCbrRates: options.includeCbrRates,
         includeEmptySections: options.includeEmptySections,
         compactMode: options.compactMode,
         detailedMode: options.detailedMode,
@@ -206,6 +219,21 @@ export default function DataExportPage() {
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <div className="export-no-print export-controls space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("accounts.currentScope")}</CardTitle>
+              <CardDescription>{t("export.accountScope.description")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <AccountSwitcher />
+              <div className="rounded-md border border-border/70 px-3 py-2 text-sm text-muted-foreground">
+                {selectedAccount
+                  ? `${t("export.accountScope.selected")}: ${selectedAccount.name} (${selectedAccount.currency})`
+                  : t("export.accountScope.all")}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>{t("export.formats.title")}</CardTitle>
@@ -367,7 +395,7 @@ export default function DataExportPage() {
                   <Input value="A4" disabled />
                 </div>
               </div>
-              {(["includeCharts", "includeQrCode", "includeAppLink", "includeGeneratedAt", "includeEmptySections", "compactMode", "detailedMode"] as const).map((key) => (
+              {(["includeCharts", "includeQrCode", "includeAppLink", "includeGeneratedAt", "includeCbrRates", "includeEmptySections", "compactMode", "detailedMode"] as const).map((key) => (
                 <label key={key} className="flex items-center justify-between gap-4 rounded-md border border-border/70 px-3 py-2">
                   <span className="text-sm">{t(`export.options.${key}`)}</span>
                   <Switch checked={Boolean(options[key])} onCheckedChange={(checked) => updateOption(key, checked)} />
@@ -516,6 +544,7 @@ function ExportSummaryPanel({
     ["includeQrCode", summary.options.includeQrCode],
     ["includeAppLink", summary.options.includeAppLink],
     ["includeGeneratedAt", summary.options.includeGeneratedAt],
+    ["includeCbrRates", summary.options.includeCbrRates],
     ["includeEmptySections", summary.options.includeEmptySections],
     ["compactMode", summary.options.compactMode],
     ["detailedMode", summary.options.detailedMode],

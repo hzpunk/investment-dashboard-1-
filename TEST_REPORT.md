@@ -450,3 +450,108 @@ Validation result for this iteration:
 - `pnpm test`: 34 suites passed, 104 tests passed.
 - `pnpm typecheck`: passed.
 - `pnpm run build`: passed and includes `/export`, `/api/export`, `/api/export/summary`.
+
+## 2026-06-06 Account Scope, RUB and CBR Verification
+
+Added tests:
+
+- `__tests__/accounts/account-scope.test.ts`
+- `__tests__/api/account-scoped-analytics.test.ts`
+- `__tests__/currency/cbr-client.test.ts`
+- `__tests__/currency/conversion.test.ts`
+- `__tests__/currency/formatting.test.ts`
+
+Updated tests:
+
+- `__tests__/export/export-data.test.ts`
+- `__tests__/export/json-export.test.ts`
+- `__tests__/export/warnings.test.ts`
+- `__tests__/ui/ai-assistant.test.tsx`
+- `__tests__/ui/export-page.test.tsx`
+
+Covered behavior:
+
+- account scope normalization, query parameter generation and display labels;
+- selected-account analytics filters transactions/accounts by `accountId`;
+- all-accounts analytics omits the account filter and aggregates all user accounts;
+- single-account analytics ignores legacy `PortfolioAsset` rows because those rows are not account-linked;
+- RUB currency formatting for Russian locale;
+- CBR XML date formatting and XML parsing;
+- CBR nominal handling with `rubPerUnit = value / nominal`;
+- USD/EUR/RUB conversion paths and missing-rate behavior;
+- export collector account metadata and backward-compatible analytics fixtures;
+- AI assistant and export UI tests with explicit all-account scope.
+
+Validation result:
+
+- `pnpm run test:accounts`: 1 suite passed, 4 tests passed.
+- `pnpm run test:currency`: 3 suites passed, 10 tests passed.
+- `pnpm test -- __tests__/api/account-scoped-analytics.test.ts`: 1 suite passed, 2 tests passed.
+- `pnpm test`: 48 suites passed, 133 tests passed.
+- `pnpm typecheck`: passed.
+
+Final validation result:
+
+- `pnpm run test:accounts`: 1 suite passed, 4 tests passed.
+- `pnpm run test:currency`: 3 suites passed, 10 tests passed.
+- `pnpm test -- __tests__/api/account-scoped-analytics.test.ts`: 1 suite passed, 2 tests passed.
+- `pnpm test`: 48 suites passed, 133 tests passed.
+- `pnpm run test:i18n`: 1 suite passed, 3 tests passed.
+- `pnpm typecheck`: passed.
+- `pnpm run build`: passed and includes `/api/currency/rates`, `/api/analytics`, `/api/data/transactions`, `/api/export`, `/accounts`, `/dashboard`, `/analytics`, `/transactions`, and `/export`.
+- `docker compose -f docker-compose.server.yml build app`: passed.
+
+## 2026-06-06 Display Currency Verification
+
+Added tests:
+
+- `__tests__/currency/display-currency-context.test.tsx`
+- `__tests__/ui/currency-switcher.test.tsx`
+- `__tests__/ui/dashboard-currency-rates.test.tsx`
+
+Updated tests:
+
+- `__tests__/currency/formatting.test.ts`
+- `__tests__/currency/conversion.test.ts`
+- `__tests__/api/account-scoped-analytics.test.ts`
+- `__tests__/ui/ai-assistant.test.tsx`
+- `__tests__/ui/export-page.test.tsx`
+
+Covered behavior:
+
+- default display currency by locale and persisted `localStorage` selection;
+- top-bar currency switcher changing `RUB`, `USD`, and `EUR`;
+- reusable money formatting for RUB/USD/EUR;
+- CBR rates widget rendering `USD/RUB`, `EUR/RUB`, date, stale/error states and `/api/currency/rates?symbols=...` data flow;
+- analytics requests keyed by account scope and display currency;
+- calculators, export options and AI chat using the selected display currency;
+- corrected Russian currency i18n strings render as Cyrillic in the browser.
+
+Final validation result:
+
+- `pnpm run test:currency`: 4 suites passed, 14 tests passed.
+- `pnpm test`: 51 suites passed, 140 tests passed.
+- `pnpm run test:i18n`: 1 suite passed, 3 tests passed.
+- `pnpm typecheck`: passed.
+- `pnpm run build`: passed after stopping the temporary dev server and rebuilding from a clean `.next`.
+- `docker compose -f docker-compose.server.yml build app`: passed.
+- Browser smoke check: `/dashboard` renders the header display-currency switcher, RUB totals, and the `Курсы валют ЦБ` dashboard widget.
+
+## 2026-06-06 Currency Relabeling Regression
+
+Added tests:
+
+- `__tests__/currency/money-conversion.test.ts`
+- `__tests__/currency/sum-money.test.ts`
+- `__tests__/services/analytics-currency.test.ts`
+- `__tests__/ui/accounts-currency-display.test.tsx`
+
+Covered behavior:
+
+- `21 588.75 USD -> RUB` with USD/RUB `90` becomes `1 942 987.50 RUB`;
+- same-currency conversion preserves amount and marks `same-currency`;
+- RUB to USD and EUR to USD conversions route through RUB;
+- missing rates return unavailable conversion with display amount `0`, not a relabeled original amount;
+- summing mixed-currency money converts each row before aggregation;
+- transaction-derived analytics converts nested asset `currentPrice` before calculating holdings, P&L and performance chart points;
+- accounts UI shows native USD balance plus converted RUB equivalent and specifically does not show `21 588,75 ₽`.

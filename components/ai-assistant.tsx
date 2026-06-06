@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { apiFetch, getLocalizedApiError } from "@/lib/api-client"
+import { useSelectedAccount } from "@/hooks/use-selected-account"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
 import { cn } from "@/lib/utils"
 
 type ContextStatusValue = "available" | "partial" | "empty" | "unavailable"
@@ -63,6 +65,8 @@ function getContextLabels(status: ContextStatus | undefined, t: (key: string) =>
 
 export function AIAssistant() {
   const { t } = useI18n()
+  const { scope } = useSelectedAccount()
+  const { displayCurrency } = useDisplayCurrency()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -98,6 +102,8 @@ export function AIAssistant() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
+          accountScope: scope,
+          displayCurrency,
           messages: nextMessages
             .filter((message) => message.type !== "error")
             .map((message) => ({ role: message.role, content: message.content })),

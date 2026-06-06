@@ -2,7 +2,10 @@ import "server-only"
 
 import { prisma } from "@/lib/prisma"
 import { buildAnalyticsDto } from "@/lib/services/analytics"
+import type { ResolvedAccountScope } from "@/lib/accounts/account-scope.server"
 import type { AuthenticatedUser } from "@/lib/api-handler"
+import { convertMoney } from "@/lib/currency/conversion"
+import { getCbrCurrencyRates } from "@/lib/currency/rates"
 import { formatDate, formatDateTime } from "@/lib/format/date"
 import type {
   ExportAsset,
@@ -18,6 +21,7 @@ type CollectExportDataOptions = {
   userId: string
   user: AuthenticatedUser & { username?: string | null; role?: string | null }
   request: NormalizedExportRequest
+  accountScope: ResolvedAccountScope
   appUrl: string
   qrCodeDataUrl?: string | null
   qrCodeSvg?: string | null
@@ -26,13 +30,15 @@ type CollectExportDataOptions = {
 
 export async function collectExportData(options: CollectExportDataOptions): Promise<ExportDataBundle> {
   const { userId, user, request, appUrl } = options
+  const accountScope = options.accountScope
   const warnings = [...(options.initialWarnings ?? [])]
   const sections = request.sections
   const includeAnalytics =
     sections.portfolioSummary ||
     sections.analytics ||
     (sections.allocationChart && request.options.includeCharts) ||
-    (sections.performanceChart && request.options.includeCharts)
+    (sections.performanceChart && request.options.includeCharts) ||
+    (accountScope.type === "single" && sections.holdings)
 
   const [profile, accountsRaw, portfoliosRaw, transactionsRaw, analytics, auditLogSummary] = await Promise.all([
     prisma.user.findUnique({
@@ -45,7 +51,7 @@ export async function collectExportData(options: CollectExportDataOptions): Prom
     }),
     sections.accounts
       ? prisma.account.findMany({
-          where: { userId },
+          where: { userId, ...accountScope.accountWhere },
           select: { name: true, type: true, balance: true, currency: true, createdAt: true },
           orderBy: { createdAt: "asc" },
           take: 1000,
@@ -53,7 +59,7 @@ export async function collectExportData(options: CollectExportDataOptions): Prom
       : Promise.resolve([]),
     sections.holdings || sections.assets
       ? prisma.portfolio.findMany({
-          where: { userId },
+          where: accountScope.type === "single" ? { userId, id: "__account_scoped_holdings_are_transaction_derived__" } : { userId },
           select: {
             name: true,
             assets: {
@@ -80,6 +86,7 @@ export async function collectExportData(options: CollectExportDataOptions): Prom
       ? prisma.transaction.findMany({
           where: {
             userId,
+            ...accountScope.transactionWhere,
             date: {
               gte: request.period.fromDate,
               lte: request.period.toDate,
@@ -110,7 +117,7 @@ export async function collectExportData(options: CollectExportDataOptions): Prom
           take: 10000,
         })
       : Promise.resolve([]),
-    includeAnalytics ? buildAnalyticsDto(userId, { fromDate: request.period.fromDate, toDate: request.period.toDate }) : Promise.resolve(null),
+    includeAnalytics ? buildAnalyticsDto(userId, { fromDate: request.period.fromDate, toDate: request.period.toDate, accountScope, displayCurrency: request.options.currency }) : Promise.resolve(null),
     sections.auditLogSummary ? collectAuditSummary(userId, user.role ?? "user") : Promise.resolve(null),
   ])
 
@@ -118,27 +125,73 @@ export async function collectExportData(options: CollectExportDataOptions): Prom
     warnings.push("ADMIN_SECTION_SKIPPED:auditLogSummary")
   }
 
-  const accounts = accountsRaw.map((account) => ({
-    name: account.name,
-    type: account.type,
-    balance: account.balance,
-    currency: account.currency,
-    createdAt: account.createdAt.toISOString(),
-  }))
+  const accountDisplayCurrency = request.options.currency.toUpperCase()
+  const needsAccountRates = accountsRaw.some((account) => (account.currency || accountDisplayCurrency).toUpperCase() !== accountDisplayCurrency)
+  const accountRates = needsAccountRates ? await getCbrCurrencyRates(request.period.toDate) : null
+  if (needsAccountRates && !accountRates) {
+    warnings.push("CURRENCY_RATE_UNAVAILABLE")
+  }
+  const accounts = accountsRaw.map((account) => {
+    const originalCurrency = (account.currency || accountDisplayCurrency).toUpperCase()
+    const converted =
+      originalCurrency === accountDisplayCurrency
+        ? null
+        : accountRates
+          ? convertMoney({ amount: account.balance, currency: originalCurrency }, accountDisplayCurrency, accountRates.rates, {
+              stale: accountRates.stale,
+            })
+          : null
 
-  const holdings = portfoliosRaw.flatMap((portfolio): ExportHolding[] =>
-    portfolio.assets.map((holding) => ({
-      portfolio: portfolio.name,
-      symbol: holding.asset.symbol,
-      name: holding.asset.name,
-      type: holding.asset.type,
-      quantity: holding.quantity,
-      averageBuyPrice: holding.averageBuyPrice,
-      currentPrice: holding.asset.currentPrice,
-      marketValue: Number((holding.quantity * holding.asset.currentPrice).toFixed(2)),
-      currency: holding.asset.currency,
-    })),
-  )
+    return {
+      name: account.name,
+      type: account.type,
+      balance: account.balance,
+      currency: account.currency,
+      balanceDisplay:
+        originalCurrency === accountDisplayCurrency
+          ? account.balance
+          : converted && !converted.error
+            ? converted.converted.amount
+            : null,
+      currencyDisplay: accountDisplayCurrency,
+      conversionStatus:
+        originalCurrency === accountDisplayCurrency
+          ? ("same-currency" as const)
+          : converted && !converted.error
+            ? ("converted" as const)
+            : ("unavailable" as const),
+      rateSource: converted && !converted.error ? converted.source ?? "CBR" : null,
+      rateDate: converted && !converted.error ? converted.rateDate ?? accountRates?.date ?? null : null,
+      createdAt: account.createdAt.toISOString(),
+    }
+  })
+
+  const holdings: ExportHolding[] =
+    accountScope.type === "single"
+      ? (analytics?.positions ?? []).map((position) => ({
+          portfolio: accountScope.account?.name ?? "Account",
+          symbol: position.symbol,
+          name: position.name,
+          type: position.type,
+          quantity: position.quantity,
+          averageBuyPrice: position.averageBuyPrice,
+          currentPrice: position.currentPrice,
+          marketValue: position.marketValue,
+          currency: position.currency,
+        }))
+      : portfoliosRaw.flatMap((portfolio): ExportHolding[] =>
+          portfolio.assets.map((holding) => ({
+            portfolio: portfolio.name,
+            symbol: holding.asset.symbol,
+            name: holding.asset.name,
+            type: holding.asset.type,
+            quantity: holding.quantity,
+            averageBuyPrice: holding.averageBuyPrice,
+            currentPrice: holding.asset.currentPrice,
+            marketValue: Number((holding.quantity * holding.asset.currentPrice).toFixed(2)),
+            currency: holding.asset.currency,
+          })),
+        )
 
   const transactions = transactionsRaw.map((transaction): ExportTransaction => ({
     date: transaction.date.toISOString(),
@@ -180,11 +233,21 @@ export async function collectExportData(options: CollectExportDataOptions): Prom
       .map(([key]) => key as ExportMetadata["selectedSections"][number]),
     format: request.format,
     language: request.options.language,
-    currency: request.options.currency,
+    currency: analytics?.currency?.baseCurrency ?? request.options.currency,
     pageSize: request.options.pageSize,
     orientation: request.options.orientation,
     options: request.options,
     warnings,
+    accountScope: {
+      type: accountScope.type,
+      accountId: accountScope.accountId,
+      accountName: accountScope.account?.name ?? null,
+      accountCurrency: accountScope.account?.currency ?? null,
+      baseCurrency: analytics?.currency?.baseCurrency ?? request.options.currency,
+      conversionWarnings: analytics?.currency?.warnings ?? [],
+      rateSource: "CBR",
+      rateDate: analytics?.currency?.rateDate ?? null,
+    },
   }
 
   return {

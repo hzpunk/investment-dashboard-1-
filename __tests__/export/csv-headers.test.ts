@@ -18,7 +18,7 @@ describe("CSV export headers", () => {
 
     const body = String(file.body)
     expect(body).toContain("Счета")
-    expect(body).toContain("Название;Тип;Баланс;Валюта;Дата создания")
+    expect(body).toContain("Название;Тип;Баланс в валюте счёта;Валюта счёта;Валюта отображения;Дата создания")
     expect(body).toContain("Брокерский счёт")
     expect(body).not.toContain("name;type;balance;currency;createdAt")
   })

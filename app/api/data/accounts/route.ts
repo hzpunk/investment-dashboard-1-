@@ -43,7 +43,7 @@ export const POST = withAuth(async (request: NextRequest, user): Promise<any> =>
         name,
         type,
         balance: balance || 0,
-        currency: currency || 'USD',
+        currency: currency || 'RUB',
         userId: user.id,
       },
     })

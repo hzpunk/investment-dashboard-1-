@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import { createAccount, deleteAccount, type Account } from "@/entities/account/api"
 import { useI18n } from "@/contexts/i18n-context"
+import { useDisplayCurrency } from "@/hooks/use-display-currency"
 import { getAccountTypeLabel } from "@/lib/i18n-display"
 
 interface AccountsListProps {
@@ -30,11 +31,12 @@ interface AccountsListProps {
 export function AccountsList({ className, accounts = [] }: AccountsListProps) {
   const { user } = useAuth()
   const { t } = useI18n()
+  const { displayCurrency } = useDisplayCurrency()
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [newAccount, setNewAccount] = useState<Partial<Account>>({
     type: "brokerage",
-    currency: "USD",
+    currency: displayCurrency,
   })
 
   const handleAddAccount = async () => {
@@ -50,7 +52,7 @@ export function AccountsList({ className, accounts = [] }: AccountsListProps) {
         name: newAccount.name,
         type: newAccount.type as any,
         balance: newAccount.balance || 0,
-        currency: newAccount.currency || "USD",
+        currency: newAccount.currency || displayCurrency,
       })
 
       // Refresh the page to show the new account
@@ -154,6 +156,7 @@ export function AccountsList({ className, accounts = [] }: AccountsListProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="RUB">RUB</SelectItem>
                     <SelectItem value="EUR">EUR</SelectItem>
                     <SelectItem value="GBP">GBP</SelectItem>
                     <SelectItem value="JPY">JPY</SelectItem>

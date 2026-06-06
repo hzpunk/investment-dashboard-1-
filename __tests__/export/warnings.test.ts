@@ -120,6 +120,15 @@ describe("export summary warnings", () => {
             scenarios: [{ id: "base", annualReturnPercent: 8, finalValue: 1, inflationAdjustedFinalValue: 1, points: [] }],
           },
           period: { from: "2026-06-01T00:00:00.000Z", to: "2026-06-04T00:00:00.000Z" },
+          currency: {
+            baseCurrency: "USD",
+            conversionApplied: false,
+            conversionStatus: "not_required",
+            rateSource: "CBR",
+            rateDate: null,
+            stale: false,
+            warnings: [],
+          },
         },
       }),
     )

@@ -4,6 +4,7 @@ import { fetchAnalytics } from "@/entities/analytics/api"
 import { fetchGoals } from "@/entities/goal/api"
 import { fetchPortfolioAllocation, fetchPortfolioWithAssets, fetchPortfolios } from "@/entities/portfolio/api"
 import { fetchRecentTransactions, fetchTransactions } from "@/entities/transaction/api"
+import { accountScopeKey, type AccountScope } from "@/lib/accounts/account-scope"
 
 export const queryKeys = {
   accounts: (userId: string) => ["accounts", userId] as const,
@@ -11,11 +12,11 @@ export const queryKeys = {
   dashboardPerformance: (userId: string) => ["dashboard-performance", userId] as const,
   goals: (userId: string) => ["goals", userId] as const,
   portfolio: (userId: string, portfolioId: string) => ["portfolio", userId, portfolioId] as const,
-  portfolioAllocation: (userId: string) => ["portfolio-allocation", userId] as const,
+  portfolioAllocation: (userId: string, scope?: AccountScope) => ["portfolio-allocation", userId, scope ? accountScopeKey(scope) : "all"] as const,
   portfolios: (userId: string) => ["portfolios", userId] as const,
-  recentTransactions: (userId: string, limit: number) => ["transactions", userId, "recent", limit] as const,
-  transactions: (userId: string) => ["transactions", userId, "all"] as const,
-  analytics: (userId: string) => ["analytics", userId] as const,
+  recentTransactions: (userId: string, limit: number, scope?: AccountScope) => ["transactions", userId, "recent", limit, scope ? accountScopeKey(scope) : "all"] as const,
+  transactions: (userId: string, scope?: AccountScope) => ["transactions", userId, "all", scope ? accountScopeKey(scope) : "all"] as const,
+  analytics: (userId: string, scope?: AccountScope, displayCurrency?: string) => ["analytics", userId, scope ? accountScopeKey(scope) : "all", displayCurrency ?? "RUB"] as const,
 }
 
 const minute = 60 * 1000
@@ -62,18 +63,18 @@ export function goalsQuery(userId: string) {
   }
 }
 
-export function recentTransactionsQuery(userId: string, limit = 5) {
+export function recentTransactionsQuery(userId: string, limit = 5, scope?: AccountScope) {
   return {
-    queryKey: queryKeys.recentTransactions(userId, limit),
-    queryFn: () => fetchRecentTransactions(userId, limit),
+    queryKey: queryKeys.recentTransactions(userId, limit, scope),
+    queryFn: () => fetchRecentTransactions(userId, limit, scope),
     ...privateDataCache,
   }
 }
 
-export function transactionsQuery(userId: string) {
+export function transactionsQuery(userId: string, scope?: AccountScope) {
   return {
-    queryKey: queryKeys.transactions(userId),
-    queryFn: () => fetchTransactions(userId),
+    queryKey: queryKeys.transactions(userId, scope),
+    queryFn: () => fetchTransactions(userId, scope),
     ...privateDataCache,
   }
 }
@@ -94,10 +95,10 @@ export function portfolioQuery(userId: string, portfolioId: string) {
   }
 }
 
-export function portfolioAllocationQuery(userId: string) {
+export function portfolioAllocationQuery(userId: string, scope?: AccountScope) {
   return {
-    queryKey: queryKeys.portfolioAllocation(userId),
-    queryFn: fetchPortfolioAllocation,
+    queryKey: queryKeys.portfolioAllocation(userId, scope),
+    queryFn: () => fetchPortfolioAllocation(scope),
     ...privateDataCache,
   }
 }
@@ -113,10 +114,10 @@ export function dashboardPerformanceQuery(userId: string) {
   }
 }
 
-export function analyticsQuery(userId: string) {
+export function analyticsQuery(userId: string, scope?: AccountScope, displayCurrency?: string) {
   return {
-    queryKey: queryKeys.analytics(userId),
-    queryFn: () => fetchAnalytics(),
+    queryKey: queryKeys.analytics(userId, scope, displayCurrency),
+    queryFn: () => fetchAnalytics({ accountScope: scope, displayCurrency }),
     ...privateDataCache,
   }
 }

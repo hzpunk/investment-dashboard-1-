@@ -1,5 +1,6 @@
 import { invalidateUserTransactionsCache } from "@/lib/cache-invalidation"
 import { withAuth, errorResponse, successResponse, parsePagination } from "@/lib/api-handler"
+import { readAccountScopeFromSearchParams, resolveAccountScopeForUser } from "@/lib/accounts/account-scope.server"
 import { prisma } from "@/lib/prisma"
 
 const transactionTypes = new Set(["buy", "sell", "dividend", "interest", "deposit", "withdrawal"])
@@ -20,10 +21,13 @@ function numericValue(value: unknown): number | null {
 }
 
 export const GET = withAuth(async (request, user) => {
-  const { limit } = parsePagination(new URL(request.url).searchParams)
+  const searchParams = new URL(request.url).searchParams
+  const { limit } = parsePagination(searchParams)
+  const accountScopeInput = readAccountScopeFromSearchParams(searchParams)
+  const accountScope = await resolveAccountScopeForUser(user.id, accountScopeInput.type === "single" ? accountScopeInput.accountId : "all")
 
   const transactions = await prisma.transaction.findMany({
-    where: { userId: user.id },
+    where: { userId: user.id, ...accountScope.transactionWhere },
     include: {
       account: { select: { id: true, name: true } },
       asset: { select: { id: true, symbol: true, name: true, type: true } },
@@ -45,7 +49,7 @@ export const POST = withAuth(async (request, user) => {
   const quantity = numericValue(data?.quantity)
   const pricePerUnit = numericValue(data?.pricePerUnit ?? data?.price_per_unit)
   const fee = numericValue(data?.fee) ?? 0
-  const currency = typeof data?.currency === "string" && data.currency.trim() ? data.currency.trim().toUpperCase() : "USD"
+  const currency = typeof data?.currency === "string" && data.currency.trim() ? data.currency.trim().toUpperCase() : "RUB"
   const notes = typeof data?.notes === "string" && data.notes.trim() ? data.notes.trim() : null
   const date = data?.date ? new Date(data.date) : new Date()
 
